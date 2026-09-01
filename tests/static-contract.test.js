@@ -21,6 +21,16 @@ const nativeTags = [
 assert.deepStrictEqual(app.tabBar.list.map((item) => item.text), ['首页', '轻体营', '内容', '轻友', '我的'])
 assert.strictEqual(new Set(app.pages).size, app.pages.length, '页面不能重复注册')
 
+const contentPage = fs.readFileSync(path.join(root, 'pages/content/index.wxml'), 'utf8')
+const friendsPage = fs.readFileSync(path.join(root, 'pages/friends/index.wxml'), 'utf8')
+const minePage = fs.readFileSync(path.join(root, 'pages/mine/index.wxml'), 'utf8')
+assert.ok(contentPage.includes('article-footer') && contentPage.includes('阅读全文'), '文章卡片需保留摘要后的阅读入口')
+assert.ok(contentPage.includes('concern-grid') && contentPage.includes('directory-panel'), '按问题找需使用聚合式双层结构')
+assert.ok(!friendsPage.includes('＋ 发布'), '轻友页不能保留重复发布入口')
+assert.ok(friendsPage.includes('comment-panel'), '评论需在动态卡片内展开')
+assert.ok(minePage.includes('journey-timeline'), '我的页面需展示参与经历时间轴')
+assert.ok(!minePage.includes('我的轻习惯') && !minePage.includes('切换演示阶段'), '我的页面不能展示轻习惯或演示控制')
+
 for (const page of app.pages) {
   const base = path.join(root, page)
   for (const extension of ['.js', '.json', '.wxml', '.wxss']) {

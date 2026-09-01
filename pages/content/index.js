@@ -11,7 +11,7 @@ Page({
     articles: [],
     visibleArticles: [],
     hierarchy: demo.hierarchy,
-    selectedConcern: null,
+    selectedConcern: demo.hierarchy[0],
     notices: [
       { id: 'notice-1', title: '三日轻体营集合与携带物品提醒', note: '完整地点仅向已报名轻友展示。' },
       { id: 'notice-2', title: '本周拍打练习更新', note: '内容由运营人员维护并控制上下架。' }
@@ -41,7 +41,11 @@ Page({
   },
 
   setMode(event) {
-    this.setData({ mode: event.currentTarget.dataset.mode, selectedConcern: null })
+    const mode = event.currentTarget.dataset.mode
+    this.setData({
+      mode,
+      selectedConcern: mode === 'directory' ? (this.data.selectedConcern || this.data.hierarchy[0]) : this.data.selectedConcern
+    })
   },
 
   onQueryInput(event) {

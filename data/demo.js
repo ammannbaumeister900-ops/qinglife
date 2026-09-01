@@ -97,10 +97,50 @@ const articles = [
 ]
 
 const hierarchy = [
-  { id: 'upper', title: '久坐与上肢不适', note: '肩颈、手臂和手腕的日常紧绷', region: '后颈两侧、肩部与上背', points: '风池、肩井、内关', reminder: '避开颈椎正中和明显疼痛处，力度要轻。' },
-  { id: 'digest', title: '饮食与腹部感受', note: '饭后胀满、食欲与腹部紧张', region: '腹部周围与小腿外侧', points: '中脘、足三里', reminder: '饭后不要立即用力拍打腹部。' },
-  { id: 'lower', title: '腰背与下肢疲劳', note: '久站、走路后或身体下半段发紧', region: '腰背肌肉两侧、大腿与小腿', points: '足三里、阳陵泉、涌泉', reminder: '急性疼痛、红肿热痛时停止练习并寻求评估。' },
-  { id: 'relax', title: '睡前与情绪放松', note: '难安静下来、精神疲惫与睡前紧张', region: '前臂内侧、腕部与足底', points: '内关、神门、涌泉', reminder: '只做舒缓练习；长期睡眠问题需要专业评估。' }
+  {
+    id: 'upper',
+    shortTitle: '肩颈久坐',
+    scene: '坐久了，肩颈有点紧',
+    title: '久坐与上肢不适',
+    note: '肩颈、手臂和手腕的日常紧绷',
+    subtopics: ['后颈发紧', '肩背酸胀', '手臂疲劳'],
+    region: '后颈两侧、肩部与上背',
+    points: '风池、肩井、内关',
+    reminder: '避开颈椎正中和明显疼痛处，力度要轻。'
+  },
+  {
+    id: 'digest',
+    shortTitle: '饮食腹部',
+    scene: '吃过饭，腹部不太轻松',
+    title: '饮食与腹部感受',
+    note: '饭后胀满、食欲与腹部紧张',
+    subtopics: ['饭后胀满', '腹部紧张', '食欲波动'],
+    region: '腹部周围与小腿外侧',
+    points: '中脘、足三里',
+    reminder: '饭后不要立即用力拍打腹部。'
+  },
+  {
+    id: 'lower',
+    shortTitle: '腰背下肢',
+    scene: '走了一天，腰腿想歇一歇',
+    title: '腰背与下肢疲劳',
+    note: '久站、走路后或身体下半段发紧',
+    subtopics: ['腰背发紧', '腿部疲劳', '足底沉重'],
+    region: '腰背肌肉两侧、大腿与小腿',
+    points: '足三里、阳陵泉、涌泉',
+    reminder: '急性疼痛、红肿热痛时停止练习并寻求评估。'
+  },
+  {
+    id: 'relax',
+    shortTitle: '睡前放松',
+    scene: '夜深了，身体还没慢下来',
+    title: '睡前与情绪放松',
+    note: '难安静下来、精神疲惫与睡前紧张',
+    subtopics: ['难以安静', '精神疲惫', '睡前紧张'],
+    region: '前臂内侧、腕部与足底',
+    points: '内关、神门、涌泉',
+    reminder: '只做舒缓练习；长期睡眠问题需要专业评估。'
+  }
 ]
 
 const legacyPosts = [

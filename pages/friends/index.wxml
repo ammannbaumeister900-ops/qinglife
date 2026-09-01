@@ -17,7 +17,6 @@
 
   <view class="section-head">
     <view><view class="section-title">轻友动态</view><view class="section-note">公开分享 · 友善回应</view></view>
-    <button class="publish-button" bindtap="compose">＋ 发布</button>
   </view>
 
   <view wx:if="{{!state.loggedIn}}" class="card mist">
@@ -33,7 +32,12 @@
     <view class="post-content" data-id="{{item.id}}" bindtap="openPost">{{item.content}}</view>
     <view class="post-actions">
       <button class="action-button {{item.liked ? 'active' : ''}}" data-id="{{item.id}}" bindtap="toggleLike">{{item.liked ? '♥' : '♡'}} {{item.likes}}</button>
-      <button class="action-button" data-id="{{item.id}}" bindtap="openPost">◌ {{item.comments.length}}</button>
+      <button class="action-button comment-button {{item.commentsOpen ? 'active' : ''}}" data-id="{{item.id}}" bindtap="toggleComments"><view class="comment-icon"></view><text>{{item.comments.length}}</text></button>
+    </view>
+    <view wx:if="{{item.commentsOpen}}" class="comment-panel">
+      <view wx:for="{{item.comments}}" wx:for-item="comment" wx:key="index" class="comment-row"><text class="comment-author">{{comment.author}}</text><text class="comment-content">{{comment.content}}</text></view>
+      <view wx:if="{{!item.comments.length}}" class="comment-empty">还没有回应，温柔地说第一句吧。</view>
+      <view class="comment-compose"><input class="comment-input" value="{{commentText}}" maxlength="100" placeholder="写一句友善回应" bindinput="onCommentInput"/><button class="comment-submit" data-id="{{item.id}}" bindtap="addComment">回应</button></view>
     </view>
   </view>
 </view>

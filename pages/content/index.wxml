@@ -21,18 +21,19 @@
       <view class="card-copy">可以换一个关键词，或使用“按问题找”。</view>
       <button class="secondary" data-mode="directory" bindtap="setMode">去按问题找</button>
     </view>
-    <view wx:for="{{visibleArticles}}" wx:key="id" class="card" data-id="{{item.id}}" bindtap="openArticle">
+    <view wx:for="{{visibleArticles}}" wx:key="id" class="card article-card" data-id="{{item.id}}" bindtap="openArticle">
       <view class="pill">{{item.category}}</view><view class="card-title">{{item.title}}</view><view class="card-copy">{{item.summary}}</view>
+      <view class="article-footer"><text>{{item.author}}</text><text class="read-more">阅读全文 ›</text></view>
     </view>
   </block>
 
   <block wx:elif="{{mode === 'recommend'}}">
     <view class="section-head"><view class="section-title">慢慢读</view><view class="section-note">文章与日常陪伴</view></view>
-    <view wx:for="{{visibleArticles}}" wx:key="id" class="card {{index % 3 === 0 ? 'sage' : index % 3 === 1 ? 'mist' : 'lavender'}}" data-id="{{item.id}}" bindtap="openArticle">
+    <view wx:for="{{visibleArticles}}" wx:key="id" class="card article-card {{index % 3 === 0 ? 'sage' : index % 3 === 1 ? 'mist' : 'lavender'}}" data-id="{{item.id}}" bindtap="openArticle">
       <view class="pill">{{item.category}}</view>
       <view class="card-title">{{item.title}}</view>
       <view class="card-copy">{{item.summary}}</view>
-      <view class="section-note">{{item.author}} · 阅读全文 ›</view>
+      <view class="article-footer"><text>{{item.author}}</text><text class="read-more">阅读全文 ›</text></view>
     </view>
 
     <view class="section-head"><view class="section-title">通告</view><view class="section-note">按权限展示</view></view>
@@ -51,15 +52,23 @@
   </block>
 
   <block wx:else>
-    <view class="hero"><view class="eyebrow">BODY CONTENT DIRECTORY</view><view class="hero-title">不知道拍哪里时，先从此刻的感受开始。</view><view class="hero-copy">困扰 → 区域与穴位 → 练习。仅用于日常内容导航，不构成医学诊断。</view></view>
-    <view wx:for="{{hierarchy}}" wx:key="id" class="card" data-id="{{item.id}}" bindtap="selectConcern">
-      <view class="eyebrow">0{{index + 1}}</view><view class="card-title">{{item.title}}</view><view class="card-copy">{{item.note}}</view>
+    <view class="directory-hero">
+      <view class="directory-copy"><view class="eyebrow">从此刻的感受开始</view><view class="directory-title">今天，身体哪里想被照顾？</view><view class="directory-note">先选择接近的状态，再慢慢找到适合的内容。</view></view>
+      <view class="scene-art"><view class="scene-sun"></view><view class="scene-leaf scene-leaf-one"></view><view class="scene-leaf scene-leaf-two"></view></view>
     </view>
-    <view wx:if="{{selectedConcern}}" class="card sage">
-      <view class="pill">当前选择</view>
-      <view class="card-title">{{selectedConcern.title}}</view>
-      <view class="list-row"><view class="list-main"><text class="list-title">建议先了解的区域</text><text class="list-note">{{selectedConcern.region}}</text></view></view>
-      <view class="list-row"><view class="list-main"><text class="list-title">相关穴位定位内容</text><text class="list-note">{{selectedConcern.points}}</text></view></view>
+
+    <view class="concern-grid">
+      <button wx:for="{{hierarchy}}" wx:key="id" class="concern-tab {{selectedConcern.id === item.id ? 'active' : ''}}" data-id="{{item.id}}" bindtap="selectConcern">
+        <text class="concern-number">0{{index + 1}}</text><text class="concern-name">{{item.shortTitle}}</text>
+      </button>
+    </view>
+
+    <view wx:if="{{selectedConcern}}" class="directory-panel">
+      <view class="panel-head"><view><view class="eyebrow">{{selectedConcern.shortTitle}}</view><view class="panel-title">{{selectedConcern.scene}}</view></view><view class="panel-mark">轻</view></view>
+      <view class="subtopic-list">
+        <view wx:for="{{selectedConcern.subtopics}}" wx:key="*this" class="subtopic-row"><view class="subtopic-dot"></view><text>{{item}}</text></view>
+      </view>
+      <view class="guide-summary"><view><text class="guide-label">建议先了解</text><text class="guide-text">{{selectedConcern.region}} · {{selectedConcern.points}}</text></view><button class="guide-action" data-mode="recommend" bindtap="setMode">查看相关文章</button></view>
       <view class="privacy-note">{{selectedConcern.reminder}}</view>
     </view>
   </block>

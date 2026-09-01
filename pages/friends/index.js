@@ -6,7 +6,9 @@ Page({
     state: {},
     posts: [],
     dailyTitle: '',
-    dailySaved: false
+    dailySaved: false,
+    expandedPostId: '',
+    commentText: ''
   },
 
   onShow() {
@@ -21,7 +23,11 @@ Page({
     const dailyTitle = state.stage === 'refeed' ? '今天让饮食保持简单' : '给今天留一句话'
     this.setData({
       state,
-      posts: state.newPosts.map((post) => ({ ...post, reported: state.reportedPostIds.includes(post.id) })),
+      posts: state.newPosts.map((post) => ({
+        ...post,
+        reported: state.reportedPostIds.includes(post.id),
+        commentsOpen: post.id === this.data.expandedPostId
+      })),
       dailyTitle,
       dailySaved: !!state.dailyRecords[dailyKey]
     })
@@ -31,13 +37,6 @@ Page({
     const state = store.getState()
     if (!state.phoneLinked) return navigation.navigateTo({ url: '/pages/mine-flow/index?view=auth&next=daily' })
     navigation.navigateTo({ url: '/pages/friend-flow/index?view=daily' })
-  },
-
-  compose() {
-    const state = store.getState()
-    if (!state.phoneLinked) return navigation.navigateTo({ url: '/pages/mine-flow/index?view=auth&next=compose' })
-    if (state.profile.minor) return wx.showToast({ title: '未成年人暂不开放社区发布', icon: 'none' })
-    navigation.navigateTo({ url: '/pages/friend-flow/index?view=compose' })
   },
 
   openArchive() {
@@ -58,6 +57,35 @@ Page({
       }
       return state
     })
+    this.refresh()
+  },
+
+  toggleComments(event) {
+    const id = event.currentTarget.dataset.id
+    this.setData({
+      expandedPostId: this.data.expandedPostId === id ? '' : id,
+      commentText: ''
+    })
+    this.refresh()
+  },
+
+  onCommentInput(event) {
+    this.setData({ commentText: event.detail.value })
+  },
+
+  addComment(event) {
+    const state = store.getState()
+    if (!state.phoneLinked) return navigation.navigateTo({ url: '/pages/mine-flow/index?view=auth&next=friends' })
+    if (state.profile.minor) return wx.showToast({ title: '未成年人暂不开放评论', icon: 'none' })
+    const content = this.data.commentText.trim()
+    if (!content) return wx.showToast({ title: '请写一句友善回应', icon: 'none' })
+    const id = event.currentTarget.dataset.id
+    store.updateState((next) => {
+      const post = next.newPosts.find((item) => item.id === id)
+      if (post) post.comments.push({ author: next.profile.nickname || next.profile.name, content })
+      return next
+    })
+    this.setData({ expandedPostId: id, commentText: '' })
     this.refresh()
   }
 })
