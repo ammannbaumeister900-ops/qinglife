@@ -1,5 +1,5 @@
 <launch-splash />
-<view class="page">
+<view class="page friend-flow-page editorial-page">
   <block wx:if="{{view === 'daily'}}">
     <view class="hero"><view class="eyebrow">PRIVATE RECORD</view><view class="hero-title">{{dailyTitle}}</view><view class="hero-copy">完成、换成轻量版本或休息都可以。记录默认仅自己可见。</view></view>
     <view class="card clay">

@@ -1,5 +1,5 @@
 <launch-splash />
-<view class="page">
+<view class="page mine-page editorial-page">
   <view class="profile-head">
     <view class="profile-avatar">{{avatarText}}</view>
     <view class="list-main">
@@ -16,16 +16,16 @@
 
   <view class="section-head timeline-head"><view><view class="eyebrow">MY JOURNEY</view><view class="section-title">我与轻生活的相遇</view></view><view class="section-note">按参与经历沉淀</view></view>
   <view wx:if="{{participationTimeline.length}}" class="journey-timeline">
-    <view wx:for="{{participationTimeline}}" wx:key="marker" class="timeline-item">
+    <view wx:for="{{participationTimeline}}" wx:key="id" class="timeline-item" data-view="experience" data-id="{{item.id}}" bindtap="openFlow">
       <view class="timeline-axis"><view class="timeline-dot"></view><view wx:if="{{index < participationTimeline.length - 1}}" class="timeline-line"></view></view>
       <view class="timeline-content">
         <view class="timeline-meta"><text class="timeline-marker">{{item.marker}}</text><text class="timeline-status">{{item.status}}</text></view>
         <view class="timeline-title">{{item.title}}</view>
         <view class="timeline-place">{{item.meta}}</view>
-        <view class="timeline-note">{{item.note}}</view>
+        <view class="timeline-note">{{item.summary}}</view>
+        <view class="timeline-link">查看这期经历 <text>›</text></view>
       </view>
     </view>
-    <button class="journey-action" data-view="experience" bindtap="openFlow">查看完整参与经历 <text>›</text></button>
   </view>
   <view wx:else class="card mist"><view class="card-title">你的轻生活经历，会从这里开始。</view><button class="secondary" bindtap="openCamp">看看近期轻体营</button></view>
 

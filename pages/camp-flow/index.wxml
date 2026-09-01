@@ -1,5 +1,5 @@
 <launch-splash />
-<view class="page">
+<view class="page camp-flow-page editorial-page">
   <block wx:if="{{view === 'detail'}}">
     <view class="hero">
       <view class="eyebrow">THREE DAY EXPERIENCE · 第 {{activity.sessionNumber}} 期</view>

@@ -310,9 +310,98 @@ button::after {
 
 .safe-bottom { height: 40rpx; }
 
+/* 首页与轻体营确立的编辑感视觉体系，供其余频道与二级页面复用。 */
+.editorial-page {
+  position: relative;
+  padding-top: 44rpx;
+  background:
+    radial-gradient(circle at 94% 4%, rgba(216, 193, 173, 0.30), transparent 27%),
+    radial-gradient(circle at 1% 48%, rgba(166, 182, 162, 0.20), transparent 31%),
+    repeating-linear-gradient(115deg, rgba(90, 75, 58, 0.016) 0 1rpx, transparent 1rpx 7rpx),
+    #F4EFE5;
+}
+
+.editorial-page .hero {
+  box-sizing: border-box;
+  margin-bottom: 36rpx;
+  padding: 38rpx;
+  border: 1rpx solid rgba(255, 255, 255, 0.62);
+  border-radius: 46rpx 46rpx 18rpx 46rpx;
+  background:
+    radial-gradient(circle at 90% 10%, rgba(255, 245, 218, 0.66), transparent 25%),
+    linear-gradient(145deg, rgba(255, 252, 247, 0.94), rgba(235, 226, 214, 0.86));
+  box-shadow: 0 22rpx 60rpx rgba(70, 52, 36, 0.08);
+}
+
+.editorial-page .hero-title {
+  font-size: 48rpx;
+  line-height: 1.42;
+  letter-spacing: 1rpx;
+}
+
+.editorial-page .card {
+  border-color: rgba(255, 255, 255, 0.60);
+  background:
+    radial-gradient(circle at 100% 0, rgba(226, 209, 193, 0.20), transparent 31%),
+    rgba(255, 252, 247, 0.82);
+  box-shadow: 0 18rpx 48rpx rgba(70, 52, 36, 0.06);
+}
+
+.editorial-page .card.sage {
+  background: radial-gradient(circle at 94% 5%, rgba(255,255,255,.62), transparent 28%), rgba(229,237,224,.86);
+}
+
+.editorial-page .card.clay {
+  background: radial-gradient(circle at 94% 5%, rgba(255,255,255,.58), transparent 28%), rgba(242,230,220,.88);
+}
+
+.editorial-page .card.mist {
+  background: radial-gradient(circle at 94% 5%, rgba(255,255,255,.62), transparent 28%), rgba(231,239,240,.86);
+}
+
+.editorial-page .card.lavender {
+  background: radial-gradient(circle at 94% 5%, rgba(255,255,255,.60), transparent 28%), rgba(238,232,239,.88);
+}
+
+.editorial-page .section-head {
+  margin-top: 50rpx;
+}
+
+.editorial-page .section-title {
+  font-size: 38rpx;
+  letter-spacing: 1rpx;
+}
+
+.editorial-page .primary {
+  background: #A9775E;
+  box-shadow: 0 12rpx 28rpx rgba(169, 119, 94, 0.20);
+}
+
+.editorial-page .secondary {
+  border-color: rgba(74, 61, 49, 0.12);
+  background: rgba(255, 252, 247, 0.76);
+}
+
+.editorial-page .privacy-note {
+  border: 1rpx solid rgba(255,255,255,.42);
+  background: rgba(238, 232, 239, 0.72);
+}
+
+.camp-flow-page .hero {
+  background:
+    radial-gradient(circle at 88% 10%, rgba(255, 248, 218, 0.68), transparent 23%),
+    linear-gradient(145deg, rgba(247, 244, 231, 0.94), rgba(215, 225, 205, 0.86));
+}
+
+.friend-flow-page .hero,
+.friends-page .hero {
+  background:
+    radial-gradient(circle at 90% 8%, rgba(255, 244, 218, 0.60), transparent 24%),
+    linear-gradient(145deg, rgba(255, 252, 247, 0.94), rgba(234, 227, 236, 0.86));
+}
+
 @media (prefers-reduced-motion: reduce) {
   .page {
     animation: none;
   }
 }
-

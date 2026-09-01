@@ -1,1 +1,3 @@
-.article-body { font-size: 30rpx; line-height: 1.9; }
+.article-page .hero { min-height: 300rpx; }
+.article-page .article-body { padding: 44rpx 40rpx; border-radius: 42rpx 42rpx 18rpx 42rpx; font-size: 30rpx; line-height: 1.95; }
+.article-page .primary, .article-page .secondary { border-radius: 28rpx; }

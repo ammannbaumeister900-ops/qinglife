@@ -1,5 +1,5 @@
 <launch-splash />
-<view class="page">
+<view class="page article-page editorial-page">
   <soft-loading wx:if="{{loading}}" text="正在读取文章…" />
   <block wx:else>
     <view class="hero">

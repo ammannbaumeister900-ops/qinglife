@@ -1,5 +1,5 @@
 <launch-splash />
-<view class="page">
+<view class="page content-page editorial-page">
   <view class="search-row">
     <input class="input search-input" value="{{query}}" placeholder="搜索身体困扰、穴位或内容" bindinput="onQueryInput"/>
     <button wx:if="{{query}}" class="search-clear" bindtap="clearSearch">清除</button>

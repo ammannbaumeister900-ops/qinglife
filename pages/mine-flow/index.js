@@ -15,11 +15,19 @@ Page({
     collectionsLoading: false,
     collectionsSource: 'demo',
     collections: [],
-    visibleHabitDays: []
+    visibleHabitDays: [],
+    experienceId: '',
+    currentExperience: null,
+    experienceTabs: demo.participations,
+    expandedDetailId: ''
   },
 
   onLoad(options) {
-    this.setData({ view: options.view || 'auth', next: options.next || '' })
+    this.setData({
+      view: options.view || 'auth',
+      next: options.next || '',
+      experienceId: options.id || demo.participations[0].id
+    })
   },
 
   onShow() {
@@ -32,6 +40,7 @@ Page({
     this.setData({
       state,
       phoneInput: state.phone || this.data.phoneInput,
+      currentExperience: demo.participations.find((item) => item.id === this.data.experienceId) || demo.participations[0],
       visibleHabitDays: demo.habitDays.slice(0, state.habit.planLength).map((day) => ({
         ...day,
         completed: state.habit.completedDays.includes(day.day),
@@ -122,7 +131,13 @@ Page({
     this.refresh()
   },
 
-  openExperience() {
-    wx.redirectTo({ url: '/pages/camp-flow/index?view=experience' })
+  selectExperience(event) {
+    this.setData({ experienceId: event.currentTarget.dataset.id, expandedDetailId: '' })
+    this.refresh()
+  },
+
+  toggleExperienceDetail(event) {
+    const id = event.currentTarget.dataset.id
+    this.setData({ expandedDetailId: this.data.expandedDetailId === id ? '' : id })
   }
 })

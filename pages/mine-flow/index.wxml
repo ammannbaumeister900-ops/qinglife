@@ -1,5 +1,5 @@
 <launch-splash />
-<view class="page">
+<view class="page mine-flow-page editorial-page">
   <block wx:if="{{view === 'auth'}}">
     <view class="hero"><view class="eyebrow">DEMO PHONE LOGIN</view><view class="hero-title">用手机号继续</view><view class="hero-copy">用于识别报名和私人体验。本次模拟，不会真实发送短信。</view></view>
     <view class="card">
@@ -42,7 +42,29 @@
   </block>
 
   <block wx:else>
-    <view class="hero"><view class="eyebrow">MY EXPERIENCE</view><view class="hero-title">我的轻体验</view><view class="hero-copy">活动前后感受、用户原话和第3天回访的私人时间线。</view></view>
-    <view class="card lavender"><view class="pill">仅自己可见</view><view class="card-title">第16期 · 三日轻体营</view><view class="card-copy">已完成三日签到，进入复食第3天。体验记录不会自动公开。</view><button class="secondary" bindtap="openExperience">查看完整演示</button></view>
+    <view class="hero experience-hero">
+      <view class="eyebrow">MY QING LIFE JOURNEY · 第 {{currentExperience.sessionNumber}} 期</view>
+      <view class="hero-title">{{currentExperience.title}}</view>
+      <view class="hero-copy">{{currentExperience.period}} · {{currentExperience.location}}</view>
+    </view>
+
+    <view class="experience-tabs">
+      <button wx:for="{{experienceTabs}}" wx:key="id" class="experience-tab {{currentExperience.id === item.id ? 'active' : ''}}" data-id="{{item.id}}" bindtap="selectExperience">第{{item.sessionNumber}}期</button>
+    </view>
+
+    <view class="card experience-summary">
+      <view class="experience-summary-top"><view class="pill">{{currentExperience.status}}</view><view class="eyebrow">PARTICIPATION</view></view>
+      <view class="card-title">这一期，留在我的轻生活里。</view>
+      <view class="card-copy">{{currentExperience.summary}}</view>
+    </view>
+
+    <view class="section-head"><view><view class="eyebrow">DETAILS</view><view class="section-title">这期的时间记录</view></view><view class="section-note">点击展开</view></view>
+    <view class="experience-accordion">
+      <view wx:for="{{currentExperience.details}}" wx:key="id" class="experience-detail {{expandedDetailId === item.id ? 'open' : ''}}" data-id="{{item.id}}" bindtap="toggleExperienceDetail">
+        <view class="experience-detail-head"><view class="detail-index">0{{index + 1}}</view><view class="list-main"><text class="list-title">{{item.label}}</text><text class="list-note">{{item.date}}</text></view><text class="detail-toggle">{{expandedDetailId === item.id ? '−' : '+'}}</text></view>
+        <view wx:if="{{expandedDetailId === item.id}}" class="experience-detail-body">{{item.note}}</view>
+      </view>
+    </view>
+    <view class="privacy-note">参与经历仅本人可见；公开分享仍需单独确认。</view>
   </block>
 </view>

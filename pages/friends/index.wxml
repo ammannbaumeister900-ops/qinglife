@@ -1,5 +1,5 @@
 <launch-splash />
-<view class="page">
+<view class="page friends-page editorial-page">
   <view class="friend-actions">
     <button class="archive-button" bindtap="openArchive">历史归档</button>
   </view>

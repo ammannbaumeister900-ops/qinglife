@@ -1,1 +1,3 @@
-.post-detail { padding: 32rpx 0; font-size: 31rpx; line-height: 1.8; }
+.friend-flow-page .card { border-radius: 40rpx 40rpx 16rpx 40rpx; }
+.friend-flow-page .post-detail { padding: 32rpx 0; font-size: 31rpx; line-height: 1.8; }
+.friend-flow-page .textarea { border-color: rgba(255,255,255,.64); background: rgba(255,252,247,.84); box-shadow: 0 10rpx 28rpx rgba(70,52,36,.04); }

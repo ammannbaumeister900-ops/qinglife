@@ -153,6 +153,53 @@ const seedPosts = [
   { id: 'post-2', author: '林乔', avatar: '乔', time: '昨天 21:16', tag: '三日轻体', content: '散步回来的路上，忽然发现自己没有那么着急了。', likes: 8, liked: true, comments: [{ author: '大海', content: '谢谢你愿意分享。' }] }
 ]
 
+const participations = [
+  {
+    id: 'participation-501',
+    sessionNumber: 501,
+    title: '身体知道答案 · 三日轻体营',
+    period: '2026年8月',
+    location: '上海青浦',
+    status: '已完成',
+    summary: '再次回到轻生活，把新的身体感受带回日常。',
+    details: [
+      { id: 'register', label: '报名确认', date: '8月08日', note: '报名信息与实际参与人已经确认。' },
+      { id: 'start', label: '三日体验开始', date: '8月20日', note: '进入第501期三日轻体营现场体验。' },
+      { id: 'finish', label: '三日体验完成', date: '8月22日', note: '三日参与记录已完整归入本期经历。' },
+      { id: 'followup', label: '结营回访', date: '8月25日', note: '回访与个人感受仅在本期经历中保存。' }
+    ]
+  },
+  {
+    id: 'participation-357',
+    sessionNumber: 357,
+    title: '秋日生机 · 三日轻体营',
+    period: '2024年10月',
+    location: '杭州余杭',
+    status: '已完成',
+    summary: '在三天里重新找到饮食、呼吸与行动的节奏。',
+    details: [
+      { id: 'register', label: '报名确认', date: '10月06日', note: '完成本期报名与服务确认。' },
+      { id: 'start', label: '三日体验开始', date: '10月18日', note: '抵达杭州，开始本期三日体验。' },
+      { id: 'finish', label: '三日体验完成', date: '10月20日', note: '三日现场参与记录已归档。' },
+      { id: 'followup', label: '结营回访', date: '10月23日', note: '完成本期结营后的轻量回访。' }
+    ]
+  },
+  {
+    id: 'participation-100',
+    sessionNumber: 100,
+    title: '初见轻生活 · 三日轻体营',
+    period: '2020年6月',
+    location: '上海',
+    status: '已归档',
+    summary: '第一次参加轻生活，也从这里开始成为轻友。',
+    details: [
+      { id: 'register', label: '报名确认', date: '6月05日', note: '第一次完成轻生活活动报名。' },
+      { id: 'start', label: '三日体验开始', date: '6月19日', note: '开始第100期三日轻体营体验。' },
+      { id: 'finish', label: '三日体验完成', date: '6月21日', note: '完成三日参与并成为轻友。' }
+    ]
+  }
+]
+
 const habitDays = Array.from({ length: 21 }, (_, index) => ({
   day: index + 1,
   title: [
@@ -174,5 +221,6 @@ module.exports = {
   hierarchy,
   legacyPosts,
   seedPosts,
+  participations,
   habitDays
 }
