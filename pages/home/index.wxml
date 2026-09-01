@@ -1,5 +1,9 @@
 <launch-splash />
-<view class="page">
+<view class="page home-page">
+  <view class="home-air home-air-clay"></view>
+  <view class="home-air home-air-sage"></view>
+  <view class="botanical-shadow botanical-shadow-top"></view>
+
   <view class="section-head home-section-head">
     <view>
       <view class="eyebrow">TODAY</view>
@@ -8,14 +12,17 @@
     <view class="section-note">按身体的节奏来</view>
   </view>
 
-  <view class="card clay">
-    <view class="pill">{{todaySaved ? '已记录' : view.kicker}}</view>
-    <view class="card-title">{{todaySaved ? '今天已经照顾过自己一点点' : view.task}}</view>
-    <view class="card-copy">{{todaySaved ? '私人记录已经保存；是否公开分享，由你决定。' : view.taskCopy}}</view>
+  <view class="card clay home-task">
+    <view class="home-task-top">
+      <view class="pill">{{todaySaved ? '已记录' : view.kicker}}</view>
+      <view class="task-mark">轻</view>
+    </view>
+    <view class="card-title home-task-title">{{todaySaved ? '今天已经照顾过自己一点点' : view.task}}</view>
+    <view class="card-copy home-task-copy">{{todaySaved ? '私人记录已经保存；是否公开分享，由你决定。' : view.taskCopy}}</view>
     <button class="primary" bindtap="openPrimary">{{todaySaved ? '查看今天的记录' : view.action}}</button>
   </view>
 
-  <view wx:if="{{state.stage === 'refeed'}}" class="card sage">
+  <view wx:if="{{state.stage === 'refeed'}}" class="card sage daily-guide">
     <view class="eyebrow">当天建议</view>
     <view class="card-title">吃生的蔬菜水果或其他流质食物</view>
     <view class="divider"></view>
@@ -29,20 +36,34 @@
     <view class="privacy-note">演示内容 · 正式版由运营人员在后台维护并上下架。</view>
   </view>
 
-  <view wx:if="{{state.stage !== 'refeed' && state.loggedIn}}" class="card mist">
+  <view wx:if="{{state.stage !== 'refeed' && state.loggedIn}}" class="card mist journey-card">
     <view class="eyebrow">MY THREE-DAY JOURNEY</view>
     <view class="card-title">{{activity.name}}</view>
     <view class="card-copy">{{activity.date}} · {{activity.city}}{{activity.place}}</view>
     <button class="secondary" bindtap="openPrimary">查看当前服务</button>
   </view>
 
-  <view wx:if="{{latestArticle}}" class="card lavender latest-article" data-id="{{latestArticle.id}}" bindtap="openLatestArticle">
-    <view class="eyebrow">LATEST RECOMMENDED</view>
-    <view class="card-title">{{latestArticle.title}}</view>
-    <view class="card-copy">{{latestArticle.summary}}</view>
-    <view class="latest-meta">
-      <view>{{latestArticle.category}} · {{latestArticle.date}}</view>
-      <view>阅读全文 ›</view>
+  <view wx:if="{{latestArticle}}" class="latest-section">
+    <view class="latest-section-head">
+      <view class="section-title latest-section-title">今日推荐</view>
+      <view class="section-note">刚刚更新</view>
+    </view>
+    <view class="card lavender latest-article" data-id="{{latestArticle.id}}" bindtap="openLatestArticle">
+      <view class="latest-visual">
+        <view class="latest-sun"></view>
+        <view class="latest-leaf latest-leaf-one"></view>
+        <view class="latest-leaf latest-leaf-two"></view>
+        <view class="latest-visual-label">NATURAL LIVING</view>
+      </view>
+      <view class="latest-content">
+        <view class="eyebrow">{{latestArticle.category}}</view>
+        <view class="card-title">{{latestArticle.title}}</view>
+        <view class="card-copy">{{latestArticle.summary}}</view>
+        <view class="latest-meta">
+          <view>{{latestArticle.date}}</view>
+          <view>阅读全文 ›</view>
+        </view>
+      </view>
     </view>
   </view>
 </view>
