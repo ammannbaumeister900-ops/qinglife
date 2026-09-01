@@ -10,10 +10,7 @@
     <button class="switch-button {{mode === 'directory' ? 'active' : ''}}" data-mode="directory" bindtap="setMode">按问题找</button>
   </view>
 
-  <view class="source-line">
-    <view class="source-badge {{source === 'demo' ? 'demo' : ''}}">{{sourceText}}</view>
-    <view wx:if="{{error}}" class="section-note">旧接口不可用时已安全回退</view>
-  </view>
+  <view wx:if="{{error}}" class="section-note">旧接口不可用时已安全回退</view>
 
   <soft-loading wx:if="{{loading}}" text="正在读取内容…" />
 

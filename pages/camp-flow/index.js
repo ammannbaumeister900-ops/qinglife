@@ -1,6 +1,7 @@
 const demo = require('../../data/demo')
 const store = require('../../utils/store')
 const domain = require('../../utils/domain')
+const navigation = require('../../utils/navigation')
 
 Page({
   data: {
@@ -40,7 +41,7 @@ Page({
   startRegistration() {
     const state = store.getState()
     if (!state.phoneLinked) {
-      return wx.navigateTo({ url: '/pages/mine-flow/index?view=auth&next=register' })
+      return navigation.navigateTo({ url: '/pages/mine-flow/index?view=auth&next=register' })
     }
     this.setData({ view: 'register', step: 1 })
   },
@@ -133,6 +134,6 @@ Page({
   },
 
   backToCamp() {
-    wx.switchTab({ url: '/pages/camp/index' })
+    navigation.switchTab({ url: '/pages/camp/index' })
   }
 })

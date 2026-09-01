@@ -1,7 +1,6 @@
 <launch-splash />
 <view class="page">
-  <view class="brand-row">
-    <view><view class="brand-cn">轻友</view><view class="brand-en">LIGHT FRIENDS</view></view>
+  <view class="friend-actions">
     <button class="archive-button" bindtap="openArchive">历史归档</button>
   </view>
 

@@ -1,3 +1,5 @@
+const navigation = require('../utils/navigation')
+
 Component({
   data: {
     selected: 0,
@@ -13,7 +15,8 @@ Component({
   methods: {
     switchTab(event) {
       const data = event.currentTarget.dataset
-      wx.switchTab({ url: data.path })
+      if (Number(data.index) === this.data.selected) return
+      navigation.switchTab({ url: data.path })
     }
   }
 })

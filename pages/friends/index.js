@@ -1,4 +1,5 @@
 const store = require('../../utils/store')
+const navigation = require('../../utils/navigation')
 
 Page({
   data: {
@@ -28,23 +29,23 @@ Page({
 
   openDaily() {
     const state = store.getState()
-    if (!state.phoneLinked) return wx.navigateTo({ url: '/pages/mine-flow/index?view=auth&next=daily' })
-    wx.navigateTo({ url: '/pages/friend-flow/index?view=daily' })
+    if (!state.phoneLinked) return navigation.navigateTo({ url: '/pages/mine-flow/index?view=auth&next=daily' })
+    navigation.navigateTo({ url: '/pages/friend-flow/index?view=daily' })
   },
 
   compose() {
     const state = store.getState()
-    if (!state.phoneLinked) return wx.navigateTo({ url: '/pages/mine-flow/index?view=auth&next=compose' })
+    if (!state.phoneLinked) return navigation.navigateTo({ url: '/pages/mine-flow/index?view=auth&next=compose' })
     if (state.profile.minor) return wx.showToast({ title: '未成年人暂不开放社区发布', icon: 'none' })
-    wx.navigateTo({ url: '/pages/friend-flow/index?view=compose' })
+    navigation.navigateTo({ url: '/pages/friend-flow/index?view=compose' })
   },
 
   openArchive() {
-    wx.navigateTo({ url: '/pages/friend-flow/index?view=archive' })
+    navigation.navigateTo({ url: '/pages/friend-flow/index?view=archive' })
   },
 
   openPost(event) {
-    wx.navigateTo({ url: `/pages/friend-flow/index?view=post&id=${encodeURIComponent(event.currentTarget.dataset.id)}` })
+    navigation.navigateTo({ url: `/pages/friend-flow/index?view=post&id=${encodeURIComponent(event.currentTarget.dataset.id)}` })
   },
 
   toggleLike(event) {
@@ -60,4 +61,3 @@ Page({
     this.refresh()
   }
 })
-

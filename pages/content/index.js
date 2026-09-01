@@ -1,11 +1,10 @@
 const legacyApi = require('../../services/legacy-api')
 const demo = require('../../data/demo')
+const navigation = require('../../utils/navigation')
 
 Page({
   data: {
     loading: true,
-    source: 'demo',
-    sourceText: '演示数据',
     error: '',
     mode: 'recommend',
     query: '',
@@ -35,8 +34,6 @@ Page({
     const result = await legacyApi.getArticles(1)
     this.setData({
       loading: false,
-      source: result.source,
-      sourceText: result.source === 'legacy' ? '现有文章服务' : '演示数据',
       error: result.error || '',
       articles: result.list,
       visibleArticles: result.list
@@ -65,7 +62,7 @@ Page({
   },
 
   openArticle(event) {
-    wx.navigateTo({ url: `/pages/article/index?id=${encodeURIComponent(event.currentTarget.dataset.id)}` })
+    navigation.navigateTo({ url: `/pages/article/index?id=${encodeURIComponent(event.currentTarget.dataset.id)}` })
   },
 
   showVideo(event) {
@@ -81,4 +78,3 @@ Page({
     this.loadArticles()
   }
 })
-

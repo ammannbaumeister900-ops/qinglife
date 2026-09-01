@@ -1,4 +1,5 @@
 const store = require('../../utils/store')
+const navigation = require('../../utils/navigation')
 
 Page({
   data: {
@@ -34,19 +35,19 @@ Page({
 
   openFlow(event) {
     const view = event.currentTarget.dataset.view
-    if (view === 'daily') return wx.navigateTo({ url: '/pages/friend-flow/index?view=daily' })
+    if (view === 'daily') return navigation.navigateTo({ url: '/pages/friend-flow/index?view=daily' })
     if (!this.data.state.phoneLinked && !['auth', 'privacy'].includes(view)) {
-      return wx.navigateTo({ url: `/pages/mine-flow/index?view=auth&next=${view}` })
+      return navigation.navigateTo({ url: `/pages/mine-flow/index?view=auth&next=${view}` })
     }
-    wx.navigateTo({ url: `/pages/mine-flow/index?view=${view}` })
+    navigation.navigateTo({ url: `/pages/mine-flow/index?view=${view}` })
   },
 
   openCamp() {
-    wx.switchTab({ url: '/pages/camp/index' })
+    navigation.switchTab({ url: '/pages/camp/index' })
   },
 
   openFriends() {
-    wx.switchTab({ url: '/pages/friends/index' })
+    navigation.switchTab({ url: '/pages/friends/index' })
   },
 
   setStage(event) {

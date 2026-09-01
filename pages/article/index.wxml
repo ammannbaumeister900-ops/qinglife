@@ -2,7 +2,6 @@
 <view class="page">
   <soft-loading wx:if="{{loading}}" text="正在读取文章…" />
   <block wx:else>
-    <view class="source-badge {{source === 'demo' ? 'demo' : ''}}">{{source === 'legacy' ? '现有文章服务' : '演示内容'}}</view>
     <view class="hero">
       <view class="eyebrow">{{article.category}}</view>
       <view class="hero-title">{{article.title}}</view>

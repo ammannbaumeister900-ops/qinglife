@@ -1,19 +1,6 @@
 <launch-splash />
 <view class="page">
-  <view class="brand-row">
-    <view>
-      <view class="brand-cn">轻生活</view>
-      <view class="brand-en">QING LIFE</view>
-    </view>
-  </view>
-
-  <view class="hero">
-    <view class="eyebrow">{{view.date}}</view>
-    <view class="hero-title">{{view.title}}</view>
-    <view class="hero-copy">{{view.copy}}</view>
-  </view>
-
-  <view class="section-head">
+  <view class="section-head home-section-head">
     <view>
       <view class="eyebrow">TODAY</view>
       <view class="section-title">今天，轻轻做一件事</view>

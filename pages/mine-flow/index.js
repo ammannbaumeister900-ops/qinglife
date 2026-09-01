@@ -1,6 +1,7 @@
 const store = require('../../utils/store')
 const legacyApi = require('../../services/legacy-api')
 const demo = require('../../data/demo')
+const navigation = require('../../utils/navigation')
 
 Page({
   data: {
@@ -65,7 +66,7 @@ Page({
       if (next === 'register') return wx.redirectTo({ url: '/pages/camp-flow/index?view=register' })
       if (next === 'daily') return wx.redirectTo({ url: '/pages/friend-flow/index?view=daily' })
       if (next === 'compose') return wx.redirectTo({ url: '/pages/friend-flow/index?view=compose' })
-      wx.switchTab({ url: '/pages/mine/index' })
+      navigation.switchTab({ url: '/pages/mine/index' })
     }, 500)
   },
 
@@ -96,7 +97,7 @@ Page({
   },
 
   openArticle(event) {
-    wx.navigateTo({ url: `/pages/article/index?id=${encodeURIComponent(event.currentTarget.dataset.id)}` })
+    navigation.navigateTo({ url: `/pages/article/index?id=${encodeURIComponent(event.currentTarget.dataset.id)}` })
   },
 
   toggleSubscription() {

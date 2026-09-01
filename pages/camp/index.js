@@ -1,5 +1,6 @@
 const demo = require('../../data/demo')
 const store = require('../../utils/store')
+const navigation = require('../../utils/navigation')
 
 Page({
   data: {
@@ -25,13 +26,13 @@ Page({
       state.selectedActivityId = id
       return state
     })
-    wx.navigateTo({ url: '/pages/camp-flow/index?view=detail' })
+    navigation.navigateTo({ url: '/pages/camp-flow/index?view=detail' })
   },
 
   openCurrent() {
     const status = this.data.state.registration.status
     const view = status === 'none' ? 'detail' : 'journey'
-    wx.navigateTo({ url: `/pages/camp-flow/index?view=${view}` })
+    navigation.navigateTo({ url: `/pages/camp-flow/index?view=${view}` })
   },
 
   onShareAppMessage() {

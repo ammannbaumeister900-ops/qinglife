@@ -1,6 +1,7 @@
 const store = require('../../utils/store')
 const legacyApi = require('../../services/legacy-api')
 const domain = require('../../utils/domain')
+const navigation = require('../../utils/navigation')
 
 Page({
   data: {
@@ -87,7 +88,7 @@ Page({
   publish() {
     const state = store.getState()
     const permission = domain.canPublish(state)
-    if (!permission.allowed && permission.reason === 'phone_required') return wx.navigateTo({ url: '/pages/mine-flow/index?view=auth&next=compose' })
+    if (!permission.allowed && permission.reason === 'phone_required') return navigation.navigateTo({ url: '/pages/mine-flow/index?view=auth&next=compose' })
     if (!permission.allowed) return wx.showToast({ title: '未成年人暂不开放社区发布', icon: 'none' })
     const content = this.data.shareText.trim()
     if (!content) return wx.showToast({ title: '请填写愿意公开的内容', icon: 'none' })
@@ -97,7 +98,7 @@ Page({
       return next
     })
     wx.showToast({ title: '公开副本已发布', icon: 'success' })
-    setTimeout(() => wx.switchTab({ url: '/pages/friends/index' }), 500)
+    setTimeout(() => navigation.switchTab({ url: '/pages/friends/index' }), 500)
   },
 
   onCommentInput(event) {
@@ -106,7 +107,7 @@ Page({
 
   addComment() {
     const state = store.getState()
-    if (!state.phoneLinked) return wx.navigateTo({ url: '/pages/mine-flow/index?view=auth&next=friends' })
+    if (!state.phoneLinked) return navigation.navigateTo({ url: '/pages/mine-flow/index?view=auth&next=friends' })
     if (state.profile.minor) return wx.showToast({ title: '未成年人暂不开放评论', icon: 'none' })
     const content = this.data.commentText.trim()
     if (!content) return wx.showToast({ title: '请填写友善回应', icon: 'none' })
@@ -142,6 +143,6 @@ Page({
   },
 
   backToFriends() {
-    wx.switchTab({ url: '/pages/friends/index' })
+    navigation.switchTab({ url: '/pages/friends/index' })
   }
 })
