@@ -1,0 +1,38 @@
+{
+  "pages": [
+    "pages/home/index",
+    "pages/camp/index",
+    "pages/content/index",
+    "pages/friends/index",
+    "pages/mine/index",
+    "pages/camp-flow/index",
+    "pages/article/index",
+    "pages/friend-flow/index",
+    "pages/mine-flow/index"
+  ],
+  "window": {
+    "navigationBarBackgroundColor": "#F4EFE5",
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "轻生活",
+    "backgroundColor": "#F4EFE5",
+    "backgroundTextStyle": "dark"
+  },
+  "tabBar": {
+    "custom": true,
+    "color": "#7E776F",
+    "selectedColor": "#2C2A26",
+    "backgroundColor": "#F8F2E8",
+    "borderStyle": "white",
+    "list": [
+      { "pagePath": "pages/home/index", "text": "首页" },
+      { "pagePath": "pages/camp/index", "text": "轻体营" },
+      { "pagePath": "pages/content/index", "text": "内容" },
+      { "pagePath": "pages/friends/index", "text": "轻友" },
+      { "pagePath": "pages/mine/index", "text": "我的" }
+    ]
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json",
+  "lazyCodeLoading": "requiredComponents"
+}
+

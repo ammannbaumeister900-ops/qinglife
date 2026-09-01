@@ -1,0 +1,27 @@
+# Dependencies and generated output
+node_modules/
+miniprogram_npm/
+dist/
+coverage/
+
+# Local configuration and secrets
+project.private.config.json
+.env
+.env.*
+!.env.example
+*.local.*
+
+# WeChat DevTools and preview artifacts
+.wechat/
+preview*.png
+qrcode*.png
+upload-info.json
+
+# Editor and operating-system files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+

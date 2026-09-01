@@ -1,0 +1,5 @@
+{
+  "desc": "轻生活 V1.2 Demo",
+  "rules": [{ "action": "allow", "page": "*" }]
+}
+

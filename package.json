@@ -1,0 +1,8 @@
+{
+  "name": "qinglife-miniapp",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "test": "node tests/domain.test.js && node tests/store.test.js && node tests/static-contract.test.js"
+  }
+}

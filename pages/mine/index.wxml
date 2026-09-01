@@ -1,0 +1,42 @@
+<view class="page">
+  <view class="profile-head">
+    <view class="profile-avatar">{{avatarText}}</view>
+    <view class="list-main">
+      <view class="eyebrow">MY QING LIFE</view>
+      <view class="profile-title">{{state.loggedIn ? state.profile.nickname + '，今天也慢慢来。' : '登录后，留下自己的轻生活。'}}</view>
+      <view class="section-note">{{state.phoneLinked ? '手机号已关联 · Demo' : '公开内容可浏览，私人服务需关联手机号'}}</view>
+    </view>
+  </view>
+
+  <view wx:if="{{!state.phoneLinked}}" class="card clay">
+    <view class="card-title">模拟手机号登录</view><view class="card-copy">用于验证报名、私人记录和社区发布门槛。本次不会真实发送短信。</view>
+    <button class="primary" data-view="auth" bindtap="openFlow">登录并关联</button>
+  </view>
+
+  <view wx:else class="card sage">
+    <view class="pill">{{todaySaved ? '今日已记录' : state.stage === 'refeed' ? '复食3 · 待记录' : '今日待完成'}}</view>
+    <view class="card-title">{{todaySaved ? '今天已经照顾过自己一点点' : state.stage === 'refeed' ? '今天让饮食保持简单' : '给今天留一句话'}}</view>
+    <view class="card-copy">{{todaySaved ? '记录默认仅自己可见。' : '完成、轻量或休息都可以。'}}</view>
+    <button class="primary" data-view="daily" bindtap="openFlow">{{todaySaved ? '查看今日记录' : '开始今日记录'}}</button>
+  </view>
+
+  <view class="card lavender" data-view="habit" bindtap="openFlow">
+    <view class="eyebrow">我的轻习惯</view><view class="card-title">{{state.habit.planLength}} 天 · 把吃饭和呼吸慢下来</view><view class="card-copy">{{completedCount}} 天有记录 · 当前第 {{state.habit.currentDay}} 天 · {{state.habit.paused ? '已暂停' : '进行中'}}</view>
+  </view>
+
+  <view class="section-head"><view class="section-title">我的记录与服务</view><view class="section-note">需要时再进入</view></view>
+  <view class="asset-grid">
+    <button class="asset" bindtap="openCamp"><view class="asset-icon sage-bg">营</view><text>活动报名</text><text class="asset-note">{{state.registration.status}}</text></button>
+    <button class="asset" data-view="experience" bindtap="openFlow"><view class="asset-icon clay-bg">记</view><text>体验记录</text><text class="asset-note">三日轻体与回访</text></button>
+    <button class="asset" data-view="collections" bindtap="openFlow"><view class="asset-icon mist-bg">藏</view><text>内容收藏</text><text class="asset-note">现有服务优先</text></button>
+    <button class="asset" bindtap="openFriends"><view class="asset-icon lavender-bg">友</view><text>公开动态</text><text class="asset-note">{{state.newPosts.length}} 条</text></button>
+    <button class="asset" data-view="privacy" bindtap="openFlow"><view class="asset-icon sage-bg">权</view><text>隐私授权</text><text class="asset-note">查看与管理</text></button>
+    <button class="asset" data-view="auth" bindtap="openFlow"><view class="asset-icon clay-bg">号</view><text>账号信息</text><text class="asset-note">{{state.phoneLinked ? '已关联' : '待关联'}}</text></button>
+  </view>
+
+  <view class="section-head"><view class="section-title">切换演示阶段</view><view class="section-note">只影响本地 Demo</view></view>
+  <view class="chips">
+    <button wx:for="{{stageOptions}}" wx:key="value" class="chip {{state.stage === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setStage">{{item.label}}</button>
+  </view>
+  <button class="text-button" bindtap="resetDemo">重置全部演示状态</button>
+</view>

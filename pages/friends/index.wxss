@@ -1,0 +1,8 @@
+.archive-button, .publish-button, .action-button { margin: 0; background: transparent; color: #8C604A; font-size: 24rpx; }
+.daily-strip { display: flex; align-items: center; gap: 20rpx; padding: 28rpx; border-radius: 34rpx; background: #E8EDE5; }
+.daily-index, .post-avatar { display: flex; width: 64rpx; height: 64rpx; align-items: center; justify-content: center; border-radius: 50%; background: #A6B6A2; color: #FFFCF7; }
+.post-head { display: flex; align-items: center; gap: 18rpx; }
+.post-content { padding: 28rpx 0; font-size: 29rpx; line-height: 1.75; }
+.post-actions { display: flex; gap: 28rpx; border-top: 1rpx solid rgba(74,61,49,.08); padding-top: 18rpx; }
+.action-button.active { color: #B78369; }
+

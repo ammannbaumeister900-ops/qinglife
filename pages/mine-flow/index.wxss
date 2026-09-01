@@ -1,0 +1,4 @@
+.code-row { display: flex; gap: 14rpx; }.code-input { flex: 1; }.code-button { width: 210rpx; margin: 0; border-radius: 28rpx; background: #E7EDE4; color: #52624F; font-size: 24rpx; }
+.habit-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14rpx; }
+.habit-day { display: flex; min-height: 120rpx; flex-direction: column; align-items: center; justify-content: center; border-radius: 28rpx; background: #FFFCF7; }
+.habit-day text { font-size: 30rpx; }.habit-day .habit-note { margin-top: 8rpx; color: #857D75; font-size: 20rpx; }.habit-day.completed { background: #E4EBE1; }.habit-day.current { outline: 3rpx solid #B78369; }

@@ -1,0 +1,58 @@
+<view class="page">
+  <view class="brand-row">
+    <view>
+      <view class="brand-cn">轻生活</view>
+      <view class="brand-en">QING LIFE</view>
+    </view>
+    <button class="avatar" bindtap="openMine">{{avatarText}}</button>
+  </view>
+
+  <view class="hero">
+    <view class="eyebrow">{{view.date}}</view>
+    <view class="hero-title">{{view.title}}</view>
+    <view class="hero-copy">{{view.copy}}</view>
+  </view>
+
+  <view class="section-head">
+    <view>
+      <view class="eyebrow">TODAY</view>
+      <view class="section-title">今天，轻轻做一件事</view>
+    </view>
+    <view class="section-note">按身体的节奏来</view>
+  </view>
+
+  <view class="card clay">
+    <view class="pill">{{todaySaved ? '已记录' : view.kicker}}</view>
+    <view class="card-title">{{todaySaved ? '今天已经照顾过自己一点点' : view.task}}</view>
+    <view class="card-copy">{{todaySaved ? '私人记录已经保存；是否公开分享，由你决定。' : view.taskCopy}}</view>
+    <button class="primary" bindtap="openPrimary">{{todaySaved ? '查看今天的记录' : view.action}}</button>
+  </view>
+
+  <view wx:if="{{state.stage === 'refeed'}}" class="card sage">
+    <view class="eyebrow">当天建议</view>
+    <view class="card-title">吃生的蔬菜水果或其他流质食物</view>
+    <view class="divider"></view>
+    <view class="card-copy">今天先忌口</view>
+    <view class="chips">
+      <view class="chip">辣</view>
+      <view class="chip">油炸</view>
+      <view class="chip">加工食物</view>
+      <view class="chip">多调味料食物</view>
+    </view>
+    <view class="privacy-note">演示内容 · 正式版由运营人员在后台维护并上下架。</view>
+  </view>
+
+  <view wx:if="{{state.stage !== 'refeed' && state.loggedIn}}" class="card mist">
+    <view class="eyebrow">MY THREE-DAY JOURNEY</view>
+    <view class="card-title">{{activity.name}}</view>
+    <view class="card-copy">{{activity.date}} · {{activity.city}}{{activity.place}}</view>
+    <button class="secondary" bindtap="openPrimary">查看当前服务</button>
+  </view>
+
+  <view class="card lavender">
+    <view class="eyebrow">THE QING LIFE WAY</view>
+    <view class="card-title">“不是把生活过得更满，而是给身体留下可以回应的空间。”</view>
+    <view class="card-copy">今天的轻生活提示：吃第一口时，先不急着做下一件事。</view>
+    <button class="text-button" bindtap="openContent">去内容频道慢慢读 →</button>
+  </view>
+</view>

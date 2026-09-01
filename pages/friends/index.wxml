@@ -1,0 +1,40 @@
+<view class="page">
+  <view class="brand-row">
+    <view><view class="brand-cn">轻友</view><view class="brand-en">LIGHT FRIENDS</view></view>
+    <button class="archive-button" bindtap="openArchive">历史归档</button>
+  </view>
+
+  <view class="hero">
+    <view class="hero-title">看见彼此，也保留自己的生活边界。</view>
+    <view class="hero-copy">这里只展示轻友主动确认公开的内容。</view>
+  </view>
+
+  <view class="daily-strip" bindtap="openDaily">
+    <view class="daily-index">{{dailySaved ? '✓' : state.stage === 'refeed' ? '3' : state.habit.currentDay}}</view>
+    <view class="list-main"><text class="list-note">我的今日</text><text class="list-title">{{dailySaved ? '今天已经记录' : dailyTitle}}</text></view>
+    <text>{{dailySaved ? '查看' : '去打卡'}} ›</text>
+  </view>
+
+  <view class="section-head">
+    <view><view class="section-title">轻友动态</view><view class="section-note">公开分享 · 友善回应</view></view>
+    <button class="publish-button" bindtap="compose">＋ 发布</button>
+  </view>
+
+  <view wx:if="{{!state.loggedIn}}" class="card mist">
+    <view class="card-title">登录后浏览轻友动态</view><view class="card-copy">手机号关联只在发布和使用私人服务时需要。</view>
+  </view>
+
+  <view wx:for="{{posts}}" wx:key="id" class="card">
+    <view class="post-head" data-id="{{item.id}}" bindtap="openPost">
+      <view class="post-avatar">{{item.avatar}}</view>
+      <view class="list-main"><text class="list-title">{{item.author}}</text><text class="list-note">{{item.time}} · {{item.tag}}</text></view>
+      <view wx:if="{{item.reported}}" class="source-badge demo">已举报</view>
+    </view>
+    <view class="post-content" data-id="{{item.id}}" bindtap="openPost">{{item.content}}</view>
+    <view class="post-actions">
+      <button class="action-button {{item.liked ? 'active' : ''}}" data-id="{{item.id}}" bindtap="toggleLike">{{item.liked ? '♥' : '♡'}} {{item.likes}}</button>
+      <button class="action-button" data-id="{{item.id}}" bindtap="openPost">◌ {{item.comments.length}}</button>
+    </view>
+  </view>
+</view>
+

@@ -1,0 +1,8 @@
+.search-row { display: flex; align-items: center; gap: 12rpx; margin-bottom: 22rpx; }
+.search-input { flex: 1; }
+.search-clear { margin: 0; padding: 0 16rpx; background: transparent; color: #9B6F58; font-size: 24rpx; }
+.content-switch { display: flex; margin-bottom: 22rpx; padding: 8rpx; border-radius: 28rpx; background: #EDE5D8; }
+.switch-button { flex: 1; margin: 0; border-radius: 22rpx; background: transparent; color: #7D756D; font-size: 25rpx; }
+.switch-button.active { background: #FFFCF7; color: #2C2A26; box-shadow: 0 6rpx 20rpx rgba(74, 61, 49, 0.06); }
+.source-line { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20rpx; }
+
