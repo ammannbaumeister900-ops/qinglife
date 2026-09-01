@@ -1,0 +1,8 @@
+<view wx:if="{{ready}}" class="soft-loading">
+  <view class="soft-loading-lines">
+    <view class="soft-loading-line long"></view>
+    <view class="soft-loading-line short"></view>
+  </view>
+  <view class="soft-loading-text">{{text}}</view>
+</view>
+

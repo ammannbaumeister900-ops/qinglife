@@ -1,3 +1,4 @@
+<launch-splash />
 <view class="page">
   <view class="profile-head">
     <view class="profile-avatar">{{avatarText}}</view>

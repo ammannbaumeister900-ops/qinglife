@@ -1,3 +1,4 @@
+<launch-splash />
 <view class="page">
   <view class="brand-row">
     <view>
@@ -36,16 +37,21 @@
     <view class="card-copy">{{item.date}} · {{item.city}}{{item.place}}</view>
     <view class="card-copy">¥{{item.fee}}/人 · 费用仅展示</view>
     <view class="divider"></view>
-    <view class="section-note">{{item.confirmMode === 'manual' ? '报名后由运营确认' : '报名后自动确认'}} · 查看详情 ›</view>
+    <view class="activity-link">查看详情 ›</view>
   </view>
 
-  <view class="card lavender">
-    <view class="eyebrow">WHY THREE DAYS</view>
-    <view class="card-title">不追求短期改变，先建立一次真实的身体体验。</view>
-    <view class="chips">
-      <view class="chip">01 慢下来</view>
-      <view class="chip">02 感受生机</view>
-      <view class="chip">03 带回生活</view>
+  <view class="section-head">
+    <view class="section-title">本期带领人</view>
+    <view class="section-note">固定陪伴团队</view>
+  </view>
+
+  <view class="card leader-card">
+    <view wx:for="{{leaders}}" wx:key="name" class="leader-row">
+      <view class="leader-avatar {{item.tone}}">{{item.avatarText}}</view>
+      <view class="list-main">
+        <view class="leader-name">{{item.name}}</view>
+        <view class="leader-intro">{{item.intro}}</view>
+      </view>
     </view>
   </view>
 </view>

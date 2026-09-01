@@ -1,3 +1,4 @@
+<launch-splash />
 <view class="page">
   <block wx:if="{{view === 'auth'}}">
     <view class="hero"><view class="eyebrow">DEMO PHONE LOGIN</view><view class="hero-title">用手机号继续</view><view class="hero-copy">用于识别报名和私人体验。本次模拟，不会真实发送短信。</view></view>
@@ -25,7 +26,7 @@
   <block wx:elif="{{view === 'collections'}}">
     <view class="hero"><view class="eyebrow">COLLECTIONS</view><view class="hero-title">我的内容收藏</view><view class="hero-copy">优先读取旧文章收藏，接口不可用时展示演示回退。</view></view>
     <view class="source-badge {{collectionsSource === 'demo' ? 'demo' : ''}}">{{collectionsSource === 'legacy' ? '现有收藏服务' : '演示收藏数据'}}</view>
-    <view wx:if="{{collectionsLoading}}" class="empty">正在读取收藏…</view>
+    <soft-loading wx:if="{{collectionsLoading}}" text="正在读取收藏…" />
     <view wx:for="{{collections}}" wx:key="id" class="card" data-id="{{item.id}}" bindtap="openArticle"><view class="pill">{{item.category}}</view><view class="card-title">{{item.title}}</view><view class="card-copy">{{item.summary}}</view></view>
   </block>
 

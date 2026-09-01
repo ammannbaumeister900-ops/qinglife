@@ -1,5 +1,6 @@
+<launch-splash />
 <view class="page">
-  <view wx:if="{{loading}}" class="empty">正在读取文章…</view>
+  <soft-loading wx:if="{{loading}}" text="正在读取文章…" />
   <block wx:else>
     <view class="source-badge {{source === 'demo' ? 'demo' : ''}}">{{source === 'legacy' ? '现有文章服务' : '演示内容'}}</view>
     <view class="hero">
@@ -15,4 +16,3 @@
     <button class="secondary" open-type="share">分享这篇内容</button>
   </block>
 </view>
-

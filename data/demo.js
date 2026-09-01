@@ -39,6 +39,27 @@ const activities = [
   }
 ]
 
+const leaders = [
+  {
+    name: '公主',
+    avatarText: '公',
+    tone: 'clay',
+    intro: '陪你慢下来，重新听见身体当下真实的回应。'
+  },
+  {
+    name: '大海',
+    avatarText: '海',
+    tone: 'mist',
+    intro: '从呼吸、饮食和日常行动出发，陪伴体验自然发生。'
+  },
+  {
+    name: '军军',
+    avatarText: '军',
+    tone: 'sage',
+    intro: '关注现场节奏，让每个人都能舒适地参与和表达。'
+  }
+]
+
 const articles = [
   {
     id: 'demo-article-1',
@@ -47,6 +68,8 @@ const articles = [
     author: '轻生活编辑部',
     category: '轻饮食',
     date: '2026-08-25',
+    status: 'published',
+    recommended: true,
     content: '<p>我们常常在忙碌里完成一餐，却没有真正感受到自己正在吃什么。</p><p>下一次吃饭时，可以先不用改变食物，只试着把第一口放慢一点。看看温度、味道和身体的回应。</p><p>这不是一项必须完成的训练。如果今天不适合，记住这一刻也已经足够。</p>'
   },
   {
@@ -56,6 +79,8 @@ const articles = [
     author: '带领人大海',
     category: '轻呼吸',
     date: '2026-08-23',
+    status: 'published',
+    recommended: true,
     content: '<p>三分钟很短，短到不需要为它做额外准备。</p><p>把双脚放在地面，肩膀松一点，留意三次自然的呼吸。</p>'
   },
   {
@@ -65,6 +90,8 @@ const articles = [
     author: '轻生活研究室',
     category: '轻行动',
     date: '2026-08-21',
+    status: 'published',
+    recommended: false,
     content: '<p>真正稳定的小习惯，不是从不间断，而是在停顿之后，仍然知道怎样用更轻的方式回来。</p>'
   }
 ]
@@ -102,10 +129,10 @@ const habitDays = Array.from({ length: 21 }, (_, index) => ({
 
 module.exports = {
   activities,
+  leaders,
   articles,
   hierarchy,
   legacyPosts,
   seedPosts,
   habitDays
 }
-

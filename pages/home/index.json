@@ -1,4 +1,6 @@
 {
-  "navigationBarTitleText": "轻生活"
+  "navigationBarTitleText": "轻生活",
+  "usingComponents": {
+    "launch-splash": "/components/launch-splash/index"
+  }
 }
-

@@ -1,0 +1,9 @@
+<view wx:if="{{visible}}" class="launch-splash {{leaving ? 'leaving' : ''}}">
+  <view class="launch-mist"></view>
+  <view class="launch-brand">
+    <view class="launch-mark">轻</view>
+    <view class="launch-name">轻生活</view>
+    <view class="launch-copy">慢一点，慢慢来</view>
+  </view>
+</view>
+

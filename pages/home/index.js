@@ -1,6 +1,10 @@
 const store = require('../../utils/store')
 const demo = require('../../data/demo')
 
+const latestRecommendedArticle = demo.articles
+  .filter((item) => item.status === 'published' && item.recommended)
+  .sort((left, right) => String(right.date).localeCompare(String(left.date)))[0] || null
+
 const stageContent = {
   visitor: {
     date: '今天',
@@ -47,9 +51,9 @@ const stageContent = {
 Page({
   data: {
     state: {},
-    avatarText: '登录',
     view: stageContent.refeed,
     activity: demo.activities[0],
+    latestArticle: latestRecommendedArticle,
     todaySaved: false
   },
 
@@ -64,7 +68,6 @@ Page({
     const dayKey = state.stage === 'refeed' ? 'refeed-3' : `habit-${state.habit.currentDay}`
     this.setData({
       state,
-      avatarText: state.loggedIn ? (state.profile.nickname || state.profile.name || '轻友').slice(0, 1) : '登录',
       view: stageContent[state.stage] || stageContent.visitor,
       activity: demo.activities.find((item) => item.id === state.selectedActivityId) || demo.activities[0],
       todaySaved: !!state.dailyRecords[dayKey]
@@ -78,12 +81,9 @@ Page({
     wx.navigateTo({ url: '/pages/friend-flow/index?view=daily' })
   },
 
-  openContent() {
-    wx.switchTab({ url: '/pages/content/index' })
-  },
-
-  openMine() {
-    wx.switchTab({ url: '/pages/mine/index' })
+  openLatestArticle() {
+    if (!this.data.latestArticle) return
+    wx.navigateTo({ url: `/pages/article/index?id=${encodeURIComponent(this.data.latestArticle.id)}` })
   },
 
   onShareAppMessage() {

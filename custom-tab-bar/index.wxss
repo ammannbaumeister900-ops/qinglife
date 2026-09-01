@@ -12,26 +12,44 @@
 }
 
 .tab-item {
+  position: relative;
   display: flex;
   flex: 1;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   color: #8B837A;
+  transition: color 220ms ease, transform 220ms ease;
 }
 
 .tab-item.active {
   color: #2C2A26;
+  transform: translateY(-2rpx);
 }
 
 .tab-icon {
+  width: 42rpx;
   height: 42rpx;
-  font-size: 32rpx;
-  line-height: 42rpx;
+}
+
+.selected-mark {
+  position: absolute;
+  top: 0;
+  width: 42rpx;
+  height: 2rpx;
+  border-radius: 999rpx;
+  background: #2C2A26;
+  opacity: 0.72;
 }
 
 .tab-text {
   margin-top: 2rpx;
   font-size: 21rpx;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tab-item {
+    transition: none;
+  }
 }
 

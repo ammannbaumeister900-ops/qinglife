@@ -1,1 +1,17 @@
-.avatar { font-size: 24rpx; }
+.latest-article {
+  transition: transform 180ms ease, opacity 180ms ease;
+}
+
+.latest-article:active {
+  opacity: 0.86;
+  transform: translateY(2rpx);
+}
+
+.latest-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 24rpx;
+  color: #8B6A58;
+  font-size: 22rpx;
+}

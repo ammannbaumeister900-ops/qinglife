@@ -1,0 +1,84 @@
+.launch-splash {
+  position: fixed;
+  z-index: 9999;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #F4EFE5;
+  opacity: 1;
+  transition: opacity 260ms ease;
+}
+
+.launch-splash.leaving {
+  opacity: 0;
+}
+
+.launch-mist {
+  position: absolute;
+  width: 360rpx;
+  height: 360rpx;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(183, 131, 105, 0.18) 0%, rgba(224, 232, 224, 0.14) 46%, rgba(244, 239, 229, 0) 72%);
+  animation: launch-breathe 900ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+.launch-brand {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: #2C2A26;
+}
+
+.launch-mark {
+  display: flex;
+  width: 96rpx;
+  height: 96rpx;
+  align-items: center;
+  justify-content: center;
+  border: 1rpx solid rgba(74, 61, 49, 0.18);
+  border-radius: 50%;
+  background: rgba(255, 252, 247, 0.72);
+  font-family: serif;
+  font-size: 42rpx;
+}
+
+.launch-name {
+  margin-top: 26rpx;
+  font-family: serif;
+  font-size: 40rpx;
+  letter-spacing: 8rpx;
+}
+
+.launch-copy {
+  margin-top: 12rpx;
+  color: #8B6A58;
+  font-size: 22rpx;
+  letter-spacing: 4rpx;
+}
+
+@keyframes launch-breathe {
+  0% {
+    opacity: 0;
+    transform: scale(0.90);
+  }
+  58% {
+    opacity: 1;
+    transform: scale(1.06);
+  }
+  100% {
+    opacity: 0.78;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .launch-mist {
+    animation: none;
+  }
+}
+

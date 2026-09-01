@@ -1,0 +1,58 @@
+.soft-loading {
+  padding: 72rpx 8rpx;
+  color: #817970;
+  text-align: center;
+  animation: soft-loading-enter 220ms ease both;
+}
+
+.soft-loading-lines {
+  width: 260rpx;
+  margin: 0 auto 24rpx;
+}
+
+.soft-loading-line {
+  height: 14rpx;
+  margin-top: 14rpx;
+  border-radius: 999rpx;
+  background: linear-gradient(90deg, #E4DDD2 0%, #F5F0E7 48%, #E4DDD2 100%);
+  background-size: 200% 100%;
+  animation: soft-loading-breathe 1.6s ease-in-out infinite;
+}
+
+.soft-loading-line.long {
+  width: 100%;
+}
+
+.soft-loading-line.short {
+  width: 68%;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.soft-loading-text {
+  font-size: 24rpx;
+  letter-spacing: 2rpx;
+}
+
+@keyframes soft-loading-enter {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes soft-loading-breathe {
+  0%, 100% {
+    background-position: 100% 0;
+    opacity: 0.58;
+  }
+  50% {
+    background-position: 0 0;
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .soft-loading,
+  .soft-loading-line {
+    animation: none;
+  }
+}

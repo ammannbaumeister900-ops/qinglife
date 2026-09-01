@@ -1,3 +1,4 @@
+<launch-splash />
 <view class="page">
   <block wx:if="{{view === 'daily'}}">
     <view class="hero"><view class="eyebrow">PRIVATE RECORD</view><view class="hero-title">{{dailyTitle}}</view><view class="hero-copy">完成、换成轻量版本或休息都可以。记录默认仅自己可见。</view></view>
@@ -29,7 +30,7 @@
   <block wx:elif="{{view === 'archive'}}">
     <view class="hero"><view class="eyebrow">LEGACY ARCHIVE</view><view class="hero-title">旧动态只读归档</view><view class="hero-copy">保留原始公开状态和时间，不再新增点赞、评论或编辑。</view></view>
     <view class="source-badge {{archiveSource === 'demo' ? 'demo' : ''}}">{{archiveSource === 'legacy' ? '现有动态服务' : '演示归档数据'}}</view>
-    <view wx:if="{{archiveLoading}}" class="empty">正在读取历史动态…</view>
+    <soft-loading wx:if="{{archiveLoading}}" text="正在读取历史动态…" />
     <view wx:for="{{archivePosts}}" wx:key="id" class="card mist">
       <view class="pill">只读 · {{item.tag}}</view><view class="card-title">{{item.author}}</view><view class="card-copy">{{item.content}}</view><view class="section-note">{{item.time}}</view>
     </view>
@@ -50,4 +51,3 @@
     </view>
   </block>
 </view>
-

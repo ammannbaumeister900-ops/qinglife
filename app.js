@@ -3,7 +3,8 @@ const store = require('./utils/store')
 
 App({
   globalData: {
-    legacyReady: false
+    legacyReady: false,
+    launchSplashShown: false
   },
 
   onLaunch() {
@@ -13,4 +14,3 @@ App({
       .catch(() => { this.globalData.legacyReady = false })
   }
 })
-

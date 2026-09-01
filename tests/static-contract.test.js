@@ -4,7 +4,19 @@ const path = require('path')
 
 const root = path.resolve(__dirname, '..')
 const app = JSON.parse(fs.readFileSync(path.join(root, 'app.json'), 'utf8'))
-const allowedTags = new Set(['block', 'button', 'checkbox', 'cover-view', 'input', 'rich-text', 'switch', 'text', 'textarea', 'view'])
+const nativeTags = [
+  'block',
+  'button',
+  'checkbox',
+  'cover-view',
+  'image',
+  'input',
+  'rich-text',
+  'switch',
+  'text',
+  'textarea',
+  'view'
+]
 
 assert.deepStrictEqual(app.tabBar.list.map((item) => item.text), ['首页', '轻体营', '内容', '轻友', '我的'])
 assert.strictEqual(new Set(app.pages).size, app.pages.length, '页面不能重复注册')
@@ -16,7 +28,13 @@ for (const page of app.pages) {
   }
 
   const js = fs.readFileSync(`${base}.js`, 'utf8')
+  const pageConfig = JSON.parse(fs.readFileSync(`${base}.json`, 'utf8'))
   const wxml = fs.readFileSync(`${base}.wxml`, 'utf8')
+  const allowedTags = new Set([
+    ...nativeTags,
+    ...Object.keys(app.usingComponents || {}),
+    ...Object.keys(pageConfig.usingComponents || {})
+  ])
   assert.ok(!/\.(includes|slice|filter|find)\(/.test(wxml), `${page} 的 WXML 使用了不支持的方法调用`)
 
   for (const match of wxml.matchAll(/<\/?([a-z-]+)/g)) {

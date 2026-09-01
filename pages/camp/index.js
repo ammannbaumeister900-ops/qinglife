@@ -4,6 +4,7 @@ const store = require('../../utils/store')
 Page({
   data: {
     activities: demo.activities,
+    leaders: demo.leaders,
     state: {},
     current: null
   },
@@ -37,4 +38,3 @@ Page({
     return { title: '三日轻体营｜轻生活', path: '/pages/camp/index' }
   }
 })
-

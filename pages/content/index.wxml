@@ -1,3 +1,4 @@
+<launch-splash />
 <view class="page">
   <view class="search-row">
     <input class="input search-input" value="{{query}}" placeholder="搜索身体困扰、穴位或内容" bindinput="onQueryInput"/>
@@ -14,7 +15,7 @@
     <view wx:if="{{error}}" class="section-note">旧接口不可用时已安全回退</view>
   </view>
 
-  <view wx:if="{{loading}}" class="empty">正在读取内容…</view>
+  <soft-loading wx:if="{{loading}}" text="正在读取内容…" />
 
   <block wx:elif="{{query}}">
     <view class="section-head"><view class="section-title">搜索结果</view><view class="section-note">{{visibleArticles.length}} 篇</view></view>
@@ -66,4 +67,3 @@
     </view>
   </block>
 </view>
-
