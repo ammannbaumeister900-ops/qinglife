@@ -6,7 +6,6 @@ Page({
   data: {
     state: {},
     avatarText: '登录',
-    profileLine: '',
     participationTimeline: []
   },
 
@@ -22,7 +21,6 @@ Page({
     this.setData({
       state,
       avatarText: state.loggedIn ? name.slice(0, 1) : '登录',
-      profileLine: state.phoneLinked ? `参加过 ${demo.participations.length} 期轻体营 · 最近为第${demo.participations[0].sessionNumber}期` : '关联手机号后可使用报名与发布功能',
       participationTimeline: state.loggedIn ? demo.participations.map((item) => ({
         ...item,
         marker: `${item.sessionNumber}期`,

@@ -5,7 +5,6 @@
   <view class="camp-leaf-shadow"></view>
 
   <view class="hero camp-hero">
-    <view class="eyebrow">THREE-DAY JOURNEY</view>
     <view class="hero-title">三日轻体营，是轻生活的线下起点。</view>
     <view class="hero-copy">连续三天慢下来，从饮食、呼吸与身体感受中，找到适合自己的生活节奏。</view>
     <view class="camp-hero-line"></view>
@@ -16,13 +15,11 @@
     <view class="pill">{{state.registration.status === 'pending' ? '待运营确认' : state.registration.status === 'completed' ? '已结束' : '报名成功'}}</view>
     <view class="card-title">{{current.name}}</view>
     <view class="card-copy">{{current.date}} · {{current.city}}{{current.place}}</view>
-    <view class="card-copy">每名实际参与者分别保留报名和签到记录。</view>
     <button class="primary" bindtap="openCurrent">{{state.registration.status === 'completed' ? '查看体验记录' : '查看活动行程'}}</button>
   </view>
 
   <view class="section-head camp-section-head">
     <view class="section-title">近期轻体营</view>
-    <view class="section-note">了解与报名</view>
   </view>
 
   <view
@@ -55,7 +52,6 @@
 
   <view class="section-head camp-section-head">
     <view class="section-title">本期带领人</view>
-    <view class="section-note">固定陪伴团队</view>
   </view>
 
   <view class="card leader-card">

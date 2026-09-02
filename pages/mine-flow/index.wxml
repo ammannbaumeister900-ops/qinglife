@@ -1,18 +1,17 @@
 <launch-splash />
 <view class="page mine-flow-page editorial-page">
   <block wx:if="{{view === 'auth'}}">
-    <view class="hero"><view class="eyebrow">DEMO PHONE LOGIN</view><view class="hero-title">用手机号继续</view><view class="hero-copy">用于识别报名和私人体验。本次模拟，不会真实发送短信。</view></view>
+    <view class="hero"><view class="hero-title">用手机号继续</view><view class="hero-copy">用于识别报名和保护个人记录。</view></view>
     <view class="card">
       <view class="field"><text class="label">手机号</text><input class="input" type="number" maxlength="11" value="{{phoneInput}}" bindinput="onPhoneInput"/></view>
-      <view class="field"><text class="label">短信验证码</text><view class="code-row"><input class="input code-input" type="number" maxlength="6" value="{{codeInput}}" placeholder="请输入123456" bindinput="onCodeInput"/><button class="code-button" bindtap="sendCode">{{codeSent ? '已模拟发送' : '获取验证码'}}</button></view></view>
+      <view class="field"><text class="label">短信验证码</text><view class="code-row"><input class="input code-input" type="number" maxlength="6" value="{{codeInput}}" placeholder="请输入123456" bindinput="onCodeInput"/><button class="code-button" bindtap="sendCode">{{codeSent ? '已发送' : '获取验证码'}}</button></view></view>
       <view class="check-row" bindtap="toggleAgreement"><checkbox checked="{{agreement}}" color="#A6B6A2"/><view class="list-main"><text class="list-title">同意服务必要条款</text><text class="list-note">运营联系和个性化分析会分开选择。</text></view></view>
       <button class="primary" bindtap="login">登录并关联手机号</button>
     </view>
-    <view class="privacy-note">旧 OpenID 只作为历史账号线索；正式版不会仅凭姓名或昵称自动合并用户。</view>
   </block>
 
   <block wx:elif="{{view === 'habit'}}">
-    <view class="hero"><view class="eyebrow">LIGHT HABIT</view><view class="hero-title">愿意再回来，就已经在继续。</view><view class="hero-copy">活动默认推荐计划长度，用户可以调整；暂停后从下一计划日继续。</view></view>
+    <view class="hero"><view class="hero-title">愿意再回来，就已经在继续。</view><view class="hero-copy">活动默认推荐计划长度，用户可以调整；暂停后从下一计划日继续。</view></view>
     <view class="card sage">
       <view class="card-title">当前 {{state.habit.planLength}} 天计划</view>
       <view class="chips"><button class="chip {{state.habit.planLength === 14 ? 'active' : ''}}" data-value="14" bindtap="setPlanLength">14天</button><button class="chip {{state.habit.planLength === 21 ? 'active' : ''}}" data-value="21" bindtap="setPlanLength">21天</button></view>
@@ -24,26 +23,25 @@
   </block>
 
   <block wx:elif="{{view === 'collections'}}">
-    <view class="hero"><view class="eyebrow">COLLECTIONS</view><view class="hero-title">我的内容收藏</view><view class="hero-copy">优先读取旧文章收藏，接口不可用时展示演示回退。</view></view>
-    <view class="source-badge {{collectionsSource === 'demo' ? 'demo' : ''}}">{{collectionsSource === 'legacy' ? '现有收藏服务' : '演示收藏数据'}}</view>
+    <view class="hero"><view class="hero-title">我的内容收藏</view></view>
     <soft-loading wx:if="{{collectionsLoading}}" text="正在读取收藏…" />
     <view wx:for="{{collections}}" wx:key="id" class="card" data-id="{{item.id}}" bindtap="openArticle"><view class="pill">{{item.category}}</view><view class="card-title">{{item.title}}</view><view class="card-copy">{{item.summary}}</view></view>
   </block>
 
   <block wx:elif="{{view === 'privacy'}}">
-    <view class="hero"><view class="eyebrow">PRIVACY & NOTICE</view><view class="hero-title">授权由你掌握</view><view class="hero-copy">服务必要、运营联系、个性化分析和公开分享分别处理。</view></view>
+    <view class="hero"><view class="hero-title">授权由你掌握</view><view class="hero-copy">服务必要、运营联系、个性化分析和公开分享分别处理。</view></view>
     <view class="card">
       <view class="list-row"><view class="list-main"><text class="list-title">服务必要信息</text><text class="list-note">用于报名、签到与履约</text></view><view class="pill">已启用</view></view>
       <view class="list-row" data-key="operationConsent" bindtap="togglePrivacy"><view class="list-main"><text class="list-title">运营联系</text><text class="list-note">可以随时关闭</text></view><switch checked="{{state.operationConsent}}" color="#A6B6A2"/></view>
-      <view class="list-row" data-key="aiConsent" bindtap="togglePrivacy"><view class="list-main"><text class="list-title">个性化分析</text><text class="list-note">正式版按最小必要范围使用</text></view><switch checked="{{state.aiConsent}}" color="#A6B6A2"/></view>
-      <view class="list-row" bindtap="toggleSubscription"><view class="list-main"><text class="list-title">微信订阅消息</text><text class="list-note">本次只模拟活动提醒和第3天回访</text></view><switch checked="{{state.subscriptionEnabled}}" color="#A6B6A2"/></view>
+      <view class="list-row" data-key="aiConsent" bindtap="togglePrivacy"><view class="list-main"><text class="list-title">个性化分析</text><text class="list-note">需单独授权</text></view><switch checked="{{state.aiConsent}}" color="#A6B6A2"/></view>
+      <view class="list-row" bindtap="toggleSubscription"><view class="list-main"><text class="list-title">微信订阅消息</text><text class="list-note">活动提醒和结营回访</text></view><switch checked="{{state.subscriptionEnabled}}" color="#A6B6A2"/></view>
     </view>
     <view class="privacy-note">私人记录不会因开启运营联系或订阅消息而公开。</view>
   </block>
 
   <block wx:else>
     <view class="hero experience-hero">
-      <view class="eyebrow">MY QING LIFE JOURNEY · 第 {{currentExperience.sessionNumber}} 期</view>
+      <view class="pill">第 {{currentExperience.sessionNumber}} 期</view>
       <view class="hero-title">{{currentExperience.title}}</view>
       <view class="hero-copy">{{currentExperience.period}} · {{currentExperience.location}}</view>
     </view>
@@ -53,12 +51,11 @@
     </view>
 
     <view class="card experience-summary">
-      <view class="experience-summary-top"><view class="pill">{{currentExperience.status}}</view><view class="eyebrow">PARTICIPATION</view></view>
-      <view class="card-title">这一期，留在我的轻生活里。</view>
+      <view class="experience-summary-top"><view class="pill">{{currentExperience.status}}</view></view>
       <view class="card-copy">{{currentExperience.summary}}</view>
     </view>
 
-    <view class="section-head"><view><view class="eyebrow">DETAILS</view><view class="section-title">这期的时间记录</view></view><view class="section-note">点击展开</view></view>
+    <view class="section-head"><view class="section-title">这期的时间记录</view></view>
     <view class="experience-accordion">
       <view wx:for="{{currentExperience.details}}" wx:key="id" class="experience-detail {{expandedDetailId === item.id ? 'open' : ''}}" data-id="{{item.id}}" bindtap="toggleExperienceDetail">
         <view class="experience-detail-head"><view class="detail-index">0{{index + 1}}</view><view class="list-main"><text class="list-title">{{item.label}}</text><text class="list-note">{{item.date}}</text></view><text class="detail-toggle">{{expandedDetailId === item.id ? '−' : '+'}}</text></view>

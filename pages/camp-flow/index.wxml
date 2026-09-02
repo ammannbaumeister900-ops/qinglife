@@ -2,7 +2,7 @@
 <view class="page camp-flow-page editorial-page">
   <block wx:if="{{view === 'detail'}}">
     <view class="hero">
-      <view class="eyebrow">THREE DAY EXPERIENCE · 第 {{activity.sessionNumber}} 期</view>
+      <view class="pill">第 {{activity.sessionNumber}} 期</view>
       <view class="hero-title">{{activity.name}}</view>
       <view class="hero-copy">{{activity.intro}}</view>
     </view>
@@ -10,7 +10,7 @@
       <view class="list-row"><view class="list-main"><text class="list-title">时间</text><text class="list-note">{{activity.date}} · 连续3天</text></view></view>
       <view class="list-row"><view class="list-main"><text class="list-title">地点</text><text class="list-note">{{activity.city}}{{activity.place}} · 完整地点报名后可见</text></view></view>
       <view class="list-row"><view class="list-main"><text class="list-title">带领人</text><text class="list-note">{{activity.leader}}</text></view></view>
-      <view class="list-row"><view class="list-main"><text class="list-title">费用</text><text class="list-note">¥{{activity.fee}}/人 · 本次只展示，不建设用户端收银台</text></view></view>
+      <view class="list-row"><view class="list-main"><text class="list-title">费用</text><text class="list-note">¥{{activity.fee}}/人</text></view></view>
     </view>
     <view class="card">
       <view class="card-title">三天的节奏</view>
@@ -21,14 +21,13 @@
     </view>
     <view class="card lavender">
       <view class="card-title">取消与改期</view>
-      <view class="card-copy">具体窗口由运营配置。本 Demo 不处理付款或退款，正式交易事实由独立 Transaction 记录。</view>
+      <view class="card-copy">具体规则以报名确认信息为准。</view>
     </view>
     <button wx:if="{{state.registration.status === 'none'}}" class="primary" bindtap="startRegistration">开始报名</button>
     <button wx:else class="primary" bindtap="openJourney">查看我的活动</button>
   </block>
 
   <block wx:elif="{{view === 'register'}}">
-    <view class="eyebrow">STEP {{step}} OF 3</view>
     <view class="progress">
       <view class="progress-item active"></view>
       <view class="progress-item {{step >= 2 ? 'active' : ''}}"></view>
@@ -51,10 +50,6 @@
       <view class="chips">
         <button wx:for="{{motivationOptions}}" wx:key="*this" class="chip {{state.registration.motivation === item ? 'active' : ''}}" data-value="{{item}}" bindtap="chooseMotivation">{{item}}</button>
       </view>
-      <view class="card mist">
-        <view class="card-title">活动前状态可以跳过</view>
-        <view class="card-copy">正式版会提供10秒轻量记录；跳过不影响报名，本 Demo 直接进入授权确认。</view>
-      </view>
     </block>
 
     <block wx:else>
@@ -62,7 +57,7 @@
       <view class="card">
         <view class="check-row" data-key="serviceConsent" bindtap="toggleConsent"><checkbox checked="{{state.registration.serviceConsent}}" color="#A6B6A2"/><view class="list-main"><text class="list-title">服务必要信息（必选）</text><text class="list-note">用于报名、签到与履约。</text></view></view>
         <view class="check-row" data-key="operationConsent" bindtap="toggleConsent"><checkbox checked="{{state.operationConsent}}" color="#A6B6A2"/><view class="list-main"><text class="list-title">运营联系（选填）</text><text class="list-note">用于后续活动信息。</text></view></view>
-        <view class="check-row" data-key="aiConsent" bindtap="toggleConsent"><checkbox checked="{{state.aiConsent}}" color="#A6B6A2"/><view class="list-main"><text class="list-title">个性化分析（选填）</text><text class="list-note">正式版按最小必要范围另行授权。</text></view></view>
+        <view class="check-row" data-key="aiConsent" bindtap="toggleConsent"><checkbox checked="{{state.aiConsent}}" color="#A6B6A2"/><view class="list-main"><text class="list-title">个性化分析（选填）</text><text class="list-note">需单独授权。</text></view></view>
       </view>
       <view class="privacy-note">个人感受和“我的轻体验”默认仅自己可见。</view>
     </block>
@@ -76,20 +71,18 @@
 
   <block wx:elif="{{view === 'success'}}">
     <view class="card sage">
-      <view class="eyebrow">REGISTRATION</view>
       <view class="hero-title">{{state.registration.status === 'pending' ? '报名已提交，等待运营确认。' : '报名已经确认，接下来安心准备。'}}</view>
-      <view class="card-copy">{{selectedCount}} 位实际参与者已经分别生成演示报名记录。</view>
+      <view class="card-copy">共 {{selectedCount}} 位参与者。</view>
     </view>
-    <view wx:if="{{state.registration.status === 'pending'}}" class="privacy-note">本场配置为人工确认。Demo 可模拟运营确认，正式版由后台修改状态并通知用户。</view>
-    <button wx:if="{{state.registration.status === 'pending'}}" class="primary" bindtap="simulateConfirm">模拟运营确认</button>
+    <view wx:if="{{state.registration.status === 'pending'}}" class="privacy-note">运营确认后将通知你。</view>
     <button wx:else class="primary" bindtap="openJourney">查看三日准备卡</button>
     <button class="text-button" bindtap="backToCamp">返回轻体营</button>
   </block>
 
   <block wx:elif="{{view === 'journey'}}">
-    <view class="hero"><view class="eyebrow">MY THREE-DAY JOURNEY</view><view class="hero-title">三天的体验，按自己的节奏慢慢走。</view><view class="hero-copy">每天分别准备和签到，状态互不覆盖。</view></view>
+    <view class="hero"><view class="hero-title">三天的体验，按自己的节奏慢慢走。</view><view class="hero-copy">每天分别准备和签到，状态互不覆盖。</view></view>
     <view wx:if="{{state.registration.status === 'pending'}}" class="card clay">
-      <view class="card-title">等待运营确认</view><view class="card-copy">确认后才能进入签到。</view><button class="secondary" bindtap="simulateConfirm">模拟运营确认</button>
+      <view class="card-title">等待运营确认</view><view class="card-copy">确认后即可进入签到。</view>
     </view>
     <view wx:for="{{dayViews}}" wx:key="id" class="card {{item.checked ? 'sage' : ''}}">
       <view class="pill">{{item.label}} · {{item.checked ? '已签到' : '待签到'}}</view>
@@ -101,11 +94,11 @@
   </block>
 
   <block wx:else>
-    <view class="hero"><view class="eyebrow">MY QING LIFE EXPERIENCE</view><view class="hero-title">这段体验，已经为你保存。</view><view class="hero-copy">它是个人回看，不是医学报告或效果结论。</view></view>
+    <view class="hero"><view class="hero-title">这段体验，已经为你保存。</view><view class="hero-copy">它是个人回看，不是医学报告或效果结论。</view></view>
     <view class="card lavender">
       <view class="pill">仅自己可见</view>
       <view class="card-title">我慢慢发现，身体会用自己的方式回应。</view>
-      <view class="card-copy">活动前后状态、用户原话、小行动和第3天回访将在正式版形成完整私人时间线。</view>
+      <view class="card-copy">活动前后状态、个人感受和回访记录保存在本期经历中。</view>
     </view>
     <view class="privacy-note">这份私人体验不会自动进入轻友动态，也不会自动生成营销案例。</view>
     <button class="secondary" bindtap="backToCamp">返回轻体营</button>

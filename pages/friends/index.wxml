@@ -16,7 +16,7 @@
   </view>
 
   <view class="section-head">
-    <view><view class="section-title">轻友动态</view><view class="section-note">公开分享 · 友善回应</view></view>
+    <view class="section-title">轻友动态</view>
   </view>
 
   <view wx:if="{{!state.loggedIn}}" class="card mist">

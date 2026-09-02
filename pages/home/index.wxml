@@ -5,11 +5,7 @@
   <view class="botanical-shadow botanical-shadow-top"></view>
 
   <view class="section-head home-section-head">
-    <view>
-      <view class="eyebrow">TODAY</view>
-      <view class="section-title">今天，轻轻做一件事</view>
-    </view>
-    <view class="section-note">按身体的节奏来</view>
+    <view class="section-title">今天，轻轻做一件事</view>
   </view>
 
   <view class="card clay home-task">
@@ -33,11 +29,9 @@
       <view class="chip">加工食物</view>
       <view class="chip">多调味料食物</view>
     </view>
-    <view class="privacy-note">演示内容 · 正式版由运营人员在后台维护并上下架。</view>
   </view>
 
   <view wx:if="{{state.stage !== 'refeed' && state.loggedIn}}" class="card mist journey-card">
-    <view class="eyebrow">MY THREE-DAY JOURNEY</view>
     <view class="card-title">{{activity.name}}</view>
     <view class="card-copy">{{activity.date}} · {{activity.city}}{{activity.place}}</view>
     <button class="secondary" bindtap="openPrimary">查看当前服务</button>
@@ -46,7 +40,6 @@
   <view wx:if="{{latestArticle}}" class="latest-section">
     <view class="latest-section-head">
       <view class="section-title latest-section-title">今日推荐</view>
-      <view class="section-note">刚刚更新</view>
     </view>
     <view class="card lavender latest-article" data-id="{{latestArticle.id}}" bindtap="openLatestArticle">
       <view class="latest-visual">
@@ -61,7 +54,6 @@
         <view class="card-copy">{{latestArticle.summary}}</view>
         <view class="latest-meta">
           <view>{{latestArticle.date}}</view>
-          <view>阅读全文 ›</view>
         </view>
       </view>
     </view>

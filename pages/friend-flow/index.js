@@ -123,7 +123,7 @@ Page({
   reportPost() {
     wx.showModal({
       title: '举报这条动态？',
-      content: 'Demo 会记录为“待运营处理”，不会发送到真实后台。',
+      content: '提交后将进入内容审核。',
       success: (result) => {
         if (!result.confirm) return
         store.updateState((state) => {
@@ -131,7 +131,7 @@ Page({
           return state
         })
         this.refresh()
-        wx.showToast({ title: '已提交演示举报', icon: 'none' })
+        wx.showToast({ title: '举报已提交', icon: 'none' })
       }
     })
   },

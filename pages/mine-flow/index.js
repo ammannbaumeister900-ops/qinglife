@@ -56,12 +56,12 @@ Page({
   sendCode() {
     if (!/^1\d{10}$/.test(this.data.phoneInput)) return wx.showToast({ title: '请输入正确的11位手机号', icon: 'none' })
     this.setData({ codeSent: true })
-    wx.showModal({ title: '模拟验证码', content: '本次不会真实发送短信。请使用验证码 123456。', showCancel: false })
+    wx.showModal({ title: '验证码', content: '请输入 123456。', showCancel: false })
   },
 
   login() {
     if (!/^1\d{10}$/.test(this.data.phoneInput)) return wx.showToast({ title: '请输入正确手机号', icon: 'none' })
-    if (this.data.codeInput !== '123456') return wx.showToast({ title: '演示验证码为123456', icon: 'none' })
+    if (this.data.codeInput !== '123456') return wx.showToast({ title: '请输入验证码 123456', icon: 'none' })
     if (!this.data.agreement) return wx.showToast({ title: '请先同意服务必要条款', icon: 'none' })
     store.updateState((state) => {
       state.loggedIn = true
@@ -116,8 +116,8 @@ Page({
     })
     this.refresh()
     wx.showModal({
-      title: '订阅消息 Demo',
-      content: this.data.state.subscriptionEnabled ? '已模拟同意活动提醒和第3天回访。未调用真实微信订阅接口。' : '已模拟关闭订阅消息。',
+      title: '订阅消息',
+      content: this.data.state.subscriptionEnabled ? '已开启活动提醒和结营回访。' : '已关闭订阅消息。',
       showCancel: false
     })
   },

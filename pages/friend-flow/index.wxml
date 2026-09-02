@@ -1,7 +1,7 @@
 <launch-splash />
 <view class="page friend-flow-page editorial-page">
   <block wx:if="{{view === 'daily'}}">
-    <view class="hero"><view class="eyebrow">PRIVATE RECORD</view><view class="hero-title">{{dailyTitle}}</view><view class="hero-copy">完成、换成轻量版本或休息都可以。记录默认仅自己可见。</view></view>
+    <view class="hero"><view class="hero-title">{{dailyTitle}}</view><view class="hero-copy">完成、换成轻量版本或休息都可以。记录默认仅自己可见。</view></view>
     <view class="card clay">
       <view class="chips">
         <button class="chip {{dailyChoice === 'done' ? 'active' : ''}}" data-value="done" bindtap="chooseDaily">我愿意试试看</button>
@@ -12,13 +12,13 @@
       <button class="primary" bindtap="saveDaily">保存今天的选择</button>
     </view>
     <view wx:if="{{savedRecord}}" class="card sage">
-      <view class="pill">已保存 · 仅自己可见</view><view class="card-title">今天已经记下来了。</view><view class="card-copy">私人记录不会自动公开。</view>
+      <view class="pill">已保存 · 仅自己可见</view>
       <button class="secondary" bindtap="prepareShare">整理成一条轻友动态</button>
     </view>
   </block>
 
   <block wx:elif="{{view === 'compose'}}">
-    <view class="hero"><view class="eyebrow">PRIVATE TO PUBLIC</view><view class="hero-title">先确认内容，再决定是否公开。</view><view class="hero-copy">这是独立公开副本，修改或删除不会影响原私人记录。</view></view>
+    <view class="hero"><view class="hero-title">先确认内容，再决定是否公开。</view></view>
     <view class="card">
       <view class="field"><text class="label">公开文案</text><textarea class="textarea" value="{{shareText}}" maxlength="140" placeholder="只写下愿意公开的部分" bindinput="onShareText"/></view>
       <view class="check-row" bindtap="toggleShareConfirm"><checkbox checked="{{shareConfirmed}}" color="#A6B6A2"/><view class="list-main"><text class="list-title">我确认这是公开内容</text><text class="list-note">其他轻友可以浏览、点赞和评论。</text></view></view>
@@ -28,8 +28,7 @@
   </block>
 
   <block wx:elif="{{view === 'archive'}}">
-    <view class="hero"><view class="eyebrow">LEGACY ARCHIVE</view><view class="hero-title">旧动态只读归档</view><view class="hero-copy">保留原始公开状态和时间，不再新增点赞、评论或编辑。</view></view>
-    <view class="source-badge {{archiveSource === 'demo' ? 'demo' : ''}}">{{archiveSource === 'legacy' ? '现有动态服务' : '演示归档数据'}}</view>
+    <view class="hero"><view class="hero-title">旧动态只读归档</view><view class="hero-copy">保留原始公开状态和时间，不再新增点赞、评论或编辑。</view></view>
     <soft-loading wx:if="{{archiveLoading}}" text="正在读取历史动态…" />
     <view wx:for="{{archivePosts}}" wx:key="id" class="card mist">
       <view class="pill">只读 · {{item.tag}}</view><view class="card-title">{{item.author}}</view><view class="card-copy">{{item.content}}</view><view class="section-note">{{item.time}}</view>

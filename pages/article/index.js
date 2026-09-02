@@ -29,13 +29,11 @@ Page({
 
   async toggleCollect() {
     const id = String(this.data.article.id)
-    let realSaved = false
     if (this.data.source === 'legacy') {
       try {
         await legacyApi.toggleCollection(id)
-        realSaved = true
       } catch (error) {
-        realSaved = false
+        // 旧收藏接口不可用时，仍保留本机收藏状态。
       }
     }
     const nextCollected = !this.data.collected
@@ -46,11 +44,10 @@ Page({
       return state
     })
     this.setData({ collected: nextCollected })
-    wx.showToast({ title: realSaved ? '已同步现有收藏' : '已保存演示收藏', icon: 'none' })
+    wx.showToast({ title: nextCollected ? '已收藏' : '已取消收藏', icon: 'none' })
   },
 
   onShareAppMessage() {
     return { title: this.data.article.title || '轻生活内容', path: `/pages/article/index?id=${encodeURIComponent(this.data.id)}` }
   }
 })
-

@@ -73,7 +73,7 @@ Page({
     const item = this.data.videos.find((video) => video.id === event.currentTarget.dataset.id)
     wx.showModal({
       title: item.title,
-      content: `${item.note}\n\nDemo 只验证目录与播放入口，正式视频由运营后台上架。`,
+      content: item.note,
       showCancel: false
     })
   },
