@@ -1,0 +1,8 @@
+{
+  "navigationBarTitleText": "我的",
+  "navigationStyle": "custom",
+  "usingComponents": {
+    "launch-splash": "/components/launch-splash/index",
+    "ql-nav-space": "/components/ql-nav-space/index"
+  }
+}

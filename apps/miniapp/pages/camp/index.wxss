@@ -1,0 +1,209 @@
+.camp-page {
+  padding-top: 44rpx;
+}
+
+.past-camp-entry {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 28rpx;
+  padding: 28rpx 4rpx;
+  border-top: 1rpx solid var(--ql-border);
+  border-bottom: 1rpx solid var(--ql-border);
+}
+.past-camp-label,
+.past-camp-name { display: block; }
+.past-camp-label { color: var(--ql-ink-ghost); font-size: 22rpx; letter-spacing: 2rpx; }
+.past-camp-name { margin-top: 8rpx; color: var(--ql-ink); font-size: 27rpx; }
+.past-camp-link { color: var(--ql-clay-deep); font-size: 23rpx; }
+
+.camp-hero {
+  box-sizing: border-box;
+  padding: 44rpx 80rpx 40rpx 40rpx;
+  border: 1rpx solid rgba(255, 255, 255, 0.66);
+  border-radius: var(--ql-radius-card);
+  background:
+    radial-gradient(circle at 86% 8%, rgba(255, 246, 220, 0.55), transparent 26%),
+    radial-gradient(ellipse at 96% 104%, rgba(166, 182, 162, 0.36), transparent 38%),
+    linear-gradient(150deg, rgba(255, 252, 247, 0.94), rgba(233, 238, 228, 0.9));
+  box-shadow: var(--ql-shadow-hero);
+}
+
+.camp-hero .hero-title {
+  max-width: 520rpx;
+  margin-top: 20rpx;
+  font-size: 52rpx;
+  line-height: 1.4;
+}
+
+.camp-hero .hero-copy {
+  max-width: 500rpx;
+  font-size: 26rpx;
+}
+
+.camp-hero .hero-side {
+  top: 40rpx;
+  right: 28rpx;
+  font-size: 24rpx;
+}
+
+.camp-hero-line {
+  width: 56rpx;
+  height: 2rpx;
+  margin-top: 32rpx;
+  background: rgba(104, 124, 95, 0.4);
+}
+
+.camp-hero-note {
+  margin-top: 14rpx;
+  color: var(--ql-sage-deep);
+  font-size: 22rpx;
+  letter-spacing: 3rpx;
+}
+
+.current-camp .primary {
+  margin-top: 26rpx;
+}
+
+.activity-card {
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.activity-card:active {
+  opacity: 0.86;
+  transform: translateY(2rpx);
+}
+
+.activity-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.activity-top .pill.plain {
+  padding-right: 0;
+  padding-left: 0;
+  background: transparent;
+  color: var(--ql-ink-ghost);
+}
+
+.activity-arrow {
+  display: flex;
+  width: 52rpx;
+  height: 52rpx;
+  align-items: center;
+  justify-content: center;
+  border: 1rpx solid var(--ql-border);
+  border-radius: 50%;
+  color: var(--ql-ink-light);
+  font-size: 28rpx;
+}
+
+.activity-name {
+  margin-top: 22rpx;
+  font-family: var(--ql-serif);
+  font-size: 38rpx;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.activity-details {
+  display: flex;
+  gap: 28rpx;
+  margin-top: 24rpx;
+  padding: 22rpx 0;
+  border-top: 1rpx solid rgba(74, 61, 49, 0.07);
+  border-bottom: 1rpx solid rgba(74, 61, 49, 0.07);
+}
+
+.activity-detail {
+  min-width: 0;
+  flex: 1;
+}
+
+.activity-detail + .activity-detail {
+  padding-left: 28rpx;
+  border-left: 1rpx solid rgba(74, 61, 49, 0.07);
+}
+
+.activity-detail-label {
+  margin-bottom: 8rpx;
+  color: var(--ql-ink-ghost);
+  font-size: 22rpx;
+  letter-spacing: 3rpx;
+}
+
+.activity-footer {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-top: 22rpx;
+}
+
+.activity-fee {
+  color: var(--ql-ink);
+  font-family: var(--ql-serif);
+  font-size: 46rpx;
+  font-weight: 500;
+}
+
+.activity-fee text {
+  margin-left: 4rpx;
+  color: var(--ql-ink-ghost);
+  font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 22rpx;
+}
+
+.activity-link {
+  color: var(--ql-clay-deep);
+  font-size: 23rpx;
+  text-align: right;
+}
+
+.leader-card {
+  padding: 32rpx 36rpx;
+}
+
+.leader-row {
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+  padding: 26rpx 0;
+  border-bottom: 1rpx solid rgba(74, 61, 49, 0.08);
+}
+
+.leader-row:last-child {
+  border-bottom: none;
+}
+
+.leader-avatar {
+  display: flex;
+  width: 96rpx;
+  height: 96rpx;
+  overflow: hidden;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border: 1rpx solid rgba(255, 255, 255, 0.72);
+  border-radius: 52% 48% 55% 45%;
+  color: #4A4039;
+  font-family: var(--ql-serif);
+  font-size: 32rpx;
+  box-shadow: 0 10rpx 24rpx rgba(70, 52, 36, 0.07);
+}
+
+.leader-avatar.clay { background: linear-gradient(145deg, #EFDCCF, #DCC4B2); }
+.leader-avatar.mist { background: linear-gradient(145deg, #E4EDEF, #C6D4D6); }
+.leader-avatar.sage { background: linear-gradient(145deg, #E7EDDE, #C6D1C0); }
+
+.leader-name {
+  font-size: 29rpx;
+  font-weight: 600;
+}
+
+.leader-intro {
+  margin-top: 8rpx;
+  color: var(--ql-ink-light);
+  font-size: 24rpx;
+  line-height: 1.6;
+}

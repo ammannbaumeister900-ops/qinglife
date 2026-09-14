@@ -1,0 +1,9 @@
+{
+  "navigationBarTitleText": "轻友记录",
+  "navigationStyle": "custom",
+  "usingComponents": {
+    "launch-splash": "/components/launch-splash/index",
+    "soft-loading": "/components/soft-loading/index",
+    "ql-nav-space": "/components/ql-nav-space/index"
+  }
+}

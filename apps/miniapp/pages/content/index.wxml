@@ -1,0 +1,11 @@
+<ql-nav-space title="轻读" />
+<view class="page content-page editorial-page">
+  <view wx:if="{{sampleMode}}" class="sample-note">演示内容 · 用于预览栏目效果，非真实轻友投稿</view>
+  <view class="search-row"><input class="input search-input" value="{{query}}" placeholder="搜索标题、主题或关键词" bindinput="onQueryInput"/><button wx:if="{{query || topic}}" class="search-clear" bindtap="clearSearch">清除</button></view>
+  <view class="chips"><button size="mini" class="chip {{!topic ? 'active' : ''}}" data-topic="" bindtap="chooseTopic">全部</button><button wx:for="{{topics}}" wx:key="*this" size="mini" class="chip {{topic === item ? 'active' : ''}}" data-topic="{{item}}" bindtap="chooseTopic">{{item}}</button></view>
+  <view wx:if="{{error}}" class="empty-state"><view class="empty-title">暂时未能读取</view><view class="empty-copy">{{error}}</view><button class="empty-action" bindtap="retry">重试</button></view>
+  <view wx:if="{{loaded && !error && !visibleArticles.length}}" class="empty-state"><view class="empty-title">{{query || topic ? '暂时没有找到相关内容' : '新的内容正在准备中'}}</view><button wx:if="{{query || topic}}" class="empty-action" bindtap="clearSearch">查看全部内容</button></view>
+  <view wx:for="{{visibleArticles}}" wx:key="id" class="article-card" data-id="{{item.id}}" data-title="{{item.title}}" bindtap="openArticle"><view class="pill">{{item.category}}</view><view class="article-title">{{item.title}}</view><view class="article-summary">{{item.summary || '打开查看完整内容'}}</view><view class="article-footer">{{item.author}}</view></view>
+  <soft-loading wx:if="{{loading}}" text="正在读取内容…" />
+  <button wx:if="{{hasMore && loaded && !loading && !error}}" class="text-button" bindtap="retry">继续加载内容</button>
+</view>

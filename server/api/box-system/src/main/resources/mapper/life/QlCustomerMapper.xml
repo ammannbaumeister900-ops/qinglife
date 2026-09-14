@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.yicai.life.mapper.QlCustomerMapper">
+    <sql id="customerColumns">
+        c.id, c.customer_no, c.nickname, c.real_name, c.birth_date, c.gender, c.city,
+        c.first_source, c.data_source, c.data_confidence, c.status, c.revision,
+        c.created_at, c.updated_at, a.nick_name AS wechat_nickname, a.head AS wechat_avatar,
+        CASE WHEN a.id IS NULL THEN 'unbound' WHEN a.status=1 THEN 'enabled' ELSE 'disabled' END AS account_status,
+        a.last_login_time, ids.phone_hint, ids.id_card_hint
+    </sql>
+
+    <sql id="customerJoins">
+        LEFT JOIN (
+            SELECT customer_id,
+                   MAX(legacy_app_user_id) AS legacy_app_user_id,
+                   MAX(CASE WHEN identifier_type='phone' AND valid_to IS NULL THEN display_hint END) AS phone_hint,
+                   MAX(CASE WHEN identifier_type='id_card' AND valid_to IS NULL THEN display_hint END) AS id_card_hint
+            FROM ql_customer_identifier
+            GROUP BY customer_id
+        ) ids ON ids.customer_id=c.id
+        LEFT JOIN app_user_info a ON a.id=ids.legacy_app_user_id
+    </sql>
+
+    <select id="selectPageList" resultType="com.yicai.life.domain.vo.QlCustomerVo">
+        SELECT <include refid="customerColumns"/>
+        FROM ql_customer c
+        <include refid="customerJoins"/>
+        <where>
+            c.deleted_at IS NULL
+            <if test="bo.nickname != null and bo.nickname != ''">
+                AND (c.nickname LIKE CONCAT('%',#{bo.nickname},'%')
+                     OR c.real_name LIKE CONCAT('%',#{bo.nickname},'%')
+                     OR CONVERT(c.customer_no USING utf8mb4) LIKE CONCAT('%',#{bo.nickname},'%')
+                     OR a.nick_name LIKE CONCAT('%',#{bo.nickname},'%'))
+            </if>
+            <if test="bo.status != null and bo.status != ''">AND c.status=#{bo.status}</if>
+            <if test="bo.phone != null and bo.phone != ''">
+                AND EXISTS (
+                    SELECT 1 FROM ql_customer_identifier phone_identifier
+                    WHERE phone_identifier.customer_id=c.id
+                      AND phone_identifier.identifier_type='phone'
+                      AND phone_identifier.valid_to IS NULL
+                      AND phone_identifier.normalized_hash=SHA2(#{bo.phone},256)
+                )
+            </if>
+            <if test="bo.city != null and bo.city != ''">AND c.city=#{bo.city}</if>
+        </where>
+        ORDER BY c.updated_at DESC
+    </select>
+
+    <select id="selectVoById" resultType="com.yicai.life.domain.vo.QlCustomerVo">
+        SELECT <include refid="customerColumns"/>
+        FROM ql_customer c
+        <include refid="customerJoins"/>
+        WHERE c.id=#{id} AND c.deleted_at IS NULL
+    </select>
+
+    <select id="selectTimeline" resultType="java.util.LinkedHashMap">
+        SELECT eventType, title, detail, occurredAt, source, operatorName,
+               sessionId, sessionNumber, sessionName, registrationId, referenceId
+        FROM (
+            SELECT 'profile_created' AS eventType, '建立轻友档案' AS title,
+                   CONCAT('轻友编号：', CONVERT(c.customer_no USING utf8mb4)) AS detail,
+                   DATE_FORMAT(c.created_at, '%Y-%m-%d %H:%i:%s') AS occurredAt,
+                   c.data_source AS source, NULL AS operatorName,
+                   NULL AS sessionId, NULL AS sessionNumber, NULL AS sessionName,
+                   NULL AS registrationId, c.id AS referenceId, 10 AS sortOrder
+            FROM ql_customer c WHERE c.id=#{id} AND c.deleted_at IS NULL
+
+            UNION ALL
+
+            SELECT 'registration_submitted', '提交报名',
+                   CONCAT('报名状态：', CONVERT(r.registration_status USING utf8mb4),
+                          '；付款状态：', CONVERT(r.payment_status USING utf8mb4)),
+                   DATE_FORMAT(r.registered_at, '%Y-%m-%d %H:%i:%s'),
+                   r.registration_source, NULL,
+                   s.id, s.session_number, s.name, r.id, r.batch_id, 20
+            FROM ql_registration r JOIN ql_session s ON s.id=r.session_id
+            WHERE r.customer_id=#{id}
+
+            UNION ALL
+
+            SELECT 'registration_status',
+                   CASE WHEN l.to_status='confirmed' THEN '报名确认' ELSE '报名状态变更' END,
+                   CONCAT(COALESCE(CONVERT(l.from_status USING utf8mb4), '未设置'),
+                          ' → ', CONVERT(l.to_status USING utf8mb4),
+                          CASE WHEN l.change_reason IS NULL OR l.change_reason='' THEN ''
+                               ELSE CONCAT('；', CONVERT(l.change_reason USING utf8mb4)) END),
+                   DATE_FORMAT(l.changed_at, '%Y-%m-%d %H:%i:%s'),
+                   'operator_entry', u.nick_name,
+                   s.id, s.session_number, s.name, r.id, l.id, 30
+            FROM ql_registration_status_log l
+            JOIN ql_registration r ON r.id=l.registration_id
+            JOIN ql_session s ON s.id=r.session_id
+            LEFT JOIN sys_user u ON u.user_id=l.operator_id
+            WHERE r.customer_id=#{id} AND l.status_type='registration'
+              AND NOT (l.from_status IS NULL AND l.to_status='pending')
+
+            UNION ALL
+
+            SELECT 'payment_confirmed', '付款确认',
+                   CONCAT('金额 ¥', FORMAT(t.amount, 2),
+                          '；方式：', CONVERT(t.payment_method USING utf8mb4),
+                          '；状态：', CONVERT(t.status USING utf8mb4),
+                          CASE WHEN t.remark IS NULL OR t.remark='' THEN ''
+                               ELSE CONCAT('；', CONVERT(t.remark USING utf8mb4)) END),
+                   DATE_FORMAT(t.transaction_at, '%Y-%m-%d %H:%i:%s'),
+                   t.record_source, u.nick_name,
+                   s.id, s.session_number, s.name, t.registration_id, t.id, 40
+            FROM ql_transaction t
+            LEFT JOIN ql_session s ON s.id=t.session_id
+            LEFT JOIN sys_user u ON u.user_id=t.operator_id
+            WHERE t.customer_id=#{id}
+
+            UNION ALL
+
+            SELECT 'attendance', '到场登记',
+                   CONCAT('第', d.day_no, '天（', DATE_FORMAT(d.activity_date, '%Y-%m-%d'),
+                          '）：', CONVERT(p.attendance_status USING utf8mb4)),
+                   DATE_FORMAT(CASE WHEN COALESCE(o.corrected_source,p.check_in_source)='mobile_workspace' THEN CONVERT_TZ(COALESCE(p.checked_in_at,p.updated_at), '+00:00', '+08:00') ELSE COALESCE(p.checked_in_at,p.updated_at) END, '%Y-%m-%d %H:%i:%s'),
+                   COALESCE(o.corrected_source,p.check_in_source, 'system'), u.nick_name,
+                   s.id, s.session_number, s.name, p.registration_id, p.id, 50
+            FROM ql_participation_day p
+            LEFT JOIN ql_attendance_origin_correction o ON o.participation_day_id=p.id AND o.original_checked_in_at=p.checked_in_at AND o.original_operator_id=p.checked_in_by AND o.original_source=p.check_in_source
+            JOIN ql_session_day d ON d.id=p.session_day_id
+            JOIN ql_session s ON s.id=d.session_id
+            LEFT JOIN sys_user u ON u.user_id=p.checked_in_by
+            WHERE p.customer_id=#{id} AND p.attendance_status!='not_arrived'
+
+            UNION ALL
+
+            SELECT 'session_completed', '活动完成', '期次状态：已完成',
+                   DATE_FORMAT(s.updated_at, '%Y-%m-%d %H:%i:%s'),
+                   'system', u.nick_name,
+                   s.id, s.session_number, s.name, r.id, s.id, 60
+            FROM ql_registration r JOIN ql_session s ON s.id=r.session_id
+            LEFT JOIN sys_user u ON u.user_id=s.updated_by
+            WHERE r.customer_id=#{id} AND s.status='completed'
+
+            UNION ALL
+
+            SELECT 'staff_interview', '工作人员回访', i.content,
+                   DATE_FORMAT(CONVERT_TZ(i.created_at, '+00:00', '+08:00'), '%Y-%m-%d %H:%i:%s'),
+                   'mobile_workspace', i.operator_name,
+                   NULL, NULL, NULL, NULL, i.id, 70
+            FROM ql_staff_interview i WHERE i.customer_id=#{id}
+        ) timeline
+        ORDER BY occurredAt DESC, sortOrder DESC
+    </select>
+</mapper>

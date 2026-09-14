@@ -1,0 +1,6 @@
+.friend-flow-page .post-detail { padding: 32rpx 0; font-size: 30rpx; line-height: 1.85; color: #3B3833; }
+
+.archive-text { display: block; white-space: pre-wrap; font-size: 28rpx; margin: 20rpx 0; overflow-wrap: anywhere; }
+.archive-images { display: flex; flex-wrap: wrap; gap: 12rpx; }
+.archive-images image { width: 176rpx; height: 176rpx; border-radius: 16rpx; }
+.archive-comments { border-top: 1rpx solid var(--ql-border); margin-top: 24rpx; padding-top: 16rpx; }

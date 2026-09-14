@@ -1,0 +1,57 @@
+.ql-nav-space {
+  position: relative;
+  z-index: 80;
+  width: 100%;
+}
+
+.ql-nav-layer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  background: rgba(246, 241, 232, 0.94);
+}
+
+.ql-nav-layer.overlay { background: transparent; }
+
+.ql-nav-title {
+  position: absolute;
+  right: 112px;
+  left: 56px;
+  overflow: hidden;
+  color: #26231F;
+  font-size: 16px;
+  font-weight: 500;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ql-back {
+  position: absolute;
+  left: 12px;
+  display: flex;
+  width: 32px;
+  min-width: 32px;
+  max-width: 32px;
+  min-height: 32px;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  border: 1rpx solid rgba(38, 35, 31, 0.06);
+  border-radius: 50%;
+  background: rgba(255, 252, 247, 0.72);
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.ql-back::after { border: none; }
+
+.ql-back-arrow {
+  width: 9px;
+  height: 9px;
+  border-bottom: 1.6px solid #26231F;
+  border-left: 1.6px solid #26231F;
+  transform: translateX(2px) rotate(45deg);
+}

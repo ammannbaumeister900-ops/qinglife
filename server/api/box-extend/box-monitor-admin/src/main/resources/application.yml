@@ -1,0 +1,11 @@
+server:
+  port: 9090
+
+spring:
+  security:
+    user:
+      name: ruoyi
+      password: ${QINGLIFE_MONITOR_PASSWORD:}
+  boot:
+    admin:
+      context-path: /admin

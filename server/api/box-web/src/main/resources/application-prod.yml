@@ -1,0 +1,183 @@
+# 数据源配置
+spring:
+  datasource:
+    type: com.alibaba.druid.pool.DruidDataSource
+    # 动态数据源文档 https://www.kancloud.cn/tracy5546/dynamic-datasource/content
+    dynamic:
+      #设置默认的数据源或者数据源组,默认值即为 master
+      primary: master
+      datasource:
+        # 主库数据源
+        master:
+          driverClassName: com.mysql.cj.jdbc.Driver
+          url: ${QINGLIFE_DB_URL:jdbc:mysql://127.0.0.1:3306/qinglife?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai}
+          username: ${QINGLIFE_DB_USERNAME:qinglife}
+          password: ${QINGLIFE_DB_PASSWORD:}
+        # 从库数据源
+        slave:
+          lazy: true
+          driverClassName: com.mysql.cj.jdbc.Driver
+          url:
+          username:
+          password:
+      druid:
+        # 初始连接数
+        initialSize: 5
+        # 最小连接池数量
+        minIdle: 10
+        # 最大连接池数量
+        maxActive: 20
+        # 配置获取连接等待超时的时间
+        maxWait: 60000
+        # 配置间隔多久才进行一次检测，检测需要关闭的空闲连接，单位是毫秒
+        timeBetweenEvictionRunsMillis: 60000
+        # 配置一个连接在池中最小生存的时间，单位是毫秒
+        minEvictableIdleTimeMillis: 300000
+        # 配置一个连接在池中最大生存的时间，单位是毫秒
+        maxEvictableIdleTimeMillis: 900000
+        # 配置检测连接是否有效
+        validationQuery: SELECT 1 FROM DUAL
+        testWhileIdle: true
+        testOnBorrow: false
+        testOnReturn: false
+        # 注意这个值和druid原生不一致，默认启动了stat
+        filters: stat
+
+--- # druid 配置
+spring:
+  datasource:
+    druid:
+      webStatFilter:
+        enabled: false
+      statViewServlet:
+        enabled: false
+        # 设置白名单，不填则允许所有访问
+        allow:
+        url-pattern: /druid/*
+        # 控制台管理用户名和密码
+        login-username: ${QINGLIFE_DRUID_USERNAME:admin}
+        login-password: ${QINGLIFE_DRUID_PASSWORD:}
+      filter:
+        stat:
+          enabled: true
+          # 慢SQL记录
+          log-slow-sql: true
+          slow-sql-millis: 1000
+          merge-sql: true
+        wall:
+          config:
+            multi-statement-allow: true
+
+--- # redis 配置
+spring:
+  redis:
+    # 地址
+    host: 127.0.0.1
+    # 端口，默认为6379
+    port: 6379
+    # 数据库索引
+    database: 0
+    # 密码
+    password: ${QINGLIFE_REDIS_PASSWORD:}
+    # 连接超时时间
+    timeout: 10s
+    # 是否开启ssl
+    ssl: false
+
+redisson:
+  # 线程池数量
+  threads: 16
+  # Netty线程池数量
+  nettyThreads: 32
+  # 传输模式
+  transportMode: "NIO"
+  # 单节点配置
+  singleServerConfig:
+    # 客户端名称
+    clientName: ${ruoyi.name}
+    # 最小空闲连接数
+    connectionMinimumIdleSize: 32
+    # 连接池大小
+    connectionPoolSize: 64
+    # 连接空闲超时，单位：毫秒
+    idleConnectionTimeout: 10000
+    # 命令等待超时，单位：毫秒
+    timeout: 3000
+    # 如果尝试在此限制之内发送成功，则开始启用 timeout 计时。
+    retryAttempts: 3
+    # 命令重试发送时间间隔，单位：毫秒
+    retryInterval: 1500
+    # 发布和订阅连接的最小空闲连接数
+    subscriptionConnectionMinimumIdleSize: 1
+    # 发布和订阅连接池大小
+    subscriptionConnectionPoolSize: 50
+    # 单个连接最大订阅数量
+    subscriptionsPerConnection: 5
+    # DNS监测时间间隔，单位：毫秒
+    dnsMonitoringInterval: 5000
+
+--- # 监控配置
+spring:
+  boot:
+    admin:
+      # Spring Boot Admin Client 客户端的相关配置
+      client:
+        # 设置 Spring Boot Admin Server 地址
+        url: http://172.30.0.90:9090/admin
+        instance:
+          prefer-ip: true # 注册实例时，优先使用 IP
+        username: ${QINGLIFE_MONITOR_USERNAME:admin}
+        password: ${QINGLIFE_MONITOR_PASSWORD:}
+
+# Actuator 监控端点的配置项
+management:
+  endpoints:
+    web:
+      # Actuator 提供的 API 接口的根目录。默认为 /actuator
+      base-path: /actuator
+      exposure:
+        # 需要开放的端点。默认值只打开 health 和 info 两个端点。通过设置 * ，可以开放所有端点。
+        # 生产环境不建议放开所有 根据项目需求放开即可
+        include: health,info
+  endpoint:
+    logfile:
+      external-file: ./logs/sys-console.log
+
+--- # OSS 云存储(界面 <参数设置> 可切换)
+cloud-storage:
+  # minio配置
+  minio:
+    endpoint: http://172.30.0.54:9000
+    accessKey: ${QINGLIFE_OSS_A_CC_ES_SK_EY:}
+    secretKey: ${QINGLIFE_OSS_S_EC_RE_TK_EY:}
+    bucketName: ruoyi
+  # 七牛云配置
+  qiniu:
+    domain: http://XXX.XXXX.com
+    prefix:
+    accessKey: ${QINGLIFE_OSS_A_CC_ES_SK_EY:}
+    secretKey: ${QINGLIFE_OSS_S_EC_RE_TK_EY:}
+    bucketName: ruoyi
+    isHttps: false
+    # z0 华东  z1 华北  z2 华南  na0 北美  as0 东南亚
+    # 不填为自动获取(性能低 易出问题)
+    region: z0
+  # 阿里云配置
+  aliyun:
+    endpoint: http://oss-cn-beijing.aliyuncs.com
+    prefix:
+    accessKeyId: ${QINGLIFE_OSS_A_CC_ES_SK_EY_ID:}
+    accessKeySecret: ${QINGLIFE_OSS_A_CC_ES_SK_EY_SE_CR_ET:}
+    bucketName: ruoyi
+  # 腾讯云配置
+  qcloud:
+    endpoint: http://cos.ap-beijing.myqcloud.com
+    prefix:
+    secretId: ${QINGLIFE_OSS_S_EC_RE_TI_D:}
+    secretKey: ${QINGLIFE_OSS_S_EC_RE_TK_EY:}
+    # 腾讯云bucket名规则 格式为 BucketName-APPID 此处填写的存储桶名称必须为此格式
+    bucketName: ruoyi-1250000000
+    isHttps: false
+    # 地域名参考官方文档
+    # https://cloud.tencent.com/document/product/436/6224
+    region: ap-beijing

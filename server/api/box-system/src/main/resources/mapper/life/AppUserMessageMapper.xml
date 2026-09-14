@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.yicai.life.mapper.AppUserMessageMapper">
+
+    <resultMap type="com.yicai.life.domain.AppUserMessage" id="AppUserMessageResult">
+        <result property="id" column="id"/>
+        <result property="userId" column="user_id"/>
+        <result property="msgType" column="msg_type"/>
+        <result property="msgFrom" column="msg_from"/>
+        <result property="fromUserId" column="from_user_id"/>
+        <result property="fromNickName" column="from_nick_name"/>
+        <result property="fromHead" column="from_head"/>
+        <result property="deleted" column="deleted"/>
+        <result property="readed" column="readed"/>
+        <result property="insertTime" column="insert_time"/>
+        <result property="insertUser" column="insert_user"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="updateUser" column="update_user"/>
+    </resultMap>
+
+
+</mapper>

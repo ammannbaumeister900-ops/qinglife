@@ -1,6 +1,0 @@
-.button-row { margin-top: 28rpx; }
-.camp-flow-page .progress { padding: 0 6rpx; }
-.camp-flow-page .progress-item { height: 10rpx; background: rgba(123,139,115,.18); }
-.camp-flow-page .progress-item.active { background: #718268; }
-.camp-flow-page .card { border-radius: 40rpx 40rpx 16rpx 40rpx; }
-.camp-flow-page .primary { background: #687C5F; box-shadow: 0 12rpx 28rpx rgba(84,107,76,.20); }

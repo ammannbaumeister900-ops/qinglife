@@ -1,0 +1,163 @@
+.profile-head {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 26rpx;
+  margin-bottom: 36rpx;
+  padding: 40rpx 70rpx 40rpx 40rpx;
+  border: 1rpx solid rgba(255, 255, 255, 0.66);
+  border-radius: var(--ql-radius-card);
+  background:
+    radial-gradient(circle at 96% 0%, rgba(228, 209, 194, 0.5), transparent 34%),
+    rgba(255, 252, 247, 0.86);
+  box-shadow: var(--ql-shadow-card);
+}
+.profile-avatar {
+  display: flex;
+  width: 96rpx;
+  height: 96rpx;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--ql-clay);
+  color: var(--ql-surface);
+  font-family: var(--ql-serif);
+  font-size: 38rpx;
+  flex-shrink: 0;
+}
+.profile-title {
+  font-family: var(--ql-serif);
+  font-size: 36rpx;
+  line-height: 1.5;
+}
+.profile-login {
+  width: 220rpx;
+  min-height: 76rpx;
+  margin: 20rpx 0 0;
+  padding: 0 24rpx;
+  line-height: 76rpx;
+}
+.profile-side {
+  position: absolute;
+  top: 34rpx;
+  right: 24rpx;
+  color: var(--ql-clay);
+  font-size: 23rpx;
+}
+
+.timeline-head { align-items: center; }
+
+.journey-timeline {
+  position: relative;
+  overflow: hidden;
+  padding: 42rpx 36rpx 26rpx;
+  border: 1rpx solid rgba(255, 255, 255, 0.66);
+  border-radius: var(--ql-radius-card);
+  background:
+    radial-gradient(circle at 100% 0, rgba(240, 219, 204, 0.5), transparent 32%),
+    rgba(255, 252, 247, 0.86);
+  box-shadow: var(--ql-shadow-card);
+}
+.timeline-item { display: flex; gap: 26rpx; min-height: 112rpx; }
+.timeline-axis { position: relative; width: 24rpx; flex-shrink: 0; }
+.timeline-dot {
+  position: relative;
+  z-index: 2;
+  box-sizing: border-box;
+  width: 22rpx;
+  height: 22rpx;
+  margin-top: 8rpx;
+  border: 6rpx solid var(--ql-clay);
+  border-radius: 50%;
+  background: #FFF9F3;
+  box-shadow: 0 0 0 8rpx rgba(183, 131, 105, 0.1);
+}
+.timeline-line {
+  position: absolute;
+  top: 32rpx;
+  left: 10rpx;
+  bottom: -4rpx;
+  width: 2rpx;
+  background: linear-gradient(var(--ql-clay-soft), rgba(166, 182, 162, 0.4));
+}
+.timeline-content { flex: 1; padding-bottom: 30rpx; }
+.timeline-meta { display: flex; align-items: center; justify-content: space-between; }
+.timeline-marker {
+  color: var(--ql-clay-deep);
+  font-family: var(--ql-serif);
+  font-size: 26rpx;
+  letter-spacing: 1rpx;
+}
+.timeline-status {
+  padding: 8rpx 16rpx;
+  border-radius: 999rpx;
+  background: var(--ql-tint-sage);
+  color: var(--ql-sage-deep);
+  font-size: 22rpx;
+}
+.timeline-status.pill--done {
+  background: var(--ql-tint-sage);
+  color: var(--ql-sage-deep);
+}
+.timeline-status.pill--pending {
+  background: var(--ql-tint-mist);
+  color: #596B73;
+}
+.timeline-status.pill--closed {
+  background: #F1EDE7;
+  color: #8A847C;
+}
+.timeline-place { margin-top: 10rpx; color: var(--ql-ink-light); font-size: 24rpx; }
+.timeline-item:active .timeline-content { opacity: .72; }
+
+/* 目录式服务列表：发丝线分隔 */
+.asset-list {
+  padding: 4rpx 6rpx 0;
+  border-top: 1rpx solid rgba(74, 61, 49, 0.14);
+}
+.asset {
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+  width: 100%;
+  margin: 0;
+  padding: 30rpx 0;
+  border-bottom: 1rpx solid rgba(74, 61, 49, 0.14);
+  border-radius: 0;
+  background: transparent;
+  text-align: left;
+  line-height: 1.4;
+}
+.asset:active { opacity: 0.7; }
+.asset-name {
+  flex: 1;
+  font-size: 28rpx;
+  font-weight: 500;
+}
+.asset-chevron { color: var(--ql-ink-ghost); font-size: 32rpx; }
+.asset-icon {
+  display: flex;
+  width: 68rpx;
+  height: 68rpx;
+  align-items: center;
+  justify-content: center;
+  border-radius: 20rpx;
+  font-family: var(--ql-serif);
+  font-size: 30rpx;
+  flex-shrink: 0;
+}
+.sage-bg { background: var(--ql-tint-sage); color: var(--ql-sage-deep); }
+.clay-bg { background: var(--ql-tint-clay); color: var(--ql-clay-deep); }
+.mist-bg { background: var(--ql-tint-mist); color: #5F7580; }
+.lavender-bg { background: var(--ql-tint-lavender); color: #7A6A7C; }
+
+.history-entry { margin-top: 40rpx; color: var(--ql-ink-light); font-size: 26rpx; }
+
+.asset-main { flex: 1; min-width: 0; }
+.asset-description { font-size: 23rpx; color: var(--ql-ink-light); margin-top: 10rpx; }
+.profile-head { padding: 32rpx; }
+.profile-title { font-size: 32rpx; }
+
+.mine-page .asset { width: 100%; margin: 0; text-align: left; }
+
+.staff-entry{background:#465d49;color:#fff;padding:40rpx;border-radius:28rpx;margin:32rpx 0}.staff-entry-title{font-size:42rpx;margin:22rpx 0}.staff-entry button{margin-top:30rpx;background:#faf6ed;color:#354c3a;min-height:90rpx;display:flex;align-items:center;justify-content:center}

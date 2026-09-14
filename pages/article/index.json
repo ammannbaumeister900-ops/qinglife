@@ -1,7 +1,0 @@
-{
-  "navigationBarTitleText": "轻读",
-  "usingComponents": {
-    "launch-splash": "/components/launch-splash/index",
-    "soft-loading": "/components/soft-loading/index"
-  }
-}

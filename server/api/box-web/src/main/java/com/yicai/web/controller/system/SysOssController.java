@@ -1,0 +1,138 @@
+package com.yicai.web.controller.system;
+
+
+import cn.hutool.core.convert.Convert;
+import cn.hutool.http.HttpUtil;
+import com.yicai.common.annotation.Log;
+import com.yicai.common.annotation.RepeatSubmit;
+import com.yicai.common.config.RuoYiConfig;
+import com.yicai.common.core.controller.BaseController;
+import com.yicai.common.core.domain.AjaxResult;
+import com.yicai.common.core.page.TableDataInfo;
+import com.yicai.common.enums.BusinessType;
+import com.yicai.common.exception.CustomException;
+import com.yicai.common.utils.file.FileUploadUtils;
+import com.yicai.common.utils.file.FileUtils;
+import com.yicai.framework.config.ServerConfig;
+import com.yicai.system.domain.SysOss;
+import com.yicai.system.domain.bo.SysOssBo;
+import com.yicai.system.domain.vo.SysOssVo;
+import com.yicai.system.service.ISysOssService;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiImplicitParam;
+import io.swagger.annotations.ApiImplicitParams;
+import io.swagger.annotations.ApiOperation;
+import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import javax.servlet.http.HttpServletResponse;
+import javax.validation.constraints.NotEmpty;
+import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
+
+/**
+ * 文件上传 控制层
+ *
+ * @author Lion Li
+ */
+@Validated
+@Api(value = "OSS云存储控制器", tags = {"OSS云存储管理"})
+@RequiredArgsConstructor(onConstructor_ = @Autowired)
+@RestController
+@RequestMapping("/system/oss")
+public class
+SysOssController extends BaseController {
+
+	private final ISysOssService iSysOssService;
+
+	@Autowired
+	private ServerConfig serverConfig;
+
+	/**
+	 * 查询OSS云存储列表
+	 */
+	@ApiOperation("查询OSS云存储列表")
+	@PreAuthorize("@ss.hasPermi('system:oss:list')")
+	@GetMapping("/list")
+	public TableDataInfo<SysOssVo> list(@Validated SysOssBo bo) {
+		return iSysOssService.queryPageList(bo);
+	}
+
+	/**
+	 * 上传OSS云存储
+	 */
+	@ApiOperation("上传OSS云存储")
+	@ApiImplicitParams({
+		@ApiImplicitParam(name = "file", value = "文件", dataType = "java.io.File", required = true),
+	})
+	@PreAuthorize("@ss.hasPermi('system:oss:upload')")
+	@Log(title = "OSS云存储", businessType = BusinessType.INSERT)
+	@RepeatSubmit
+	@PostMapping("/upload")
+	public AjaxResult<Map<String, String>> upload(@RequestPart("file") MultipartFile file) {
+		if (file.isEmpty()) {
+			throw new CustomException("上传文件不能为空");
+		}
+		SysOss oss = iSysOssService.upload(file);
+		Map<String, String> map = new HashMap<>(2);
+		map.put("url", oss.getUrl());
+		map.put("fileName", oss.getFileName());
+		return AjaxResult.success(map);
+	}
+
+	@PreAuthorize("@ss.hasPermi('system:oss:upload')")
+	@Log(title = "本地存储", businessType = BusinessType.INSERT)
+	@RepeatSubmit
+	@PostMapping("/localUpload")
+	public AjaxResult<Map<String, String>> localUpload(@RequestPart("file") MultipartFile file) throws IOException{
+		if (file.isEmpty()) {
+			throw new CustomException("上传文件不能为空");
+		}
+		String fileName = FileUploadUtils.upload(RuoYiConfig.getProfile(), file);
+		Map<String, String> map = new HashMap<>(2);
+		System.out.println(fileName);
+		map.put("url", serverConfig.getUrl() + "/" + fileName);
+		map.put("fileName", fileName);
+
+		return AjaxResult.success(map);
+	}
+
+	@ApiOperation("下载OSS云存储")
+	@PreAuthorize("@ss.hasPermi('system:oss:download')")
+	@GetMapping("/download/{ossId}")
+	public void download(@PathVariable Long ossId, HttpServletResponse response) throws IOException {
+		SysOss sysOss = iSysOssService.getById(ossId);
+		if (sysOss == null) {
+			throw new CustomException("文件数据不存在!");
+		}
+		response.reset();
+		response.addHeader("Access-Control-Allow-Origin", "*");
+		response.addHeader("Access-Control-Expose-Headers", "Content-Disposition");
+		FileUtils.setAttachmentResponseHeader(response, URLEncoder.encode(sysOss.getOriginalName(), StandardCharsets.UTF_8.toString()));
+		response.setContentType(MediaType.APPLICATION_OCTET_STREAM_VALUE + "; charset=UTF-8");
+		long data = HttpUtil.download(sysOss.getUrl(), response.getOutputStream(), false);
+		response.setContentLength(Convert.toInt(data));
+	}
+
+	/**
+	 * 删除OSS云存储
+	 */
+	@ApiOperation("删除OSS云存储")
+	@PreAuthorize("@ss.hasPermi('system:oss:remove')")
+	@Log(title = "OSS云存储" , businessType = BusinessType.DELETE)
+	@DeleteMapping("/{ossIds}")
+	public AjaxResult<Void> remove(@NotEmpty(message = "主键不能为空")
+								   @PathVariable Long[] ossIds) {
+		return toAjax(iSysOssService.deleteWithValidByIds(Arrays.asList(ossIds), true) ? 1 : 0);
+	}
+
+}

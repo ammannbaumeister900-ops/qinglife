@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.yicai.life.mapper.CollectMapper">
+
+    <resultMap type="com.yicai.life.domain.Collect" id="CollectResult">
+        <result property="id" column="id"/>
+        <result property="essay" column="essay"/>
+        <result property="userId" column="user_id"/>
+        <result property="insertTime" column="insert_time"/>
+    </resultMap>
+
+    <select id="selectPageList" parameterType="CollectBo" resultType="com.yicai.life.domain.vo.CollectVo">
+        select a.* , b.title essayTitle, b.Introduction, b.title_url titleUrl, c.nick_name from collect a
+        INNER JOIN essay b ON a.essay = b.id
+        INNER JOIN app_user_info c ON a.user_id = c.id
+        <if test="bo.nickName != null and bo.nickName != ''">
+            AND c.nick_name like concat('%', #{bo.nickName}, '%')
+        </if>
+        <if test="bo.essayTitle != null and bo.essayTitle != ''">
+            AND b.title like concat('%', #{bo.essayTitle}, '%')
+        </if>
+        order by a.insert_time desc
+    </select>
+
+
+</mapper>

@@ -1,0 +1,49 @@
+package ${packageName}.domain.vo;
+
+import com.yicai.common.annotation.Excel;
+#foreach ($import in $importList)
+import ${import};
+#end
+import lombok.Data;
+
+
+/**
+ * ${functionName}视图对象 ${tableName}
+ *
+ * @author ${author}
+ * @date ${datetime}
+ */
+@Data
+public class ${ClassName}Vo {
+
+	private static final long serialVersionUID = 1L;
+
+	/**
+     *  $pkColumn.columnComment
+     */
+	private ${pkColumn.javaType} ${pkColumn.javaField};
+
+#foreach ($column in $columns)
+#if($column.isList && $column.isPk!=1)
+    /**
+     * $column.columnComment
+     */
+#set($parentheseIndex=$column.columnComment.indexOf("（"))
+#if($parentheseIndex != -1)
+#set($comment=$column.columnComment.substring(0, $parentheseIndex))
+#else
+#set($comment=$column.columnComment)
+#end
+#if($parentheseIndex != -1)
+	@Excel(name = "${comment}" , readConverterExp = "$column.readConverterExp()")
+#elseif($column.javaType == 'Date')
+	@Excel(name = "${comment}" , width = 30, dateFormat = "yyyy-MM-dd")
+#else
+	@Excel(name = "${comment}")
+#end
+	private $column.javaType $column.javaField;
+
+#end
+#end
+
+}

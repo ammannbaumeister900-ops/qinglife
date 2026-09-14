@@ -1,0 +1,3 @@
+.personal-page .hero-title { font-size: 44rpx; margin-bottom: 16rpx; }
+.personal-page .card { margin-top: 28rpx; }
+.personal-page .card-copy { white-space: pre-wrap; overflow-wrap: anywhere; }

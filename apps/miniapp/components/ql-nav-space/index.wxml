@@ -1,0 +1,8 @@
+<view class="ql-nav-space {{immersive ? 'immersive' : ''}}" style="{{spaceStyle}}">
+  <view class="ql-nav-layer {{immersive ? 'overlay' : ''}}" style="{{barStyle}}">
+    <button wx:if="{{back}}" class="ql-back" style="{{controlStyle}}" aria-label="返回" bindtap="goBack">
+      <view class="ql-back-arrow"></view>
+    </button>
+    <view wx:if="{{title}}" class="ql-nav-title" style="{{controlStyle}}">{{title}}</view>
+  </view>
+</view>

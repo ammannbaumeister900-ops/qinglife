@@ -1,0 +1,38 @@
+<ql-nav-space title="{{view === 'archive' ? '历史打卡' : view === 'records' ? '私人记录' : '记录今天'}}" back />
+<view class="page friend-flow-page editorial-page">
+  <block wx:if="{{view === 'daily'}}">
+    <view class="hero"><view class="hero-title">{{dailyTitle}}</view><view class="hero-copy">完成、轻量或休息都可以。只记录今天的实际情况。</view></view>
+    <view class="card">
+      <view class="chips">
+        <button class="chip {{dailyChoice === 'done' ? 'active' : ''}}" data-value="done" bindtap="chooseDaily">完成了</button>
+        <button class="chip {{dailyChoice === 'light' ? 'active' : ''}}" data-value="light" bindtap="chooseDaily">做了轻量版本</button>
+        <button class="chip {{dailyChoice === 'rest' ? 'active' : ''}}" data-value="rest" bindtap="chooseDaily">今天休息了</button>
+      </view>
+      <view class="field"><text class="label">留下一句话（选填）</text><textarea class="textarea" value="{{dailyNote}}" maxlength="140" placeholder="今天感觉怎么样？" bindinput="onDailyNote"/></view>
+      <view class="privacy-note">默认仅自己可见，可以不写感受。</view>
+      <button class="primary" bindtap="saveDaily">保存今天</button>
+      <view wx:if="{{savedRecord}}" class="card-copy">已保存 · 仅自己可见</view>
+    </view>
+    <button class="text-button" bindtap="openPlan">陪伴计划设置</button>
+  </block>
+  <block wx:elif="{{view === 'records'}}">
+    <view class="hero"><view class="hero-title">留给自己的记录</view><view class="hero-copy">仅自己可见，不会自动公开。</view></view>
+    <view wx:if="{{!records.length}}" class="empty-state"><view class="empty-title">还没有私人记录</view><button class="empty-action" bindtap="openDaily">记录今天</button></view>
+    <view wx:for="{{records}}" wx:key="key" class="card"><view class="card-title">{{item.choiceText}}</view><view class="card-copy">{{item.note}}</view><view class="section-note">{{item.savedAt}}</view></view>
+  </block>
+  <block wx:else>
+    <view class="hero"><view class="hero-title">轻友的旧时记录</view><view class="hero-copy">这里保留旧版可访问的打卡内容、图片与原始时间，只读回看。</view></view>
+    <view wx:if="{{archiveError}}" class="empty-state"><view class="empty-title">暂时未能读取</view><view class="empty-copy">{{archiveError}}</view><button class="empty-action" bindtap="loadArchive">重试</button></view>
+    <view wx:if="{{archiveLoaded && !archiveError && !archivePosts.length}}" class="empty-state"><view class="empty-title">暂时没有可查看的历史打卡</view><view class="empty-copy">这里不会使用示例内容替代真实记录。</view></view>
+    <view wx:for="{{archivePosts}}" wx:key="id" class="card">
+      <view class="card-title">{{item.author}}</view><view class="section-note">{{item.time}} · {{item.tag}}</view>
+      <text class="archive-text">{{item.content}}</text>
+      <view class="archive-images"><image wx:for="{{item.images}}" wx:for-item="url" wx:key="*this" src="{{url}}" mode="aspectFill" data-id="{{item.id}}" data-url="{{url}}" bindtap="previewImage" /></view>
+      <view wx:if="{{item.comments.length}}" class="archive-comments"><view class="section-note">历史回应（接口返回的部分记录）</view><view wx:for="{{item.comments}}" wx:for-item="comment" wx:key="id" class="card-copy">{{comment.nickName}}{{comment.replyNickName ? ' 回复 ' + comment.replyNickName : ''}}：{{comment.content}}</view></view>
+      <view class="section-note">记录编号 {{item.id}}</view>
+    </view>
+    <soft-loading wx:if="{{archiveLoading}}" text="正在读取历史打卡…" />
+    <button wx:if="{{archiveLoaded && archiveHasMore && !archiveLoading && !archiveError}}" class="secondary" bindtap="loadArchive">更早的记录</button>
+    <button class="text-button" bindtap="contactArchive">历史内容协助</button>
+  </block>
+</view>

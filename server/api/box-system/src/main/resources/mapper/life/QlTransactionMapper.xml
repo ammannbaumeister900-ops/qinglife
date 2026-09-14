@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.yicai.life.mapper.QlTransactionMapper">
+    <update id="cancelPaidByRegistration">
+        UPDATE ql_transaction
+        SET status = 'cancelled', operator_id = #{operatorId}, remark = #{remark},
+            revision = revision + 1, updated_at = #{updatedAt}
+        WHERE registration_id = #{registrationId} AND status = 'paid'
+    </update>
+    <update id="cancelPaidByBatch">
+        UPDATE ql_transaction
+        SET status = 'cancelled', operator_id = #{operatorId}, remark = #{remark},
+            revision = revision + 1, updated_at = #{updatedAt}
+        WHERE registration_batch_id = #{batchId} AND status = 'paid'
+    </update>
+</mapper>

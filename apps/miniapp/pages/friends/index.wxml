@@ -1,0 +1,2 @@
+<ql-nav-space title="历史打卡" back />
+<view class="page editorial-page"><view class="empty-state"><view class="empty-title">轻友的旧时记录还在这里</view><button class="empty-action" bindtap="openArchive">查看历史打卡</button></view></view>

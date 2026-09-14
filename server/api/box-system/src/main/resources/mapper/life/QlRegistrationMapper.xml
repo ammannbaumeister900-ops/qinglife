@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.yicai.life.mapper.QlRegistrationMapper">
+    <sql id="registrationColumns">
+        r.id, r.batch_id, b.order_no, b.submitted_by_customer_id AS buyer_customer_id,
+        buyer.nickname AS buyer_nickname, b.participant_count, b.payable_amount,
+        b.payment_status AS batch_payment_status,
+        r.customer_id, c.customer_no, c.nickname, c.real_name,
+        r.session_id, s.session_number, s.name AS session_name, COALESCE(r.unit_price,s.standard_price) AS standard_price,
+        r.registration_status, r.payment_status, r.registration_source, r.registered_at,
+        r.session_referrer_customer_id, ref.nickname AS referrer_nickname,
+        r.return_primary_trigger, r.return_trigger_note, r.attribution_source,
+        r.remark, r.revision
+    </sql>
+
+    <select id="selectPageList" resultType="com.yicai.life.domain.vo.QlRegistrationVo">
+        SELECT <include refid="registrationColumns"/>
+        FROM ql_registration r
+        INNER JOIN ql_customer c ON c.id = r.customer_id
+        INNER JOIN ql_session s ON s.id = r.session_id
+        LEFT JOIN ql_registration_batch b ON b.id = r.batch_id
+        LEFT JOIN ql_customer buyer ON buyer.id = b.submitted_by_customer_id
+        LEFT JOIN ql_customer ref ON ref.id = r.session_referrer_customer_id
+        <where>
+            <if test="bo.nickname != null and bo.nickname != ''">
+                AND (c.nickname LIKE CONCAT('%', #{bo.nickname}, '%')
+                    OR c.real_name LIKE CONCAT('%', #{bo.nickname}, '%')
+                    OR CONVERT(c.customer_no USING utf8mb4) LIKE CONCAT('%', #{bo.nickname}, '%'))
+            </if>
+            <if test="bo.sessionNumber != null">
+                AND s.session_number = #{bo.sessionNumber}
+            </if>
+            <if test="bo.registrationStatus != null and bo.registrationStatus != ''">
+                AND r.registration_status = #{bo.registrationStatus}
+            </if>
+            <if test="bo.paymentStatus != null and bo.paymentStatus != ''">
+                AND COALESCE(b.payment_status, r.payment_status) = #{bo.paymentStatus}
+            </if>
+        </where>
+        ORDER BY r.registered_at DESC
+    </select>
+
+    <select id="selectVoById" resultType="com.yicai.life.domain.vo.QlRegistrationVo">
+        SELECT <include refid="registrationColumns"/>
+        FROM ql_registration r
+        INNER JOIN ql_customer c ON c.id = r.customer_id
+        INNER JOIN ql_session s ON s.id = r.session_id
+        LEFT JOIN ql_registration_batch b ON b.id = r.batch_id
+        LEFT JOIN ql_customer buyer ON buyer.id = b.submitted_by_customer_id
+        LEFT JOIN ql_customer ref ON ref.id = r.session_referrer_customer_id
+        WHERE r.id = #{id}
+    </select>
+
+    <update id="updatePaymentStatus">
+        UPDATE ql_registration
+        SET payment_status = #{toStatus}, revision = revision + 1,
+            updated_by = #{operatorId}, updated_at = #{updatedAt}
+        WHERE id = #{id} AND payment_status = #{fromStatus}
+    </update>
+
+    <select id="selectBatchForPayment" resultType="java.util.HashMap">
+        SELECT b.id, b.session_id AS sessionId, b.submitted_by_customer_id AS buyerCustomerId,
+               b.payment_status AS paymentStatus, b.payable_amount AS payableAmount
+        FROM ql_registration_batch b
+        WHERE b.id = #{batchId} FOR UPDATE
+    </select>
+
+    <select id="selectRegistrationIdsByBatch" resultType="java.lang.String">
+        SELECT id FROM ql_registration WHERE batch_id = #{batchId}
+    </select>
+
+    <update id="updateBatchPaymentStatus">
+        UPDATE ql_registration_batch
+        SET payment_status = #{toStatus}
+        WHERE id = #{batchId} AND payment_status = #{fromStatus}
+    </update>
+
+    <update id="updateRegistrationPaymentByBatch">
+        UPDATE ql_registration
+        SET payment_status = #{toStatus}, revision = revision + 1,
+            updated_by = #{operatorId}, updated_at = #{updatedAt}
+        WHERE batch_id = #{batchId}
+    </update>
+</mapper>

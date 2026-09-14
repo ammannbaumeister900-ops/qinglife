@@ -1,0 +1,16 @@
+<view wx:if="{{visible}}" class="launch-splash {{leaving ? 'leaving' : ''}}">
+  <view class="launch-mist"></view>
+  <view wx:if="{{mode === 'brand'}}" class="launch-brand">
+    <view class="launch-mark">轻</view>
+    <view class="launch-name">轻生活</view>
+    <view class="launch-copy">Light Living · 慢一点，慢慢来</view>
+  </view>
+  <view wx:else class="page-loader">
+    <view class="page-loader-dots">
+      <view class="page-loader-dot dot-one"></view>
+      <view class="page-loader-dot dot-two"></view>
+      <view class="page-loader-dot dot-three"></view>
+    </view>
+    <view class="page-loader-copy">轻轻打开</view>
+  </view>
+</view>

@@ -2,6 +2,7 @@
 node_modules/
 miniprogram_npm/
 dist/
+target/
 coverage/
 
 # Local configuration and secrets
@@ -9,7 +10,14 @@ project.private.config.json
 .env
 .env.*
 !.env.example
+!apps/admin/.env.development
+!apps/admin/.env.production
+!apps/admin/.env.staging
 *.local.*
+.private/
+*.pem
+*.p12
+*.jks
 
 # WeChat DevTools and preview artifacts
 .wechat/
@@ -24,4 +32,13 @@ upload-info.json
 Thumbs.db
 *.log
 *.tmp
+*.bak
+*.jar
+*.war
+
+# Test and deployment artifacts
+test-artifacts/
+reports/
+screenshots/
+deployment/private/
 

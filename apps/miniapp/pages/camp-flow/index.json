@@ -1,0 +1,8 @@
+{
+  "navigationBarTitleText": "轻体营服务",
+  "navigationStyle": "custom",
+  "usingComponents": {
+    "launch-splash": "/components/launch-splash/index",
+    "ql-nav-space": "/components/ql-nav-space/index"
+  }
+}

@@ -1,0 +1,56 @@
+<launch-splash />
+<ql-nav-space title="轻体营" />
+<view class="page camp-page">
+  <view wx:if="{{refreshing}}" class="refresh-note">正在更新…</view><view wx:if="{{loading}}" class="empty-state">正在读取…</view><view wx:if="{{loadError}}" class="empty-state">{{loadError}}<button class="text-button" bindtap="onShow">重试</button></view>
+  <block wx:if="{{!loading}}">
+  <view class="hero"><view class="hero-title">轻体营</view><view class="hero-copy">了解近期活动，查看自己的报名与行程。</view></view>
+
+
+  <view class="index-head">
+
+    <view class="index-rule"></view>
+    <text class="index-label">近期轻体营</text>
+  </view>
+
+  <view
+    wx:for="{{visibleActivities}}"
+    wx:key="id"
+    class="card activity-card {{index === 0 ? 'featured-camp' : ''}}"
+    data-id="{{item.id}}"
+    bindtap="openActivity"
+  >
+    <view wx:if="{{index === 0 && item.canRegister}}" class="feature-label">下一期 · 现在可以报名</view>
+    <view class="activity-top">
+      <view class="pill {{item.statusTone === 'warning' ? 'warning' : item.statusTone === 'full' ? 'disabled' : item.statusTone === 'waitlist' || item.statusTone === 'planned' ? 'mist' : item.statusTone === 'cancelled' ? 'plain' : ''}}">第 {{item.sessionNumber}} 期 · {{item.status}}</view>
+      <view class="activity-arrow">›</view>
+    </view>
+    <view class="activity-name">{{item.name}}</view>
+    <view class="activity-details">
+      <view class="activity-detail">
+        <view class="activity-detail-label">日期</view>
+        <view class="card-copy">{{item.date}}</view>
+      </view>
+      <view class="activity-detail">
+        <view class="activity-detail-label">地点</view>
+        <view class="card-copy">{{item.city}}{{item.place}}</view>
+      </view>
+    </view>
+    <view class="activity-footer">
+      <view class="activity-fee">新轻友 ¥{{item.fee}}<text>/人</text><view wx:if="{{item.returningFee != null}}">老轻友 ¥{{item.returningFee}}/人</view></view>
+      
+    </view>
+    <view class="button-row"><button class="primary" disabled="{{!item.canRegister}}" data-id="{{item.id}}" catchtap="signup">{{item.canRegister ? '报名' : item.status}}</button><button class="secondary" data-id="{{item.id}}" catchtap="openActivity">查看详情</button></view>
+  </view>
+
+  <view wx:if="{{!visibleActivities.length}}" class="empty-state">
+    <view class="empty-title">暂时没有开放的轻体营</view>
+    <view class="empty-copy">新的期次准备好后，会安静地出现在这里。</view>
+  </view>
+
+  <view wx:if="{{state.registration.status === 'completed'}}" class="past-camp-entry" bindtap="openCurrent">
+    <view><text class="past-camp-label">我的活动</text><text class="past-camp-name">第 {{current.sessionNumber}} 期 · 已完成</text></view><text class="past-camp-link">查看体验记录 ›</text>
+  </view>
+
+  <view wx:for="{{currentRegistrations}}" wx:key="activityId" class="card"><view class="pill">{{item.label}}</view><view class="card-title">{{item.activity.name}}</view><view class="card-copy">{{item.activity.date}}</view><button class="secondary" data-id="{{item.activityId}}" bindtap="openRegistration">查看本次安排</button></view>
+  </block>
+</view>

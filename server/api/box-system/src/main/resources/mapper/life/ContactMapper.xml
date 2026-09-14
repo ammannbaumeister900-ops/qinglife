@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.yicai.life.mapper.ContactMapper">
+
+    <resultMap type="com.yicai.life.domain.Contact" id="ContactResult">
+        <result property="wechat" column="wechat"/>
+        <result property="phone" column="phone"/>
+        <result property="id" column="id"/>
+    </resultMap>
+
+
+</mapper>

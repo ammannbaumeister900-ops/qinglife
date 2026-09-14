@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.yicai.life.mapper.AppUserPublishMapper">
+
+    <resultMap type="com.yicai.life.domain.AppUserPublish" id="AppUserPublishResult">
+        <result property="id" column="id"/>
+        <result property="userId" column="user_id"/>
+        <result property="content" column="content"/>
+        <result property="tag" column="tag"/>
+        <result property="images" column="images"/>
+        <result property="deleted" column="deleted"/>
+        <result property="insertTime" column="insert_time"/>
+        <result property="insertUser" column="insert_user"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="updateUser" column="update_user"/>
+        <result property="praiseNum" column="praise_num"/>
+        <result property="commentNum" column="comment_num"/>
+        <result property="revision" column="revision"/>
+        <result property="templateId" column="template_id"/>
+    </resultMap>
+
+    <select id="selectPageList" parameterType="AppUserPublishBo" resultType="com.yicai.life.domain.vo.AppUserPublishVo">
+        select a.*, b.nick_name from app_user_publish a
+        left join app_user_info b on a.user_id = b.id
+        where a.deleted = 0
+        <if test="bo.nickName != null and bo.nickName != ''">
+           and b.nick_name like concat('%', #{bo.nickName}, '%')
+        </if>
+        <if test="bo.tag != null and bo.tag != ''">
+            and a.tag = #{bo.tag}
+        </if>
+        <if test="bo.content != null and bo.content != ''">
+            and a.content like concat('%', #{bo.content}, '%')
+        </if>
+        <if test="bo.beginTime !=null and bo.beginTime != ''">
+            and date_format(a.insert_time,'%y%m%d') &gt;= date_format(#{bo.beginTime},'%y%m%d')
+        </if>
+        <if test="bo.endTime !=null and bo.endTime != ''">
+            and date_format(a.insert_time,'%y%m%d') &gt;= date_format(#{bo.endTime},'%y%m%d')
+        </if>
+        order by a.insert_time desc
+    </select>
+
+</mapper>

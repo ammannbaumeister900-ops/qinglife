@@ -1,0 +1,2 @@
+Application Version: ${ruoyi-vue-plus.version}
+Spring Boot Version: ${spring-boot.version}

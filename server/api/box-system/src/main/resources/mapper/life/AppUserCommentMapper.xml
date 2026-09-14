@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.yicai.life.mapper.AppUserCommentMapper">
+
+    <resultMap type="com.yicai.life.domain.AppUserComment" id="AppUserCommentResult">
+        <result property="id" column="id"/>
+        <result property="userId" column="user_id"/>
+        <result property="nickName" column="nick_name"/>
+        <result property="publishId" column="publish_id"/>
+        <result property="commentId" column="comment_id"/>
+        <result property="content" column="content"/>
+        <result property="deleted" column="deleted"/>
+        <result property="revesion" column="revesion"/>
+        <result property="insertTime" column="insert_time"/>
+        <result property="insertUser" column="insert_user"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="updateUser" column="update_user"/>
+    </resultMap>
+
+
+</mapper>
