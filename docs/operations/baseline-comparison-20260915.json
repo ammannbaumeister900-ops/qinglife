@@ -1,0 +1,132 @@
+[
+  {
+    "name": "miniapp",
+    "baseline": "apps/miniapp",
+    "candidate": "轻生活前端小程序/qinglife-miniapp-v1.2",
+    "equalIgnoringCRLF": 101,
+    "contentDifferences": [
+      "README.md",
+      "tests\\lifecycle-e2e.test.js"
+    ],
+    "missingInCandidate": [],
+    "candidateOnly": [
+      "project.private.config.json"
+    ]
+  },
+  {
+    "name": "staging-miniapp",
+    "baseline": "apps/miniapp",
+    "candidate": "deployment/staging/miniapp",
+    "equalIgnoringCRLF": 89,
+    "contentDifferences": [
+      "package.json",
+      "project.config.json",
+      "README.md",
+      "config\\runtime.js",
+      "staff\\workspace\\index.js",
+      "staff\\workspace\\index.wxml"
+    ],
+    "missingInCandidate": [
+      "tests\\discovery-pages.test.js",
+      "tests\\domain.test.js",
+      "tests\\lifecycle-e2e.test.js",
+      "tests\\minimal-flow.test.js",
+      "tests\\staff-workspace.test.js",
+      "tests\\static-contract.test.js",
+      "tests\\store.test.js",
+      "tests\\ui-refactor.test.js"
+    ],
+    "candidateOnly": [
+      "project.private.config.json"
+    ]
+  },
+  {
+    "name": "admin",
+    "baseline": "apps/admin",
+    "candidate": "轻生活打卡小程序/后台代码/life-admin-ui",
+    "equalIgnoringCRLF": 317,
+    "contentDifferences": [
+      "README.md"
+    ],
+    "missingInCandidate": [],
+    "candidateOnly": [
+      "demo-ui.err.log",
+      "demo-ui.log",
+      "serve-demo.error.log",
+      "serve-demo.log"
+    ]
+  },
+  {
+    "name": "api",
+    "baseline": "server/api",
+    "candidate": "轻生活打卡小程序/后台代码/life-admin-api",
+    "equalIgnoringCRLF": 486,
+    "contentDifferences": [
+      "mock-demo-server.js",
+      "README.md",
+      "box-extend\\box-monitor-admin\\src\\main\\resources\\application.yml",
+      "box-web\\src\\main\\resources\\application-dev.yml",
+      "box-web\\src\\main\\resources\\application-prod.yml",
+      "box-web\\src\\main\\resources\\application.yml"
+    ],
+    "missingInCandidate": [],
+    "candidateOnly": [
+      "mock-demo-server.err.log",
+      "mock-demo-server.error.log",
+      "mock-demo-server.log"
+    ]
+  },
+  {
+    "name": "api-build",
+    "baseline": "server/api",
+    "candidate": "deployment/staging/build-src",
+    "equalIgnoringCRLF": 475,
+    "contentDifferences": [
+      "box-extend\\box-monitor-admin\\src\\main\\resources\\application.yml",
+      "box-system\\src\\main\\java\\com\\yicai\\life\\domain\\bo\\QlCustomerBo.java",
+      "box-system\\src\\main\\java\\com\\yicai\\life\\service\\QlStaffWorkspaceService.java",
+      "box-system\\src\\main\\java\\com\\yicai\\life\\service\\impl\\QlRegistrationServiceImpl.java",
+      "box-system\\src\\main\\resources\\mapper\\life\\QlCustomerMapper.xml",
+      "box-web\\src\\main\\java\\com\\yicai\\web\\controller\\life\\QlCustomerController.java",
+      "box-web\\src\\main\\resources\\application.yml"
+    ],
+    "missingInCandidate": [
+      ".gitignore",
+      "mock-demo-server.js",
+      "mock-journey-routes.js",
+      "README.md",
+      "box-system\\src\\main\\java\\com\\yicai\\life\\service\\QlCustomerDossierService.java",
+      "box-system\\src\\main\\resources\\db\\migration\\V1_3_10__disable_reschedule.sql",
+      "box-web\\src\\main\\java\\com\\yicai\\web\\controller\\life\\QlStaffAdminController.java",
+      "box-web\\src\\main\\java\\com\\yicai\\web\\controller\\life\\QlStaffWorkspaceController.java",
+      "box-web\\src\\main\\resources\\application-dev.yml",
+      "box-web\\src\\main\\resources\\application-prod.yml"
+    ],
+    "candidateOnly": []
+  },
+  {
+    "name": "migrations",
+    "baseline": "server/migrations",
+    "candidate": "轻生活数据库升级V1.1",
+    "equalIgnoringCRLF": 11,
+    "contentDifferences": [],
+    "missingInCandidate": [],
+    "candidateOnly": [
+      "轻生活数据库增量设计与登录鉴权方案-V1.1.md",
+      "auth-decisions.json",
+      "package.json",
+      "README.md",
+      "tests\\admin-integration.test.mjs",
+      "tests\\auth-contract.test.mjs",
+      "tests\\lifecycle-contract.test.mjs",
+      "tests\\miniapp-backend-support.test.mjs",
+      "tests\\payment-state.test.mjs",
+      "tests\\registration-import.test.mjs",
+      "tests\\schema-contract.test.mjs",
+      "tests\\staff-navigation-contract.test.mjs",
+      "tests\\unified-backend-contract.test.mjs",
+      "tools\\inspect-registration.mjs",
+      "tools\\registration-normalizer.mjs"
+    ]
+  }
+]
