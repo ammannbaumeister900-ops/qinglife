@@ -6,6 +6,9 @@ const { createRequire } = require('module')
 const domain = require('../utils/domain')
 const store = require('../utils/store')
 const demo = require('../data/demo')
+const runtime = require('../config/runtime')
+runtime.legacyEnabled = true
+runtime.legacyBaseUrl = 'https://legacy.example.test'
 const api = require('../services/legacy-api')
 const root = path.resolve(__dirname, '..')
 function page(name) {

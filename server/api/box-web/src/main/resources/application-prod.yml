@@ -1,5 +1,16 @@
+# 生产发布边界：公开资源必须 HTTPS，请求与上传大小必须有上限。
+ruoyi:
+  imagePath: ${QINGLIFE_PUBLIC_IMAGE_BASE_URL:}
+server:
+  undertow:
+    max-http-post-size: ${QINGLIFE_MAX_HTTP_POST_SIZE:20MB}
+
 # 数据源配置
 spring:
+  servlet:
+    multipart:
+      max-file-size: ${QINGLIFE_MAX_FILE_SIZE:10MB}
+      max-request-size: ${QINGLIFE_MAX_REQUEST_SIZE:20MB}
   datasource:
     type: com.alibaba.druid.pool.DruidDataSource
     # 动态数据源文档 https://www.kancloud.cn/tracy5546/dynamic-datasource/content
@@ -72,9 +83,9 @@ spring:
 spring:
   redis:
     # 地址
-    host: 127.0.0.1
+    host: ${QINGLIFE_REDIS_HOST:127.0.0.1}
     # 端口，默认为6379
-    port: 6379
+    port: ${QINGLIFE_REDIS_PORT:6379}
     # 数据库索引
     database: 0
     # 密码
@@ -122,6 +133,7 @@ spring:
     admin:
       # Spring Boot Admin Client 客户端的相关配置
       client:
+        enabled: false
         # 设置 Spring Boot Admin Server 地址
         url: http://172.30.0.90:9090/admin
         instance:
@@ -138,8 +150,10 @@ management:
       exposure:
         # 需要开放的端点。默认值只打开 health 和 info 两个端点。通过设置 * ，可以开放所有端点。
         # 生产环境不建议放开所有 根据项目需求放开即可
-        include: health,info
+        include: health
   endpoint:
+    health:
+      show-details: never
     logfile:
       external-file: ./logs/sys-console.log
 
@@ -148,15 +162,15 @@ cloud-storage:
   # minio配置
   minio:
     endpoint: http://172.30.0.54:9000
-    accessKey: ${QINGLIFE_OSS_A_CC_ES_SK_EY:}
-    secretKey: ${QINGLIFE_OSS_S_EC_RE_TK_EY:}
+    accessKey: ${QINGLIFE_OSS_ACCESS_KEY:${QINGLIFE_OSS_A_CC_ES_SK_EY:}}
+    secretKey: ${QINGLIFE_OSS_SECRET_KEY:${QINGLIFE_OSS_S_EC_RE_TK_EY:}}
     bucketName: ruoyi
   # 七牛云配置
   qiniu:
     domain: http://XXX.XXXX.com
     prefix:
-    accessKey: ${QINGLIFE_OSS_A_CC_ES_SK_EY:}
-    secretKey: ${QINGLIFE_OSS_S_EC_RE_TK_EY:}
+    accessKey: ${QINGLIFE_OSS_ACCESS_KEY:${QINGLIFE_OSS_A_CC_ES_SK_EY:}}
+    secretKey: ${QINGLIFE_OSS_SECRET_KEY:${QINGLIFE_OSS_S_EC_RE_TK_EY:}}
     bucketName: ruoyi
     isHttps: false
     # z0 华东  z1 华北  z2 华南  na0 北美  as0 东南亚
@@ -166,15 +180,15 @@ cloud-storage:
   aliyun:
     endpoint: http://oss-cn-beijing.aliyuncs.com
     prefix:
-    accessKeyId: ${QINGLIFE_OSS_A_CC_ES_SK_EY_ID:}
-    accessKeySecret: ${QINGLIFE_OSS_A_CC_ES_SK_EY_SE_CR_ET:}
+    accessKeyId: ${QINGLIFE_OSS_ACCESS_KEY_ID:${QINGLIFE_OSS_A_CC_ES_SK_EY_ID:}}
+    accessKeySecret: ${QINGLIFE_OSS_ACCESS_KEY_SECRET:${QINGLIFE_OSS_A_CC_ES_SK_EY_SE_CR_ET:}}
     bucketName: ruoyi
   # 腾讯云配置
   qcloud:
     endpoint: http://cos.ap-beijing.myqcloud.com
     prefix:
-    secretId: ${QINGLIFE_OSS_S_EC_RE_TI_D:}
-    secretKey: ${QINGLIFE_OSS_S_EC_RE_TK_EY:}
+    secretId: ${QINGLIFE_OSS_SECRET_ID:${QINGLIFE_OSS_S_EC_RE_TI_D:}}
+    secretKey: ${QINGLIFE_OSS_SECRET_KEY:${QINGLIFE_OSS_S_EC_RE_TK_EY:}}
     # 腾讯云bucket名规则 格式为 BucketName-APPID 此处填写的存储桶名称必须为此格式
     bucketName: ruoyi-1250000000
     isHttps: false

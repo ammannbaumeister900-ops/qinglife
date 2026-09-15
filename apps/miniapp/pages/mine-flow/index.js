@@ -1,7 +1,9 @@
 const store = require('../../utils/store')
+const business = require('../../services/business-api')
 const legacyApi = require('../../services/legacy-api')
 const demo = require('../../data/demo')
 const navigation = require('../../utils/navigation')
+const domain = require('../../utils/domain')
 
 Page({
   data: {
@@ -81,8 +83,19 @@ Page({
     }, 500)
   },
 
-  setPlanLength(event) {
+  async setPlanLength(event) {
     const value = Number(event.currentTarget.dataset.value)
+    if (business.enabled()) {
+      try {
+        const state = this.data.state
+        const habit = await business.startHabit({ sessionId: state.registration && state.registration.activityId || null, planLength: value, startedAt: domain.localDate() })
+        store.updateState(current => { current.habit = { ...current.habit, ...habit, paused: habit.status === 'paused', completedDays: current.habit.completedDays || [] }; return current })
+        this.refresh()
+        return
+      } catch (error) {
+        return wx.showToast({ title: error.message || '计划创建失败', icon: 'none' })
+      }
+    }
     store.updateState((state) => {
       state.habit.planLength = value
       if (state.habit.currentDay > value) state.habit.currentDay = value
@@ -92,6 +105,7 @@ Page({
   },
 
   togglePause() {
+    if (business.enabled()) return wx.showToast({ title: '暂停与恢复暂未开放，请联系工作人员', icon: 'none' })
     store.updateState((state) => {
       state.habit.paused = !state.habit.paused
       return state

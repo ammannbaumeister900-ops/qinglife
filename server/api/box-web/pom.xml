@@ -16,6 +16,11 @@
     </description>
 
     <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
 
         <!-- spring-boot-devtools -->
         <dependency>
@@ -110,4 +115,23 @@
         </plugins>
     </build>
 
+    <profiles>
+        <profile>
+            <id>mysql-it</id>
+            <build><plugins><plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <version>3.2.5</version>
+                <configuration>
+                    <!-- The Spring Boot repackage goal replaces the main jar.  Failsafe
+                         must execute against the regular classes directory instead. -->
+                    <classesDirectory>${project.build.outputDirectory}</classesDirectory>
+                    <systemPropertyVariables>
+                        <qinglife.migrations>${project.basedir}/../../migrations</qinglife.migrations>
+                    </systemPropertyVariables>
+                </configuration>
+                <executions><execution><goals><goal>integration-test</goal><goal>verify</goal></goals></execution></executions>
+            </plugin></plugins></build>
+        </profile>
+    </profiles>
 </project>

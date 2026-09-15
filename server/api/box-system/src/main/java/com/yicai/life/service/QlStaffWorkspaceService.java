@@ -45,7 +45,7 @@ public class QlStaffWorkspaceService {
         Long total=db.queryForObject("SELECT COUNT(*)"+from,Long.class,filters);
         List<Map<String,Object>> rows=db.queryForList("SELECT r.id,r.customer_id AS customerId,c.nickname,c.real_name AS realName,r.operator_name AS operatorName,r.content,TIMESTAMPDIFF(MICROSECOND,'1970-01-01 00:00:00',r.created_at)/1000 AS createdAt"+from+" ORDER BY r.created_at DESC,r.id DESC LIMIT ? OFFSET ?",filters[0],filters[1],filters[2],pageSize,((long)pageNum-1)*pageSize);
         formatInterviewTimes(rows);
-        for(Map<String,Object> row:rows) row.put("images",db.queryForList("SELECT id FROM ql_staff_interview_image WHERE interview_id=? ORDER BY id",row.get("id")));
+        attachInterviewImages(rows);
         Map<String,Object> result=new HashMap<>(); result.put("rows",rows);result.put("total",total);return result;
     }
     public List<Map<String,Object>> interviewImages(String customerId) {
@@ -58,7 +58,19 @@ public class QlStaffWorkspaceService {
         format.setTimeZone(java.util.TimeZone.getTimeZone("Asia/Shanghai"));
         for(Map<String,Object> row:rows) row.put("createdAt",format.format(new java.util.Date(((Number)row.get("createdAt")).longValue())));
     }
-    public List<Map<String,Object>> interviews(String customerId){List<Map<String,Object>> rows=db.queryForList("SELECT r.id,r.customer_id AS customerId,c.nickname,r.operator_name AS operatorName,r.content,TIMESTAMPDIFF(MICROSECOND,'1970-01-01 00:00:00',r.created_at)/1000 AS createdAt FROM ql_staff_interview r JOIN ql_customer c ON c.id=r.customer_id "+(customerId==null?"":"WHERE r.customer_id=? ")+"ORDER BY r.created_at DESC LIMIT 100",customerId==null?new Object[]{}:new Object[]{customerId});java.text.SimpleDateFormat displayTime=new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");displayTime.setTimeZone(java.util.TimeZone.getTimeZone("Asia/Shanghai"));for(Map<String,Object> r:rows){r.put("createdAt",displayTime.format(new java.util.Date(((Number)r.get("createdAt")).longValue())));r.put("images",db.queryForList("SELECT id FROM ql_staff_interview_image WHERE interview_id=?",r.get("id")));}return rows;}
+    private void attachInterviewImages(List<Map<String,Object>> rows) {
+        if (rows.isEmpty()) return;
+        List<Object> ids = new ArrayList<>();
+        for (Map<String,Object> row : rows) ids.add(row.get("id"));
+        String placeholders = String.join(",", Collections.nCopies(ids.size(), "?"));
+        Map<String,List<Map<String,Object>>> imagesByInterview = new HashMap<>();
+        for (Map<String,Object> image : db.queryForList("SELECT id,interview_id AS interviewId FROM ql_staff_interview_image WHERE interview_id IN (" + placeholders + ") ORDER BY interview_id,id", ids.toArray())) {
+            String interviewId = String.valueOf(image.remove("interviewId"));
+            imagesByInterview.computeIfAbsent(interviewId, key -> new ArrayList<>()).add(image);
+        }
+        for (Map<String,Object> row : rows) row.put("images", imagesByInterview.getOrDefault(String.valueOf(row.get("id")), Collections.emptyList()));
+    }
+    public List<Map<String,Object>> interviews(String customerId){List<Map<String,Object>> rows=db.queryForList("SELECT r.id,r.customer_id AS customerId,c.nickname,r.operator_name AS operatorName,r.content,TIMESTAMPDIFF(MICROSECOND,'1970-01-01 00:00:00',r.created_at)/1000 AS createdAt FROM ql_staff_interview r JOIN ql_customer c ON c.id=r.customer_id "+(customerId==null?"":"WHERE r.customer_id=? ")+"ORDER BY r.created_at DESC LIMIT 100",customerId==null?new Object[]{}:new Object[]{customerId});formatInterviewTimes(rows);attachInterviewImages(rows);return rows;}
     public static String text(Map<String,Object> body,String key,int max,boolean required){String value=Objects.toString(body.get(key),"").trim();if(value.length()>max||(required&&value.isEmpty()))throw new CustomException("请检查"+key,400);return value;}
     @Transactional
     public String addCustomer(Map<String,Object> b,long operator){String name=text(b,"nickname",50,true),real=text(b,"realName",50,true),month=text(b,"birthMonth",7,false),ref=text(b,"referralSource",200,false);if(!month.isEmpty()){try{if(YearMonth.parse(month).isAfter(YearMonth.now()))throw new IllegalArgumentException();}catch(Exception e){throw new CustomException("出生年月无效",400);}}String id=UUID.randomUUID().toString();db.update("INSERT INTO ql_customer(id,customer_no,nickname,real_name,city,created_by,updated_by) VALUES(?,?,?,?,?,?,?)",id,"QY"+UUID.randomUUID().toString().replace("-","").substring(0,20),name,real,text(b,"city",100,false),operator,operator);db.update("INSERT INTO ql_customer_staff_detail(customer_id,birth_month,referral_source) VALUES(?,?,?)",id,month.isEmpty()?null:month,ref);return id;}

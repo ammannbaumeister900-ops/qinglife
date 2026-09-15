@@ -19,7 +19,13 @@ Page({
   },
 
   onLoad(options) {
-    this.setData({ routeActivityId: options.id || '', invitationCode: options.invite || '' })
+    options = options || {}
+    let scene = ''
+    if (options.scene) {
+      try { scene = decodeURIComponent(options.scene) } catch (error) { scene = '' }
+      if (!/^[a-f0-9]{32}$/i.test(scene)) scene = ''
+    }
+    this.setData({ routeActivityId: options.id || '', invitationCode: options.invite || scene })
     if (options.id && demo.activities.some(item => item.id === options.id)) store.updateState(state => { state.selectedActivityId = options.id; return state })
     this.setData({ view: options.view || 'detail' })
   },
