@@ -38,6 +38,12 @@ class ProductionConfigurationGuardTest {
         assertThrows(IllegalStateException.class, () -> new ProductionConfigurationGuard(
             valid().withProperty("ruoyi.imagePath", "http://static.example.test/")).afterPropertiesSet());
     }
+    @Test void refusesUnlimitedUnitsAndUploads() {
+        for(String value:new String[]{"-1MB","0B","invalid"}) {
+            assertThrows(IllegalStateException.class,()->new ProductionConfigurationGuard(valid().withProperty("server.undertow.max-http-post-size",value)).afterPropertiesSet());
+            assertThrows(IllegalStateException.class,()->new ProductionConfigurationGuard(valid().withProperty("spring.servlet.multipart.max-file-size",value)).afterPropertiesSet());
+        }
+    }
     @Test void refusesUnlimitedHttpRequests() {
         assertThrows(IllegalStateException.class, () -> new ProductionConfigurationGuard(
             valid().withProperty("server.undertow.max-http-post-size", "-1")).afterPropertiesSet());

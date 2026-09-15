@@ -3,6 +3,10 @@
  * Copyright (c) 2019 ruoyi
  */
 
+import axios from 'axios'
+import { getToken } from '@/utils/auth'
+import { Message } from 'element-ui'
+
 const baseURL = process.env.VUE_APP_BASE_API
 
 // 日期格式化
@@ -98,7 +102,17 @@ export function selectDictLabels(datas, value, separator) {
 
 // 通用下载方法
 export function download(fileName) {
-	window.location.href = baseURL + "/common/download?fileName=" + encodeURI(fileName) + "&delete=" + true;
+  return axios.get(baseURL + '/common/download', {
+    params: { fileName }, responseType: 'blob',
+    headers: { Authorization: 'Bearer ' + getToken() }
+  }).then(response => {
+    if ((response.headers['content-type'] || '').includes('application/json')) throw new Error('下载失败，请确认登录状态和文件权限')
+    const url = URL.createObjectURL(response.data)
+    const link = document.createElement('a')
+    link.href = url; link.download = fileName.split(/[\\/]/).pop()
+    document.body.appendChild(link); link.click(); link.remove()
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
+  }).catch(error => { Message.error(error.message || '下载失败'); throw error })
 }
 
 // 字符串格式化(%s )

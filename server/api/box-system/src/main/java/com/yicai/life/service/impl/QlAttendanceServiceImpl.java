@@ -19,6 +19,7 @@ import java.util.Map;
 public class QlAttendanceServiceImpl implements IQlAttendanceService {
     private static final List<String> STATUSES = Arrays.asList(
             "not_arrived", "checked_in", "late", "absent", "left_early", "cancelled");
+    @Autowired private com.yicai.life.service.QlRegistrationPolicy policy;
     private final QlAttendanceMapper attendanceMapper;
     private final org.springframework.jdbc.core.JdbcTemplate db;
     private final com.yicai.life.service.QlAttendanceAudit audit;
@@ -38,6 +39,11 @@ public class QlAttendanceServiceImpl implements IQlAttendanceService {
                 && StrUtil.isBlank(bo.getChangeReason())) {
             throw new CustomException("缺席或取消必须填写原因", 400);
         }
+        List<String> registrations=db.queryForList("SELECT registration_id FROM ql_participation_day WHERE id=?",String.class,id);
+        if(registrations.isEmpty())throw new CustomException("签到记录不存在",404);
+        Map<String,Object> registration=policy.lockRegistration(registrations.get(0));
+        if(Arrays.asList("checked_in","late","left_early").contains(bo.getAttendanceStatus()) && !"confirmed".equals(registration.get("registration_status")))
+            throw new CustomException("仅已确认报名可登记到场",400);
         List<Map<String,Object>> rows = db.queryForList("SELECT * FROM ql_participation_day WHERE id=? FOR UPDATE", id);
         if (rows.isEmpty()) throw new CustomException("签到记录不存在", 404);
         Map<String,Object> before = rows.get(0);

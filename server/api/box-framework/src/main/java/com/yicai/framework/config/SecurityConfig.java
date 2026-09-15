@@ -98,6 +98,10 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter
                 .authorizeRequests()
                 // 对于登录login 验证码captchaImage 允许匿名访问
                 .antMatchers("/login", "/captchaImage").anonymous()
+                // Specific protected routes must precede broad static-file patterns.
+                .antMatchers("/doc.html", "/swagger-ui/**", "/swagger-resources/**", "/*/api-docs", "/druid/**").authenticated()
+                .antMatchers("/profile/public/**").permitAll()
+                .antMatchers("/profile/**").authenticated()
                 .antMatchers(
                         HttpMethod.GET,
                         "/",

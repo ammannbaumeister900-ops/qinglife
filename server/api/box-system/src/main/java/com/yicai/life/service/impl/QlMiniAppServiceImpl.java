@@ -29,6 +29,7 @@ public class QlMiniAppServiceImpl implements IQlMiniAppService {
     private static final Set<String> DAILY_CHOICES = new HashSet<>(Arrays.asList("done", "light", "rest"));
     private static final Set<String> SUBSCRIPTION_STATUSES = new HashSet<>(Arrays.asList("enabled", "disabled", "rejected"));
 
+    @Autowired private com.yicai.life.service.QlRegistrationPolicy policy;
     private final RedisCache redisCache;
     private final QlCustomerIdentityService identityService;
     private final QlMiniAppMapper miniAppMapper;
@@ -89,21 +90,8 @@ public class QlMiniAppServiceImpl implements IQlMiniAppService {
         }
         existing = miniAppMapper.selectBatchByClientRequestId(scopedRequestId);
         if (existing != null) return replayRegistration(existing, fingerprint);
+        policy.admit(bo.getSessionId(), bo.getParticipants().size(), true);
         Date requestTime = new Date();
-        Date registrationOpenAt = asDate(session.get("registrationOpenAt"));
-        Date registrationCloseAt = asDate(session.get("registrationCloseAt"));
-        if (registrationOpenAt != null && requestTime.before(registrationOpenAt)) {
-            throw new CustomException("报名尚未开始");
-        }
-        if (registrationCloseAt != null && dateKey(requestTime).compareTo(dateKey(registrationCloseAt)) > 0) {
-            throw new CustomException("报名已经截止");
-        }
-        if (dateKey(requestTime).compareTo(dateKey(asDate(session.get("endDate")))) > 0) throw new CustomException("报名已经截止");
-        int registered = miniAppMapper.selectOccupiedRegistrations(bo.getSessionId()).size();
-        int capacity = number(session.get("capacity")).intValue();
-        if (registered + bo.getParticipants().size() > capacity) {
-            throw new CustomException("剩余名额不足");
-        }
 
         String referrerId = null;
         if (StrUtil.isNotBlank(bo.getInvitationCode())) {
@@ -193,6 +181,7 @@ public class QlMiniAppServiceImpl implements IQlMiniAppService {
     @Transactional
     public void checkIn(String token, QlMiniAppAttendanceBo bo) {
         String customerId = requireCustomerId(token);
+        policy.lockRegistration(bo.getRegistrationId());
         int rows = miniAppMapper.checkIn(bo.getRegistrationId(), bo.getSessionDayId(), customerId, new Date());
         if (rows != 1) {
             throw new CustomException("签到失败：请确认报名已通过且今日尚未签到");

@@ -121,6 +121,10 @@ public class CommonController
         Path base = Paths.get(root).toAbsolutePath().normalize();
         Path resolved = base.resolve(requested).normalize();
         if (!resolved.startsWith(base)) throw new IllegalArgumentException("outside allowed root");
+        try {
+            if (Files.exists(resolved) && !resolved.toRealPath().startsWith(base.toRealPath()))
+                throw new IllegalArgumentException("outside real allowed root");
+        } catch (IOException e) { throw new IllegalArgumentException("unresolvable path", e); }
         return resolved;
     }
 

@@ -24,10 +24,9 @@ public class ProductionConfigurationGuard implements InitializingBean {
         required("spring.datasource.dynamic.datasource.master.password");
         String imagePath = required("ruoyi.imagePath");
         if (!imagePath.startsWith("https://")) throw new IllegalStateException("Production public image URL must use HTTPS");
-        String postLimit = required("server.undertow.max-http-post-size");
-        if ("-1".equals(postLimit) || "0".equals(postLimit)) throw new IllegalStateException("Production HTTP request size must be bounded");
-        required("spring.servlet.multipart.max-file-size");
-        required("spring.servlet.multipart.max-request-size");
+        positiveSize("server.undertow.max-http-post-size");
+        positiveSize("spring.servlet.multipart.max-file-size");
+        positiveSize("spring.servlet.multipart.max-request-size");
         if (environment.getProperty("qinglife.wechat.enabled", Boolean.class, false)) {
             required("qinglife.wechat.app-id");
             required("qinglife.wechat.app-secret");
@@ -38,6 +37,11 @@ public class ProductionConfigurationGuard implements InitializingBean {
         }
     }
 
+    private void positiveSize(String key) {
+        try { if(org.springframework.util.unit.DataSize.parse(required(key)).toBytes()>0)return; }
+        catch(IllegalArgumentException ignored) {}
+        throw new IllegalStateException("Production size limit must be positive: "+key);
+    }
     private String required(String key) {
         String value = environment.getProperty(key);
         if (value == null || value.trim().isEmpty() || value.contains("${")) {

@@ -38,6 +38,7 @@ public class QlRegistrationServiceImpl
     private static final java.util.List<String> PAYMENT_STATUSES = Arrays.asList("unpaid", "paid");
     private static final java.util.List<String> REGISTRATION_STATUSES = Arrays.asList("pending", "confirmed", "waitlisted", "cancelled");
 
+    @Autowired private com.yicai.life.service.QlRegistrationPolicy policy;
     private final QlRegistrationMapper registrationMapper;
     private final com.yicai.life.mapper.QlSessionMapper sessionMapper;
     private final com.yicai.life.service.QlSessionPricing pricing;
@@ -65,6 +66,8 @@ public class QlRegistrationServiceImpl
         validateRegistrationStatus(entity.getRegistrationStatus());
         entity.setPaymentStatus("unpaid");
         entity.setRegistrationSource(StrUtil.blankToDefault(entity.getRegistrationSource(), "web_admin"));
+        if ("cancelled".equals(entity.getRegistrationStatus())) throw new CustomException("不能新增已取消报名",400);
+        policy.admit(bo.getSessionId(), "waitlisted".equals(entity.getRegistrationStatus()) ? 0 : 1, true);
         com.yicai.life.domain.QlSession session = sessionMapper.selectById(bo.getSessionId());
         if (session == null) throw new CustomException("期次不存在", 400);
         entity.setUnitPrice(pricing.price(bo.getCustomerId(), session.getStandardPrice(), session.getReturningPrice()));
@@ -88,11 +91,19 @@ public class QlRegistrationServiceImpl
     @Override
     @Transactional
     public boolean updateByBo(QlRegistrationBo bo, Long operatorId) {
+        QlRegistration snapshot = getById(bo.getId());
+        if (snapshot == null) throw new CustomException("报名记录不存在",400);
+        policy.lockSession(snapshot.getSessionId());
+        if (StrUtil.isNotBlank(snapshot.getBatchId())) registrationMapper.selectBatchForPayment(snapshot.getBatchId());
         QlRegistration current = registrationMapper.selectForUpdate(bo.getId());
         if (current == null) {
             throw new CustomException("报名记录不存在", 400);
         }
         if (StrUtil.isNotBlank(bo.getRegistrationStatus())) validateRegistrationStatus(bo.getRegistrationStatus());
+        String next = StrUtil.blankToDefault(bo.getRegistrationStatus(),current.getRegistrationStatus());
+        policy.transition(current.getId(),current.getRegistrationStatus(),next,current.getPaymentStatus(),current.getBatchId());
+        if (!next.equals(current.getRegistrationStatus()) && Arrays.asList("pending","confirmed").contains(next))
+            policy.admit(current.getSessionId(), "waitlisted".equals(current.getRegistrationStatus()) ? 1 : 0, false);
         QlRegistration entity = BeanUtil.toBean(bo, QlRegistration.class);
         entity.setCustomerId(null);
         entity.setSessionId(null);
@@ -125,6 +136,7 @@ public class QlRegistrationServiceImpl
         }
         // Orders are always locked before their participants, on every payment entry point.
         QlRegistration snapshot = getById(id);
+        if (snapshot != null) policy.lockSession(snapshot.getSessionId());
         if (snapshot != null && StrUtil.isNotBlank(snapshot.getBatchId())) {
             return changeBatchPayment(snapshot.getBatchId(), bo, operatorId);
         }
@@ -184,6 +196,9 @@ public class QlRegistrationServiceImpl
         if (!PAYMENT_STATUSES.contains(bo.getPaymentStatus())) {
             throw new CustomException("当前版本仅支持未付款或已付款", 400);
         }
+        String sessionId = registrationMapper.selectBatchSessionId(batchId);
+        if (sessionId == null) throw new CustomException("报名订单不存在",400);
+        policy.lockSession(sessionId);
         Map<String, Object> batch = registrationMapper.selectBatchForPayment(batchId);
         if (batch == null) {
             throw new CustomException("报名订单不存在", 400);
@@ -242,12 +257,39 @@ public class QlRegistrationServiceImpl
         return true;
     }
 
+    @Override
+    @Transactional
+    public boolean cancelBatch(String batchId,String reason,Long operatorId) {
+        if(StrUtil.isBlank(reason)||reason.length()>500)throw new CustomException("整单取消需填写原因（最多500字）",400);
+        String sessionId=registrationMapper.selectBatchSessionId(batchId);
+        if(sessionId==null)throw new CustomException("报名订单不存在",404);
+        policy.lockSession(sessionId);
+        Map<String,Object> batch=registrationMapper.selectBatchForPayment(batchId);
+        if(!"unpaid".equals(batch.get("paymentStatus")))throw new CustomException("请先撤销整单付款",400);
+        List<QlRegistration> participants=registrationMapper.selectBatchRegistrationsForUpdate(batchId);
+        if(participants.isEmpty())throw new CustomException("订单没有参与人",400);
+        for(QlRegistration r:participants) {
+            // Explicit whole-order operation; the single-participant restriction does not apply.
+            policy.transition(r.getId(),r.getRegistrationStatus(),"cancelled",r.getPaymentStatus(),null);
+        }
+        Date now=new Date();
+        for(QlRegistration r:participants) {
+            if("cancelled".equals(r.getRegistrationStatus()))continue;
+            String before=r.getRegistrationStatus();
+            QlRegistration change=new QlRegistration();change.setId(r.getId());change.setRegistrationStatus("cancelled");
+            change.setRevision(r.getRevision()+1);change.setUpdatedAt(now);change.setUpdatedBy(operatorId);
+            if(!updateById(change))throw new CustomException("取消失败，请刷新后重试",409);
+            insertStatusLog(r.getId(),"registration",before,"cancelled",reason,operatorId,now);
+        }
+        return true;
+    }
+
     private void validateFullPayment(QlPaymentBo bo, BigDecimal due) {
         if (bo.getAmount() == null || due == null || bo.getAmount().signum() < 0
                 || due.compareTo(bo.getAmount()) != 0) {
             throw new CustomException("实付金额必须与应付金额一致", 400);
         }
-        if (StrUtil.isBlank(bo.getPaymentMethod())) {
+        if (!Arrays.asList("wechat_scan","alipay_scan","transfer","cash","other").contains(bo.getPaymentMethod())) {
             throw new CustomException("确认付款时必须填写付款方式", 400);
         }
     }

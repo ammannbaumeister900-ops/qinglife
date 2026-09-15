@@ -23,3 +23,7 @@ export function changePayment(id, data) {
 export function changeBatchPayment(batchId, data) {
   return request({ url: '/life/registration/batch/' + batchId + '/payment', method: 'put', data })
 }
+
+export function cancelBatchRegistration(batchId, reason) {
+  return request({ url: '/life/registration/batch/' + encodeURIComponent(batchId) + '/cancel', method: 'put', data: { reason } })
+}
