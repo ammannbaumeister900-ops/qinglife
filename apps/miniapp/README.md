@@ -16,6 +16,13 @@
 - 旧动态只读分页，保留图片与原始时间；不提供新的发布、点赞、评论，不调用旧动态写接口。历史本地状态未删除。
 - `data/demo.js` 同时提供正常、空白、失败和活动状态演示数据，供页面状态自测使用。
 
+## 运行环境契约
+
+- `demo` 可不配置后端，并仅允许通过本地存储覆盖到 HTTPS 或 `127.0.0.1` 调试地址；所有本地保存提示都会明确标为演示记录。
+- `staging` 使用 `config/runtime.js` 中固定的 HTTPS `businessBaseUrl`，忽略本地存储覆盖。
+- `production` 必须配置固定 HTTPS `businessBaseUrl`，且其 origin 必须列入 `allowedBusinessOrigins`；缺失或不匹配时页面明确失败，不回退 Demo。
+- Legacy 使用独立 `qinglife_legacy_token`，不读取当前业务 token；地址、启用状态和写权限均显式配置，默认禁止 Legacy 写入。
+
 ## 打开方式
 
 使用微信开发者工具导入当前目录。项目配置已经沿用现有轻生活小程序 AppID。

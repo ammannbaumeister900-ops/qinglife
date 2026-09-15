@@ -1,0 +1,69 @@
+{
+  "finished_at": "2026-09-16T06:49:02+08:00",
+  "base_commit": "2b6d9a24ff8abaed98886b662d935f44a2e24779",
+  "command": "mvn -f server/api/pom.xml -Phttp-it -pl box-web -am verify",
+  "result": "BUILD SUCCESS",
+  "unit_suites": [
+    {
+      "name": "com.yicai.life.service.QlCustomerIdentityServiceTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.yicai.life.service.QlMiniAppDailyHabitServiceTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.yicai.life.service.QlWechatLoginServiceTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.yicai.web.config.ProductionConfigurationGuardTest",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.yicai.web.controller.common.CommonControllerTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  ],
+  "http_suite": {
+    "name": "com.yicai.web.integration.LoginHttpIT",
+    "tests": 5,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "real_components": [
+    "Java HTTP server",
+    "Spring security chain",
+    "MySQL 8.4",
+    "Redis 6",
+    "14 SQL migration files"
+  ],
+  "mocked_components": [
+    "WeChat code exchange"
+  ],
+  "active_profile": "dev",
+  "remote_cleanup_verified": true,
+  "existing_staging_containers_untouched": true,
+  "log_sha256": "aab96569082108395b52ec8b0d722e034821954b9832b15f52915cbf62f61047",
+  "limitations": [
+    "No real WeChat or device verification",
+    "No production profile or deployment verification",
+    "No historical business database migration verification"
+  ]
+}

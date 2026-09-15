@@ -29,6 +29,11 @@ test('returning welcome requires completed self participation, not a family purc
   state.loggedIn = false
   assert.equal(discovery.returning(state), false)
 })
+test('backend eligibility overrides client-side registration inference', () => {
+  const locallyCompleted = { loggedIn: true, returningEligible: false, registrations: { a: { status: 'completed', participants: [{ id: 'person-self', status: 'completed' }] } } }
+  assert.equal(discovery.returning(locallyCompleted), false)
+  assert.equal(discovery.returning({ loggedIn: true, returningEligible: true, registrations: {} }), true)
+})
 test('home and camp signup routes preserve the exact session ID', () => {
   const urls = [], mocks = { '../../utils/navigation': { navigateTo: x => urls.push(x.url) } }
   const home = page('home', mocks); home.data.featured = { id: 'session & 2' }

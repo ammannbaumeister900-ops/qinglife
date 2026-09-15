@@ -98,6 +98,10 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter
                 .authorizeRequests()
                 // 对于登录login 验证码captchaImage 允许匿名访问
                 .antMatchers("/login", "/captchaImage").anonymous()
+                // Specific protected routes must precede broad static-file patterns.
+                .antMatchers("/doc.html", "/swagger-ui/**", "/swagger-resources/**", "/*/api-docs", "/druid/**").authenticated()
+                .antMatchers("/profile/public/**").permitAll()
+                .antMatchers("/profile/**").authenticated()
                 .antMatchers(
                         HttpMethod.GET,
                         "/",
@@ -105,21 +109,21 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter
                         "/**/*.html",
                         "/**/*.css",
                         "/**/*.js",
-                        "/profile/**",
-                        "/data/static/**"
+                        "/profile/public/**"
                 ).permitAll()
-                .antMatchers("/common/download**").anonymous()
-                .antMatchers("/common/download/resource**").anonymous()
-                .antMatchers("/doc.html").anonymous()
-                .antMatchers("/swagger-resources/**").anonymous()
-                .antMatchers("/webjars/**").anonymous()
-                .antMatchers("/*/api-docs").anonymous()
-                .antMatchers("/druid/**").anonymous()
+                // Generic downloads may expose private uploads and therefore use
+                // the normal authenticated admin security chain. Public static
+                // resources are limited to the explicit /profile/public/** area.
+                .antMatchers("/doc.html").authenticated()
+                .antMatchers("/swagger-resources/**").authenticated()
+                .antMatchers("/webjars/**").authenticated()
+                .antMatchers("/*/api-docs").authenticated()
+                .antMatchers("/druid/**").authenticated()
                 // 小程序沿用旧 token header；具体身份校验由统一业务服务完成。
                 .antMatchers("/app/qinglife/**").permitAll()
                 // Spring Boot Actuator 的安全配置
-                .antMatchers("/actuator").anonymous()
-                .antMatchers("/actuator/**").anonymous()
+                .antMatchers("/actuator/health").permitAll()
+                .antMatchers("/actuator", "/actuator/**").denyAll()
                 // 除上面外的所有请求全部需要鉴权认证
                 .anyRequest().authenticated()
                 .and()

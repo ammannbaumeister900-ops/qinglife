@@ -1,25 +1,42 @@
 const runtime = require('../config/runtime')
 const store = require('../utils/store')
 const BASE_KEY = 'qinglife_business_base_url'
+const ENVIRONMENTS = ['demo', 'staging', 'production']
+let loginPromise = null
 function baseUrl() {
-  const value = runtime.environment === 'staging' ? runtime.businessBaseUrl :
-    (typeof wx !== 'undefined' && wx.getStorageSync ? wx.getStorageSync(BASE_KEY) : '') || runtime.businessBaseUrl
-  if (!value) return ''
-  if (!/^https:\/\/[^/]+(?:\/[^?#]*)?$/.test(value) && !/^http:\/\/127\.0\.0\.1:\d+$/.test(value)) throw new Error('业务接口地址无效')
-  return value.replace(/\/$/, '')
+  if (!ENVIRONMENTS.includes(runtime.environment)) throw new Error('小程序运行环境无效')
+  const override = runtime.environment === 'demo' && typeof wx !== 'undefined' && wx.getStorageSync
+    ? wx.getStorageSync(BASE_KEY) : ''
+  const value = String(override || runtime.businessBaseUrl || '').replace(/\/$/, '')
+  if (!value) {
+    if (runtime.environment === 'production') throw new Error('生产业务接口尚未配置')
+    return ''
+  }
+  const https = /^https:\/\/[^/]+(?:\/[^?#]*)?$/.test(value)
+  const loopback = /^http:\/\/127\.0\.0\.1:\d+$/.test(value)
+  if (!https && !(runtime.environment === 'demo' && loopback)) throw new Error('业务接口地址无效')
+  if (runtime.environment === 'production') {
+    const origin = value.match(/^https:\/\/[^/]+/)[0]
+    if (!Array.isArray(runtime.allowedBusinessOrigins) || !runtime.allowedBusinessOrigins.includes(origin)) {
+      throw new Error('生产业务接口不在允许源站中')
+    }
+  }
+  return value
 }
 function enabled() { return !!baseUrl() }
 function tokenKey() { return 'qinglife_business_token:' + baseUrl() }
 function ensureToken() {
   const token = wx.getStorageSync(tokenKey())
   if (token) return Promise.resolve(token)
-  return new Promise((resolve,reject) => wx.login({ success: result => {
+  if (loginPromise) return loginPromise
+  loginPromise = new Promise((resolve,reject) => wx.login({ success: result => {
     if (!result.code) return reject(new Error('微信登录未返回凭证'))
     request('/auth/login', 'POST', { code: result.code }, false).then(data => {
       if (!data || !data.token) throw new Error('登录未成功，请重试')
       wx.setStorageSync(tokenKey(),data.token); resolve(data.token)
     }).catch(reject)
-  }, fail: reject }))
+  }, fail: reject })).finally(() => { loginPromise = null })
+  return loginPromise
 }
 function request(path, method = 'GET', data, auth = true) {
   return Promise.resolve().then(async () => {
@@ -60,18 +77,22 @@ async function context(id) {
   const registrations = {}
   for (const row of overview.registrations || []) {
     const isSelf = row.isSelf === true || row.isSelf === 1 || row.isSelf === '1'
-    const status = row.sessionStatus === 'completed' && row.registrationStatus === 'confirmed' ? 'completed' : row.registrationStatus
+    const attended = row.participated === true || row.participated === 1 || row.participated === '1'
+    const status = row.sessionStatus === 'completed' && row.registrationStatus === 'confirmed' && attended ? 'completed' : row.registrationStatus
     if (!registrations[row.sessionId]) registrations[row.sessionId] = { activityId: row.sessionId, status, participants: [], serviceConsent: true, paymentStatus: row.paymentStatus, payableAmount: row.payableAmount }
     if (isSelf) registrations[row.sessionId].status = status
     registrations[row.sessionId].participants.push({ id: isSelf ? 'person-self' : row.customerId, customerId: row.customerId, registrationId: row.registrationId, name: row.participantName || (isSelf ? profile.name : '') || '参与者', relation: isSelf ? '本人' : row.relation || '同行', selected: true, minor: !!row.minor, status })
   }
   const self = { id: 'person-self', name: profile.name || '本人', relation: '本人', minor: !!profile.minor, phone: profile.phone || '', selected: true }
   const registration = registrations[id] || Object.values(registrations)[0] || { activityId: id || '', status: 'none', participants: [self], serviceConsent: false }
-  const state = { ...local, backend: true, phone: profile.phone || '', loggedIn: !!overview.customerId, phoneLinked: !!overview.customerId, profile: { name: profile.name || '轻友', nickname: profile.name || '轻友', minor: !!profile.minor }, registrations, registration, checkedDays: [], dailyRecords: {}, experienceReviews: {}, arrivalConfirmations: {}, stage: 'journey' }
+  const backendHabit = overview.habit ? { ...local.habit, ...overview.habit, paused: overview.habit.status === 'paused', completedDays: local.habit.completedDays || [] } : local.habit
+  const state = { ...local, backend: true, returningEligible: !!overview.returningEligible, invitationEligible: !!overview.invitationEligible, phone: profile.phone || '', loggedIn: !!overview.customerId, phoneLinked: !!overview.customerId, profile: { name: profile.name || '轻友', nickname: profile.name || '轻友', minor: !!profile.minor }, registrations, registration, habit: backendHabit, checkedDays: [], dailyRecords: {}, experienceReviews: {}, arrivalConfirmations: {}, stage: overview.habit ? 'habit' : 'journey' }
   return { activities: list, activity: selected, overview, state }
 }
-module.exports = { BASE_KEY, enabled, request, activity, sessions, context, login: ensureToken,
+module.exports = { BASE_KEY, baseUrl, enabled, request, activity, sessions, context, login: ensureToken,
   resolveInvitation: code => request('/invitations/' + encodeURIComponent(code), 'GET', null, false),
   register: data => request('/registrations', 'POST', data),
   saveExperience: data => request('/experience-records', 'PUT', data),
+  saveDailyRecord: data => request('/daily-records/today', 'PUT', data),
+  startHabit: data => request('/habits', 'POST', data),
   createInvitation: id => request('/sessions/' + encodeURIComponent(id) + '/invitations', 'POST', {}) }

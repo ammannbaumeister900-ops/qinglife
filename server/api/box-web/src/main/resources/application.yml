@@ -318,3 +318,10 @@ spring:
             tablePrefix: QRTZ_
             # sqlserver 启用
             # selectWithLockSQL: SELECT * FROM {0}LOCKS UPDLOCK WHERE LOCK_NAME = ?
+
+---
+qinglife:
+  wechat:
+    enabled: ${QINGLIFE_WECHAT_ENABLED:false}
+    app-id: ${QINGLIFE_WECHAT_APP_ID:}
+    app-secret: ${QINGLIFE_WECHAT_APP_SECRET:}

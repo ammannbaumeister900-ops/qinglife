@@ -22,6 +22,8 @@ public interface QlRegistrationMapper extends BaseMapperPlus<QlRegistration> {
     int updatePaymentStatus(@Param("id") String id, @Param("fromStatus") String fromStatus,
                             @Param("toStatus") String toStatus, @Param("operatorId") Long operatorId,
                             @Param("updatedAt") Date updatedAt);
+    @org.apache.ibatis.annotations.Select("SELECT session_id FROM ql_registration_batch WHERE id=#{batchId}")
+    String selectBatchSessionId(@Param("batchId") String batchId);
     Map<String, Object> selectBatchForPayment(@Param("batchId") String batchId);
     List<String> selectRegistrationIdsByBatch(@Param("batchId") String batchId);
     int updateBatchPaymentStatus(@Param("batchId") String batchId, @Param("fromStatus") String fromStatus,

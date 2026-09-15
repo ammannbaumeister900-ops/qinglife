@@ -69,6 +69,13 @@ public class QlRegistrationController extends BaseController {
         return toAjax(registrationService.changeBatchPayment(batchId, bo, currentUserId()));
     }
 
+    @PreAuthorize("@ss.hasPermi('life:registration:edit')")
+    @Log(title = "取消整单报名", businessType = BusinessType.UPDATE)
+    @PutMapping("/batch/{batchId}/cancel")
+    public AjaxResult<Void> cancelBatch(@PathVariable String batchId,@RequestBody java.util.Map<String,String> body) {
+        return toAjax(registrationService.cancelBatch(batchId,body.get("reason"),currentUserId()));
+    }
+
     private Long currentUserId() {
         return SecurityUtils.getLoginUser().getUser().getUserId();
     }

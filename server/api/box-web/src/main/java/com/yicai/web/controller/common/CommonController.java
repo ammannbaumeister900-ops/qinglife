@@ -16,9 +16,12 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -39,31 +42,36 @@ public class CommonController
      * 通用下载请求
      *
      * @param fileName 文件名称
-     * @param delete 是否删除
      */
     @GetMapping("common/download")
-    public void fileDownload(String fileName, Boolean delete, HttpServletResponse response, HttpServletRequest request)
+    public void fileDownload(String fileName, HttpServletResponse response) throws IOException
     {
         try
         {
             if (!FileUtils.checkAllowDownload(fileName))
             {
-                throw new Exception(StrUtil.format("文件名称({})非法，不允许下载。 ", fileName));
+                throw new IllegalArgumentException(StrUtil.format("文件名称({})非法，不允许下载。 ", fileName));
             }
             String realFileName = System.currentTimeMillis() + fileName.substring(fileName.indexOf("_") + 1);
-            String filePath = RuoYiConfig.getDownloadPath() + fileName;
-			File file = new File(filePath);
+            Path filePath = resolveInside(RuoYiConfig.getDownloadPath(), fileName);
+            if (!Files.isRegularFile(filePath)) {
+                response.sendError(HttpServletResponse.SC_NOT_FOUND);
+                return;
+            }
+			File file = filePath.toFile();
             response.setContentType(MediaType.APPLICATION_OCTET_STREAM_VALUE);
             FileUtils.setAttachmentResponseHeader(response, realFileName);
 			FileUtils.writeToStream(file, response.getOutputStream());
-            if (delete)
-            {
-				FileUtils.del(file);
-            }
         }
-        catch (Exception e)
+        catch (IllegalArgumentException e)
         {
-            log.error("下载文件失败", e);
+            log.warn("拒绝非法下载路径: {}", fileName);
+            response.sendError(HttpServletResponse.SC_NOT_FOUND);
+        }
+        catch (IOException e)
+        {
+            log.error("下载文件失败: {}", fileName, e);
+            if (!response.isCommitted()) response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -71,30 +79,53 @@ public class CommonController
      * 本地资源通用下载
      */
     @GetMapping("/common/download/resource")
-    public void resourceDownload(String resource, HttpServletRequest request, HttpServletResponse response)
-            throws Exception
+    public void resourceDownload(String resource, HttpServletResponse response) throws IOException
     {
         try
         {
             if (!FileUtils.checkAllowDownload(resource))
             {
-                throw new Exception(StrUtil.format("资源文件({})非法，不允许下载。 ", resource));
+                throw new IllegalArgumentException(StrUtil.format("资源文件({})非法，不允许下载。 ", resource));
             }
-            // 本地资源路径
-            String localPath = RuoYiConfig.getProfile();
-            // 数据库资源地址
-            String downloadPath = localPath + StrUtil.subAfter(resource, Constants.RESOURCE_PREFIX,false);
+            if (resource == null || !resource.startsWith(Constants.RESOURCE_PREFIX + "/")) {
+                throw new IllegalArgumentException("resource prefix");
+            }
+            String relativePath = resource.substring((Constants.RESOURCE_PREFIX + "/").length());
+            Path downloadPath = resolveInside(RuoYiConfig.getProfile(), relativePath);
+            if (!Files.isRegularFile(downloadPath)) {
+                response.sendError(HttpServletResponse.SC_NOT_FOUND);
+                return;
+            }
             // 下载名称
-            String downloadName = StrUtil.subAfter(downloadPath, "/",true);
+            String downloadName = downloadPath.getFileName().toString();
             response.setContentType(MediaType.APPLICATION_OCTET_STREAM_VALUE);
-			File file = new File(downloadPath);
+			File file = downloadPath.toFile();
             FileUtils.setAttachmentResponseHeader(response, downloadName);
             FileUtils.writeToStream(file, response.getOutputStream());
         }
-        catch (Exception e)
+        catch (IllegalArgumentException e)
         {
-            log.error("下载文件失败", e);
+            log.warn("拒绝非法资源路径: {}", resource);
+            response.sendError(HttpServletResponse.SC_NOT_FOUND);
         }
+        catch (IOException e)
+        {
+            log.error("资源下载失败: {}", resource, e);
+            if (!response.isCommitted()) response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    static Path resolveInside(String root, String requested)
+    {
+        if (StrUtil.isBlank(root) || StrUtil.isBlank(requested)) throw new IllegalArgumentException("blank path");
+        Path base = Paths.get(root).toAbsolutePath().normalize();
+        Path resolved = base.resolve(requested).normalize();
+        if (!resolved.startsWith(base)) throw new IllegalArgumentException("outside allowed root");
+        try {
+            if (Files.exists(resolved) && !resolved.toRealPath().startsWith(base.toRealPath()))
+                throw new IllegalArgumentException("outside real allowed root");
+        } catch (IOException e) { throw new IllegalArgumentException("unresolvable path", e); }
+        return resolved;
     }
 
     /**

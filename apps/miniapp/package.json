@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "scripts": {
-    "test": "node tests/domain.test.js && node tests/store.test.js && node tests/static-contract.test.js && node tests/ui-refactor.test.js && node tests/minimal-flow.test.js",
+    "test": "node ../../scripts/test-miniapp.cjs",
     "test:lifecycle": "node tests/lifecycle-e2e.test.js",
     "test:staff": "node tests/staff-workspace.test.js"
   }
