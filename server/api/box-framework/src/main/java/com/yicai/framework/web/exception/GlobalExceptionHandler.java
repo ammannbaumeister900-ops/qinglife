@@ -82,8 +82,8 @@ public class GlobalExceptionHandler
     @ExceptionHandler(Exception.class)
     public AjaxResult handleException(Exception e)
     {
-        log.error(e.getMessage(), e);
-        return AjaxResult.error(e.getMessage());
+        log.error("Unhandled server exception", e);
+        return AjaxResult.error("服务暂不可用，请稍后重试");
     }
 
     /**
