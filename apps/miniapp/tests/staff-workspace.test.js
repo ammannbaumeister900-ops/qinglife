@@ -33,6 +33,17 @@ async function run() {
   await denied.refresh()
   assert.equal(denied.data.me,null);assert.equal(denied.data.people.length,0)
   assert.equal(Object.keys(denied.data.profile).length,0)
-  console.log('staff-workspace.test.js OK: selected customer, photo-return state, payment-only permission, origin navigation, stale search and revoked access')
+  const sessionCounts=page(async path=>{
+    if(path==='/me')return me
+    if(path==='/sessions?history=false')return [{id:'first-session'},{id:'second-session'}]
+    if(path==='/sessions/first-session/registrations')return [{id:'r1',registrationStatus:'pending',paymentStatus:'unpaid'},{id:'r2',registrationStatus:'confirmed',paymentStatus:'paid'}]
+    if(path==='/sessions/second-session/registrations')return [{id:'r3',registrationStatus:'confirmed',paymentStatus:'unpaid'},{id:'r4',registrationStatus:'cancelled',paymentStatus:'unpaid'}]
+    if(path==='/interviews')return []
+    throw new Error('unexpected request '+path)
+  })
+  sessionCounts.onLoad({view:'desk'});await sessionCounts.refresh()
+  assert.deepEqual(sessionCounts.data.sessions.map(s=>[s.allCount,s.pendingCount,s.unpaidCount]),[[2,1,1],[1,0,1]],'每个期次卡片必须使用自己的报名汇总')
+  assert.equal(sessionCounts.data.roster[0].id,'r1','期次页默认名单继续显示首个期次，不改变既有导航契约')
+  console.log('staff-workspace.test.js OK: selected customer, photo-return state, payment-only permission, origin navigation, stale search, per-session summaries and revoked access')
 }
 run().catch(e=>{console.error(e);process.exitCode=1})
