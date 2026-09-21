@@ -64,7 +64,16 @@ function activity(raw) {
     days: (raw.days || []).map(day => ({ ...day, label: '第' + day.dayNo + '天', time: [day.startTime,day.endTime].filter(Boolean).join('—') })) }
 }
 async function sessions() { return (await request('/sessions', 'GET', null, false)).map(activity) }
-async function context(id) {
+function normalizeHabit(raw) {
+  return raw ? { ...raw, paused: raw.status === 'paused', completedDays: raw.completedDays || [] }
+    : { id: '', planLength: 14, currentDay: 1, status: 'none', paused: false, completedDays: [], canRecordToday: false }
+}
+function applyHabit(raw) {
+  const habit = normalizeHabit(raw)
+  store.updateState(state => { state.backend = true; state.habit = habit; if (habit.id) state.stage = 'habit'; else if (state.stage === 'habit') state.stage = 'journey'; return state })
+  return habit
+}
+async function refreshHabit() { return applyHabit((await request('/me/overview')).habit) }async function context(id) {
   const list = await sessions()
   const selected = id ? activity(await request('/sessions/' + encodeURIComponent(id), 'GET', null, false)) : list[0] || null
   if (selected && !list.some(item => item.id === selected.id)) list.push(selected)
@@ -85,14 +94,15 @@ async function context(id) {
   }
   const self = { id: 'person-self', name: profile.name || '本人', relation: '本人', minor: !!profile.minor, phone: profile.phone || '', selected: true }
   const registration = registrations[id] || Object.values(registrations)[0] || { activityId: id || '', status: 'none', participants: [self], serviceConsent: false }
-  const backendHabit = overview.habit ? { ...local.habit, ...overview.habit, paused: overview.habit.status === 'paused', completedDays: local.habit.completedDays || [] } : local.habit
+  const backendHabit = normalizeHabit(overview.habit)
   const state = { ...local, backend: true, returningEligible: !!overview.returningEligible, invitationEligible: !!overview.invitationEligible, phone: profile.phone || '', loggedIn: !!overview.customerId, phoneLinked: !!overview.customerId, profile: { name: profile.name || '轻友', nickname: profile.name || '轻友', minor: !!profile.minor }, registrations, registration, habit: backendHabit, checkedDays: [], dailyRecords: {}, experienceReviews: {}, arrivalConfirmations: {}, stage: overview.habit ? 'habit' : 'journey' }
   return { activities: list, activity: selected, overview, state }
 }
-module.exports = { BASE_KEY, baseUrl, enabled, request, activity, sessions, context, login: ensureToken,
+module.exports = { normalizeHabit, applyHabit, refreshHabit, BASE_KEY, baseUrl, enabled, request, activity, sessions, context, login: ensureToken,
   resolveInvitation: code => request('/invitations/' + encodeURIComponent(code), 'GET', null, false),
   register: data => request('/registrations', 'POST', data),
   saveExperience: data => request('/experience-records', 'PUT', data),
   saveDailyRecord: data => request('/daily-records/today', 'PUT', data),
   startHabit: data => request('/habits', 'POST', data),
+  changeHabit: (id, paused) => request('/habits/' + encodeURIComponent(id) + (paused ? '/pause' : '/resume'), 'PUT', {}),
   createInvitation: id => request('/sessions/' + encodeURIComponent(id) + '/invitations', 'POST', {}) }

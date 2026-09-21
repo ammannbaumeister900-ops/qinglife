@@ -1,4 +1,5 @@
 function dailyKey(state) {
+  if (state.backend && state.stage === 'habit') return 'habit-' + state.habit.id + '-' + (state.habit.serverDate || localDate())
   return state.stage === 'refeed' ? 'refeed-3' : `habit-${state.habit.currentDay}`
 }
 

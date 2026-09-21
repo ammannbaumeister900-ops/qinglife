@@ -35,6 +35,7 @@ Page({
 
   onShow() {
     this.refresh()
+    if (this.data.view === 'habit' && business.enabled()) business.refreshHabit().then(() => this.refresh()).catch(error => wx.showToast({ title: error.message || '计划读取失败', icon: 'none' }))
     if (this.data.view === 'collections' && !this.data.collections.length) this.loadCollections()
   },
 
@@ -89,7 +90,7 @@ Page({
       try {
         const state = this.data.state
         const habit = await business.startHabit({ sessionId: state.registration && state.registration.activityId || null, planLength: value, startedAt: domain.localDate() })
-        store.updateState(current => { current.habit = { ...current.habit, ...habit, paused: habit.status === 'paused', completedDays: current.habit.completedDays || [] }; return current })
+        business.applyHabit(habit)
         this.refresh()
         return
       } catch (error) {
@@ -104,8 +105,21 @@ Page({
     this.refresh()
   },
 
-  togglePause() {
-    if (business.enabled()) return wx.showToast({ title: '暂停与恢复暂未开放，请联系工作人员', icon: 'none' })
+  async togglePause() {
+    if (business.enabled()) {
+      if (this.data.habitBusy) return
+      const habit = this.data.state.habit
+      if (!habit.id) return wx.showToast({ title: '请先开始计划', icon: 'none' })
+      this.setData({ habitBusy: true })
+      try {
+        business.applyHabit(await business.changeHabit(habit.id, !habit.paused))
+        this.refresh()
+        wx.showToast({ title: this.data.state.habit.paused ? '计划已暂停，今天不计入' : '计划已恢复', icon: 'none' })
+      } catch (error) {
+        wx.showToast({ title: error.message || '计划更新失败', icon: 'none' })
+      } finally { this.setData({ habitBusy: false }) }
+      return
+    }
     store.updateState((state) => {
       state.habit.paused = !state.habit.paused
       return state

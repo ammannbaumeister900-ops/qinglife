@@ -112,4 +112,24 @@ class LoginHttpIT {
             assertEquals(401,((Number)get(path,null).get("code")).intValue(),path);
         ResponseEntity<String> health=http.getForEntity("/actuator/health",String.class);assertEquals(200,health.getStatusCodeValue());assertFalse(health.getBody().contains("components"));
     }
-}
+    @Test void habitPauseResumeEndpointsEnforceOwnershipAndExcludedDate() {
+        String token=token(UUID.randomUUID().toString());
+        Map<?,?> overview=(Map<?,?>)get("/app/qinglife/me/overview",token).get("data");
+        String customer=String.valueOf(overview.get("customerId")),plan=UUID.randomUUID().toString();
+        java.time.LocalDate today=java.time.LocalDate.now(java.time.ZoneId.of("Asia/Shanghai"));
+        db.update("INSERT INTO ql_habit_plan(id,customer_id,plan_length,current_day,status,started_at) VALUES(?,?,14,1,'active',?)",plan,customer,java.sql.Date.valueOf(today));
+        for(int day=1;day<=14;day++) db.update("INSERT INTO ql_habit_day_record(id,habit_plan_id,plan_day,status) VALUES(?,?,?,'pending')",UUID.randomUUID().toString(),plan,day);
+        HttpHeaders headers=new HttpHeaders();headers.set("token",token);
+        Map pause=http.exchange("/app/qinglife/habits/"+plan+"/pause",HttpMethod.PUT,new HttpEntity<>(Collections.emptyMap(),headers),Map.class).getBody();
+        assertEquals(200,((Number)pause.get("code")).intValue());
+        assertEquals("paused",((Map)pause.get("data")).get("status"));
+        Map resume=http.exchange("/app/qinglife/habits/"+plan+"/resume",HttpMethod.PUT,new HttpEntity<>(Collections.emptyMap(),headers),Map.class).getBody();
+        assertEquals(200,((Number)resume.get("code")).intValue());
+        assertEquals(false,((Map)resume.get("data")).get("canRecordToday"));
+        Map<String,Object> daily=new HashMap<>();daily.put("recordDate",today.toString());daily.put("recordStage","habit");daily.put("planDay",1);daily.put("choiceValue","done");
+        Map denied=http.exchange("/app/qinglife/daily-records/today",HttpMethod.PUT,new HttpEntity<>(daily,headers),Map.class).getBody();
+        assertNotEquals(200,((Number)denied.get("code")).intValue());
+        String other=token(UUID.randomUUID().toString());headers.set("token",other);
+        Map foreign=http.exchange("/app/qinglife/habits/"+plan+"/pause",HttpMethod.PUT,new HttpEntity<>(Collections.emptyMap(),headers),Map.class).getBody();
+        assertEquals(409,((Number)foreign.get("code")).intValue());
+    }}

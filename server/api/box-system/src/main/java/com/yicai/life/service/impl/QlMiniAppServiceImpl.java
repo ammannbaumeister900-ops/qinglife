@@ -34,6 +34,7 @@ public class QlMiniAppServiceImpl implements IQlMiniAppService {
     private final QlCustomerIdentityService identityService;
     private final QlMiniAppMapper miniAppMapper;
     private final com.yicai.life.service.QlSessionPricing pricing;
+    private final com.yicai.life.service.QlHabitPlanService habitPlans;
 
     @Override
     public List<Map<String, Object>> listSessions() {
@@ -61,7 +62,7 @@ public class QlMiniAppServiceImpl implements IQlMiniAppService {
         result.put("attendance", miniAppMapper.selectCustomerAttendance(customerId));
         result.put("dailyRecords", miniAppMapper.selectDailyRecords(customerId));
         result.put("experienceRecords", miniAppMapper.selectExperienceRecords(customerId));
-        result.put("habit", miniAppMapper.selectLatestHabit(customerId));
+        result.put("habit", habitPlans.latest(customerId));
         result.put("returningEligible", miniAppMapper.countCompletedSessions(customerId) > 0);
         result.put("invitationEligible", miniAppMapper.countCompletedExperience(customerId) > 0);
         return result;
@@ -201,9 +202,11 @@ public class QlMiniAppServiceImpl implements IQlMiniAppService {
         }
         String sessionId = bo.getSessionId();
         int planDay = 0;
+        Map<String,Object> habit = null;
         if ("habit".equals(bo.getRecordStage())) {
-            Map<String,Object> habit = miniAppMapper.selectLatestHabit(customerId);
+            habit = habitPlans.latest(customerId);
             if (habit == null || !"active".equals(String.valueOf(habit.get("status")))) throw new CustomException("当前没有进行中的习惯计划");
+            if (!Boolean.TRUE.equals(habit.get("canRecordToday"))) throw new CustomException("今天不在可记录的计划日内");
             sessionId = habit.get("sessionId") == null ? null : String.valueOf(habit.get("sessionId"));
             planDay = number(habit.get("currentDay")).intValue();
             if (planDay < 1 || planDay > number(habit.get("planLength")).intValue()) throw new CustomException("计划天数状态异常");
@@ -216,6 +219,7 @@ public class QlMiniAppServiceImpl implements IQlMiniAppService {
         miniAppMapper.upsertDailyRecord(uuid(), customerId, sessionId, today,
                 bo.getRecordStage(), planDay,
                 bo.getChoiceValue(), bo.getNote(), new Date());
+        if (habit != null) habitPlans.record(habit);
     }
 
     @Override
@@ -226,35 +230,13 @@ public class QlMiniAppServiceImpl implements IQlMiniAppService {
     @Override
     @Transactional
     public Map<String, Object> startHabit(String token, QlMiniAppHabitBo bo) {
-        String customerId = requireCustomerId(token);
-        if (bo.getPlanLength() == null || (bo.getPlanLength() != 14 && bo.getPlanLength() != 21)) {
-            throw new CustomException("计划天数只能是14天或21天");
-        }
-        Date today = new Date();
-        if (bo.getStartedAt() == null || !dateKey(today).equals(dateKey(bo.getStartedAt()))) throw new CustomException("计划只能从今天开始");
-        if (StrUtil.isBlank(bo.getSessionId()) || miniAppMapper.countAttendedSession(customerId, bo.getSessionId()) == 0) throw new CustomException("完成本人体验后才能开始计划", 403);
-        miniAppMapper.lockCustomer(customerId);
-        Map<String, Object> current = miniAppMapper.selectLatestHabit(customerId);
-        if (current != null && Arrays.asList("active", "paused").contains(String.valueOf(current.get("status")))) {
-            if (number(current.get("planLength")).intValue() != bo.getPlanLength() || !Objects.equals(String.valueOf(current.get("sessionId")), bo.getSessionId())) {
-                throw new CustomException("已有进行中的计划，不能改成另一计划", 409);
-            }
-            return current;
-        }
-        Date now = today;
-        String planId = uuid();
-        miniAppMapper.insertHabitPlan(planId, customerId, bo.getSessionId(), bo.getPlanLength(), bo.getStartedAt(), now);
-        for (int day = 1; day <= bo.getPlanLength(); day++) {
-            miniAppMapper.insertHabitDay(uuid(), planId, day, now);
-        }
-        Map<String, Object> result = new LinkedHashMap<>();
-        result.put("id", planId);
-        result.put("planLength", bo.getPlanLength());
-        result.put("currentDay", 1);
-        result.put("status", "active");
-        return result;
+        return habitPlans.start(requireCustomerId(token), bo);
     }
 
+    @Override
+    public Map<String,Object> changeHabit(String token, String planId, boolean paused) {
+        return habitPlans.change(requireCustomerId(token), planId, paused);
+    }
     @Override
     @Transactional
     public void reportPost(String token, Long publishId, QlMiniAppReportBo bo) {

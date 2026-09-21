@@ -75,6 +75,15 @@ public class QlMiniAppController {
         return AjaxResult.success(miniAppService.startHabit(token, bo));
     }
 
+    @PutMapping("/habits/{id}/pause")
+    public AjaxResult<Map<String,Object>> pauseHabit(@RequestHeader(value="token",required=false) String token, @PathVariable String id) {
+        return AjaxResult.success(miniAppService.changeHabit(token,id,true));
+    }
+
+    @PutMapping("/habits/{id}/resume")
+    public AjaxResult<Map<String,Object>> resumeHabit(@RequestHeader(value="token",required=false) String token, @PathVariable String id) {
+        return AjaxResult.success(miniAppService.changeHabit(token,id,false));
+    }
     @RepeatSubmit
     @PostMapping("/posts/{publishId}/reports")
     public AjaxResult<Void> reportPost(@RequestHeader(value = "token", required = false) String token,

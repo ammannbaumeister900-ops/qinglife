@@ -25,7 +25,7 @@ class QlMiniAppDailyHabitServiceTest {
         mapper = mock(QlMiniAppMapper.class);
         when(redis.getCacheObject("appToken:token")).thenReturn(7L);
         when(identity.resolve(7L)).thenReturn("customer-1");
-        service = new QlMiniAppServiceImpl(redis, identity, mapper, mock(QlSessionPricing.class));
+        service = new QlMiniAppServiceImpl(redis, identity, mapper, mock(QlSessionPricing.class), new QlHabitPlanService(mapper, mock(com.yicai.life.mapper.QlHabitPlanMapper.class)));
     }
 
     @Test void todayEndpointRejectsClientForgedDate() {
@@ -37,7 +37,7 @@ class QlMiniAppDailyHabitServiceTest {
 
     @Test void habitRecordUsesServerPlanDayAndRejectsMismatch() {
         Map<String,Object> plan = new HashMap<>();
-        plan.put("id", "plan-1"); plan.put("sessionId", "session-1"); plan.put("planLength", 14); plan.put("currentDay", 3); plan.put("status", "active");
+        plan.put("startedAt", new Date(System.currentTimeMillis() - 2L * 86400000L)); plan.put("id", "plan-1"); plan.put("sessionId", "session-1"); plan.put("planLength", 14); plan.put("currentDay", 3); plan.put("status", "active");
         when(mapper.selectLatestHabit("customer-1")).thenReturn(plan);
         QlMiniAppDailyRecordBo bo = daily("habit", 4);
         assertThrows(CustomException.class, () -> service.saveDailyRecord("token", bo));
@@ -55,7 +55,7 @@ class QlMiniAppDailyHabitServiceTest {
         QlMiniAppHabitBo bo = habit(21);
         when(mapper.countAttendedSession("customer-1", "session-1")).thenReturn(1);
         Map<String,Object> current = new HashMap<>();
-        current.put("sessionId", "session-1"); current.put("planLength", 14); current.put("status", "active");
+        current.put("startedAt", new Date()); current.put("currentDay", 1); current.put("id", "plan-1"); current.put("sessionId", "session-1"); current.put("planLength", 14); current.put("status", "active");
         when(mapper.selectLatestHabit("customer-1")).thenReturn(current);
         assertThrows(CustomException.class, () -> service.startHabit("token", bo));
         verify(mapper, never()).insertHabitPlan(anyString(), anyString(), any(), anyInt(), any(), any());

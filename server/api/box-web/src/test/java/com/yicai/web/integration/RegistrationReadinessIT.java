@@ -38,7 +38,7 @@ class RegistrationReadinessIT {
     static int number=5000;
     static final Map<String,Object> access=new HashMap<>();
     @Configuration @EnableTransactionManagement
-    @Import({QlRegistrationPolicy.class,QlRegistrationServiceImpl.class,QlSessionPricing.class,QlMiniAppServiceImpl.class,QlStaffWorkspaceService.class,QlAttendanceAudit.class})
+    @Import({QlRegistrationPolicy.class,QlRegistrationServiceImpl.class,QlSessionPricing.class,QlMiniAppServiceImpl.class,QlStaffWorkspaceService.class,QlAttendanceAudit.class,QlHabitPlanService.class})
     static class Config {
         @Bean DataSource dataSource() {
             String url=System.getenv("QINGLIFE_TEST_MYSQL_URL");
@@ -49,7 +49,7 @@ class RegistrationReadinessIT {
         @Bean JdbcTemplate jdbc(DataSource ds){return new JdbcTemplate(ds);}
         @Bean SqlSessionFactory factory(DataSource ds)throws Exception {
             MybatisConfiguration config=new MybatisConfiguration();config.setMapUnderscoreToCamelCase(true);
-            config.addMapper(QlRegistrationMapper.class);config.addMapper(QlSessionMapper.class);config.addMapper(QlMiniAppMapper.class);
+            config.addMapper(QlRegistrationMapper.class);config.addMapper(QlSessionMapper.class);config.addMapper(QlMiniAppMapper.class);config.addMapper(QlHabitPlanMapper.class);
             config.addMapper(QlRegistrationStatusLogMapper.class);config.addMapper(QlTransactionMapper.class);
             MybatisSqlSessionFactoryBean f=new MybatisSqlSessionFactoryBean();f.setDataSource(ds);f.setConfiguration(config);
             f.setTypeAliasesPackage("com.yicai.life.domain");
@@ -59,6 +59,7 @@ class RegistrationReadinessIT {
         @Bean QlRegistrationMapper registrations(SqlSessionTemplate s){return s.getMapper(QlRegistrationMapper.class);}
         @Bean QlSessionMapper sessions(SqlSessionTemplate s){return s.getMapper(QlSessionMapper.class);}
         @Bean QlMiniAppMapper mini(SqlSessionTemplate s){return s.getMapper(QlMiniAppMapper.class);}
+        @Bean QlHabitPlanMapper habits(SqlSessionTemplate s){return s.getMapper(QlHabitPlanMapper.class);}
         @Bean QlRegistrationStatusLogMapper logs(SqlSessionTemplate s){return s.getMapper(QlRegistrationStatusLogMapper.class);}
         @Bean QlTransactionMapper transactions(SqlSessionTemplate s){return s.getMapper(QlTransactionMapper.class);}
         @Bean RedisCache redis(){return mock(RedisCache.class);}
@@ -150,4 +151,81 @@ class RegistrationReadinessIT {
         }finally{db.update("UPDATE ql_migration_run SET state='complete' WHERE name=?",name);}
     }
     @Test void closedWindowRejectsAdminAndStaff(){String s=session(3);db.update("UPDATE ql_session SET registration_close_at=DATE_SUB(NOW(),INTERVAL 1 HOUR) WHERE id=?",s);assertThrows(CustomException.class,()->add(customer(),s,"pending"));assertThrows(CustomException.class,()->staff.enroll(customer(),s,access));}
-}
+    String habitFixture(int elapsed) {
+        String customer=customer(), session=session(5), plan=UUID.randomUUID().toString();
+        java.time.LocalDate today=java.time.LocalDate.now(QlHabitPlanService.ZONE);
+        db.update("INSERT INTO ql_habit_plan(id,customer_id,session_id,plan_length,current_day,status,started_at) VALUES(?,?,?,14,1,'active',?)",plan,customer,session,java.sql.Date.valueOf(today.minusDays(elapsed)));
+        for(int day=1;day<=14;day++) db.update("INSERT INTO ql_habit_day_record(id,habit_plan_id,plan_day,status) VALUES(?,?,?,'pending')",UUID.randomUUID().toString(),plan,day);
+        when(context.getBean(RedisCache.class).getCacheObject("appToken:habit-test")).thenReturn(78L);
+        when(context.getBean(QlCustomerIdentityService.class).resolve(78L)).thenReturn(customer);
+        return plan;
+    }
+    @SuppressWarnings("unchecked") Map<String,Object> currentHabit() { return (Map<String,Object>)mini.overview("habit-test").get("habit"); }
+    QlMiniAppDailyRecordBo habitRecord(int day) {
+        QlMiniAppDailyRecordBo bo=new QlMiniAppDailyRecordBo();bo.setRecordDate(new java.util.Date());bo.setRecordStage("habit");bo.setPlanDay(day);bo.setChoiceValue("done");return bo;
+    }
+    @Test void habitPauseRetainsRecordButExcludesDayAndSameDayResumeIsIdempotent() {
+        String plan=habitFixture(2);
+        assertEquals(3,((Number)currentHabit().get("currentDay")).intValue());
+        mini.saveDailyRecord("habit-test",habitRecord(3));
+        assertEquals(Collections.singletonList(3),currentHabit().get("completedDays"));
+        mini.changeHabit("habit-test",plan,true);
+        mini.changeHabit("habit-test",plan,true);
+        assertEquals(1,db.queryForObject("SELECT COUNT(*) FROM ql_daily_record d JOIN ql_habit_plan p ON p.customer_id=d.customer_id WHERE p.id=?",Integer.class,plan));
+        assertTrue(((List<?>)currentHabit().get("completedDays")).isEmpty());
+        assertThrows(CustomException.class,()->mini.saveDailyRecord("habit-test",habitRecord(3)));
+        mini.changeHabit("habit-test",plan,false);
+        mini.changeHabit("habit-test",plan,false);
+        assertEquals(1,db.queryForObject("SELECT COUNT(*) FROM ql_habit_pause WHERE habit_plan_id=?",Integer.class,plan));
+        assertEquals(false,currentHabit().get("canRecordToday"));
+        assertThrows(CustomException.class,()->mini.saveDailyRecord("habit-test",habitRecord(3)));
+    }
+    @Test void habitResumesFrozenDayAndExpiresWithoutInventingCheckIns() {
+        String plan=habitFixture(6);
+        java.time.LocalDate today=java.time.LocalDate.now(QlHabitPlanService.ZONE);
+        db.update("INSERT INTO ql_habit_pause(habit_plan_id,start_date) VALUES(?,?)",plan,java.sql.Date.valueOf(today.minusDays(4)));
+        db.update("UPDATE ql_habit_plan SET status='paused',paused_at=? WHERE id=?",java.sql.Timestamp.valueOf(today.minusDays(4).atStartOfDay()),plan);
+        assertEquals(3,((Number)currentHabit().get("currentDay")).intValue());
+        mini.changeHabit("habit-test",plan,false);
+        assertEquals(true,currentHabit().get("canRecordToday"));
+        mini.saveDailyRecord("habit-test",habitRecord(3));
+        assertEquals(Collections.singletonList(3),currentHabit().get("completedDays"));
+        String expired=habitFixture(14);
+        assertEquals("completed",currentHabit().get("status"));
+        assertTrue(((List<?>)currentHabit().get("completedDays")).isEmpty());
+        assertThrows(CustomException.class,()->mini.changeHabit("habit-test",expired,true));
+        assertThrows(CustomException.class,()->mini.saveDailyRecord("habit-test",habitRecord(14)));
+    }
+    @Test void habitPauseAndCheckInSerializeWithoutCountingExcludedDate() throws Exception {
+        String plan=habitFixture(0);
+        ExecutorService pool=Executors.newFixedThreadPool(2);
+        try {
+            Future<?> pause=pool.submit(()->mini.changeHabit("habit-test",plan,true));
+            Future<?> record=pool.submit(()->{try{mini.saveDailyRecord("habit-test",habitRecord(1));}catch(CustomException expected){}});
+            pause.get(10,TimeUnit.SECONDS); record.get(10,TimeUnit.SECONDS);
+        } finally { pool.shutdownNow(); }
+        assertEquals("paused",currentHabit().get("status"));
+        assertTrue(((List<?>)currentHabit().get("completedDays")).isEmpty());
+        assertThrows(CustomException.class,()->mini.changeHabit("habit-test",UUID.randomUUID().toString(),false));
+    }    @Test void concurrentHabitStartCreatesOnePlanAndAllDays() throws Exception {
+        String c=customer(),s=session(2),r=add(c,s,"confirmed");
+        db.update("INSERT INTO ql_participation(id,customer_id,session_id,registration_id,attendance_status) VALUES(?,?,?,?,'completed')",UUID.randomUUID().toString(),c,s,r);
+        when(context.getBean(RedisCache.class).getCacheObject("appToken:habit-start")).thenReturn(79L);
+        when(context.getBean(QlCustomerIdentityService.class).resolve(79L)).thenReturn(c);
+        QlMiniAppHabitBo bo=new QlMiniAppHabitBo();bo.setPlanLength(21);bo.setSessionId(s);bo.setStartedAt(new java.util.Date());
+        ExecutorService pool=Executors.newFixedThreadPool(2);
+        try {
+            Future<Map<String,Object>> a=pool.submit(()->mini.startHabit("habit-start",bo));
+            Future<Map<String,Object>> b=pool.submit(()->mini.startHabit("habit-start",bo));
+            assertEquals(a.get(10,TimeUnit.SECONDS).get("id"),b.get(10,TimeUnit.SECONDS).get("id"));
+        } finally { pool.shutdownNow(); }
+        assertEquals(1,db.queryForObject("SELECT COUNT(*) FROM ql_habit_plan WHERE customer_id=?",Integer.class,c));
+        assertEquals(21,db.queryForObject("SELECT COUNT(*) FROM ql_habit_day_record d JOIN ql_habit_plan p ON p.id=d.habit_plan_id WHERE p.customer_id=?",Integer.class,c));
+    }    @Test void productionGuardRejectsMissingHabitMigration() {
+        db.execute("RENAME TABLE ql_habit_pause TO ql_habit_pause_probe");
+        try {
+            IllegalStateException error=assertThrows(IllegalStateException.class,()->new com.yicai.web.config.ProductionHabitSchemaGuard(db).afterPropertiesSet());
+            assertTrue(error.getMessage().contains("V1_3_12"));
+        } finally { db.execute("RENAME TABLE ql_habit_pause_probe TO ql_habit_pause"); }
+        new com.yicai.web.config.ProductionHabitSchemaGuard(db).afterPropertiesSet();
+    }}

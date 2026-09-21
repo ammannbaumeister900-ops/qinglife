@@ -187,7 +187,7 @@ public interface QlMiniAppMapper {
 
     @Select("SELECT id, session_id AS sessionId, plan_length AS planLength, current_day AS currentDay, status, " +
             "started_at AS startedAt, paused_at AS pausedAt, completed_at AS completedAt FROM ql_habit_plan " +
-            "WHERE customer_id=#{customerId} ORDER BY created_at DESC LIMIT 1")
+            "WHERE customer_id=#{customerId} ORDER BY created_at DESC, id DESC LIMIT 1 FOR UPDATE")
     Map<String, Object> selectLatestHabit(@Param("customerId") String customerId);
 
     @Insert("INSERT INTO ql_post_report(id, legacy_publish_id, reporter_customer_id, reason_code, reason_note, status, created_at) " +
