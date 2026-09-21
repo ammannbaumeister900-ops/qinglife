@@ -11,6 +11,7 @@ import com.yicai.common.exception.CustomException;
 import com.yicai.common.utils.DateUtils;
 import com.yicai.common.utils.DictUtils;
 import com.yicai.common.utils.file.FileTypeUtils;
+import com.yicai.common.utils.file.ExportFileAccess;
 import com.yicai.common.utils.file.ImageUtils;
 import com.yicai.common.utils.reflect.ReflectUtils;
 import org.apache.poi.ss.usermodel.*;
@@ -351,8 +352,11 @@ public class ExcelUtil<T>
                 }
             }
             String filename = encodingFilename(sheetName);
-            out = new FileOutputStream(getAbsoluteFile(filename));
+            String absoluteFile = getAbsoluteFile(filename);
+            out = new FileOutputStream(absoluteFile);
             wb.write(out);
+            out.flush();
+            ExportFileAccess.record(new File(absoluteFile).toPath());
             return AjaxResult.success(filename);
         }
         catch (Exception e)
@@ -851,8 +855,9 @@ public class ExcelUtil<T>
      */
     public String encodingFilename(String filename)
     {
-        filename = UUID.randomUUID().toString() + "_" + filename + ".xlsx";
-        return filename;
+        String safeName = filename == null ? "export" : filename.replaceAll("[\\\\/:*?\"<>|\\p{Cntrl}]", "_");
+        if (safeName.length() > 80) safeName = safeName.substring(0, 80);
+        return UUID.randomUUID().toString() + "_" + safeName + ".xlsx";
     }
 
     /**

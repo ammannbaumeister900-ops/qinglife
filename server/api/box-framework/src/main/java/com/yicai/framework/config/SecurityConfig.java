@@ -101,15 +101,14 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter
                 // Specific protected routes must precede broad static-file patterns.
                 .antMatchers("/doc.html", "/swagger-ui/**", "/swagger-resources/**", "/*/api-docs", "/druid/**").authenticated()
                 .antMatchers("/profile/public/**").permitAll()
-                .antMatchers("/profile/**").authenticated()
+                .antMatchers("/profile/**", "/data/static/**").denyAll()
                 .antMatchers(
                         HttpMethod.GET,
                         "/",
                         "/*.html",
                         "/**/*.html",
                         "/**/*.css",
-                        "/**/*.js",
-                        "/profile/public/**"
+                        "/**/*.js"
                 ).permitAll()
                 // Generic downloads may expose private uploads and therefore use
                 // the normal authenticated admin security chain. Public static

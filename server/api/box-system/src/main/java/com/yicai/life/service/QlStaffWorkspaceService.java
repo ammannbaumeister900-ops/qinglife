@@ -2,6 +2,7 @@ package com.yicai.life.service;
 
 import com.yicai.common.core.redis.RedisCache;
 import com.yicai.common.exception.CustomException;
+import com.yicai.common.utils.file.UploadContentValidator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -76,7 +77,41 @@ public class QlStaffWorkspaceService {
     @Transactional
     public String addCustomer(Map<String,Object> b,long operator){String name=text(b,"nickname",50,true),real=text(b,"realName",50,true),month=text(b,"birthMonth",7,false),ref=text(b,"referralSource",200,false);if(!month.isEmpty()){try{if(YearMonth.parse(month).isAfter(YearMonth.now()))throw new IllegalArgumentException();}catch(Exception e){throw new CustomException("出生年月无效",400);}}String id=UUID.randomUUID().toString();db.update("INSERT INTO ql_customer(id,customer_no,nickname,real_name,city,created_by,updated_by) VALUES(?,?,?,?,?,?,?)",id,"QY"+UUID.randomUUID().toString().replace("-","").substring(0,20),name,real,text(b,"city",100,false),operator,operator);db.update("INSERT INTO ql_customer_staff_detail(customer_id,birth_month,referral_source) VALUES(?,?,?)",id,month.isEmpty()?null:month,ref);return id;}
     @Transactional
-    public String addInterview(Map<String,Object> b,Map<String,Object> a){String customerId=text(b,"customerId",36,true),content=text(b,"content",3000,true),requestId=text(b,"requestId",64,true);customer(customerId);List<Map<String,Object>> old=db.queryForList("SELECT id FROM ql_staff_interview WHERE operator_id=? AND request_id=?",operator(a),requestId);if(!old.isEmpty())return old.get(0).get("id").toString();Object raw=b.get("images");List<?> images=raw instanceof List?(List<?>)raw:Collections.emptyList();if(images.size()>6)throw new CustomException("最多6张图片",400);String id=UUID.randomUUID().toString();db.update("INSERT INTO ql_staff_interview(id,customer_id,operator_id,operator_name,content,request_id,created_at) VALUES(?,?,?,?,?,?,UTC_TIMESTAMP(3))",id,customerId,operator(a),a.get("name"),content,requestId);int total=0;for(Object image:images){if(!(image instanceof Map))throw new CustomException("图片格式无效",400);Map<?,?> im=(Map<?,?>)image;String mime=Objects.toString(im.get("mime"),"");if(!Arrays.asList("image/jpeg","image/png","image/webp").contains(mime))throw new CustomException("图片类型不支持",400);byte[] bytes;try{bytes=Base64.getDecoder().decode(Objects.toString(im.get("data"),""));}catch(Exception e){throw new CustomException("图片无效",400);}total+=bytes.length;if(total>2097152||bytes.length==0)throw new CustomException("图片合计不能超过2MB",400);try{if(javax.imageio.ImageIO.read(new java.io.ByteArrayInputStream(bytes))==null)throw new Exception();}catch(Exception e){throw new CustomException("图片无法读取，请使用JPG或PNG",400);}db.update("INSERT INTO ql_staff_interview_image(id,interview_id,mime_type,image_data) VALUES(?,?,?,?)",UUID.randomUUID().toString(),id,mime,bytes);}return id;}
+    public String addInterview(Map<String,Object> b, Map<String,Object> a) {
+        String customerId = text(b, "customerId", 36, true);
+        String content = text(b, "content", 3000, true);
+        String requestId = text(b, "requestId", 64, true);
+        customer(customerId);
+        List<Map<String,Object>> old = db.queryForList(
+                "SELECT id FROM ql_staff_interview WHERE operator_id=? AND request_id=?", operator(a), requestId);
+        if (!old.isEmpty()) return old.get(0).get("id").toString();
+        Object raw = b.get("images");
+        if (raw != null && !(raw instanceof List)) throw new CustomException("图片格式无效", 400);
+        List<?> images = raw == null ? Collections.emptyList() : (List<?>) raw;
+        if (images.size() > 6) throw new CustomException("最多6张图片", 400);
+        List<byte[]> decoded = new ArrayList<>();
+        List<String> mimeTypes = new ArrayList<>();
+        int total = 0;
+        for (Object image : images) {
+            if (!(image instanceof Map)) throw new CustomException("图片格式无效", 400);
+            Map<?,?> im = (Map<?,?>) image;
+            String mime = Objects.toString(im.get("mime"), "");
+            byte[] bytes = UploadContentValidator.decodeInterviewImage(
+                    mime, Objects.toString(im.get("data"), ""));
+            total += bytes.length;
+            if (total > 2 * 1024 * 1024) throw new CustomException("图片合计不能超过2MB", 400);
+            decoded.add(bytes);
+            mimeTypes.add(mime);
+        }
+        String id = UUID.randomUUID().toString();
+        db.update("INSERT INTO ql_staff_interview(id,customer_id,operator_id,operator_name,content,request_id,created_at) VALUES(?,?,?,?,?,?,UTC_TIMESTAMP(3))",
+                id, customerId, operator(a), a.get("name"), content, requestId);
+        for (int i = 0; i < decoded.size(); i++) {
+            db.update("INSERT INTO ql_staff_interview_image(id,interview_id,mime_type,image_data) VALUES(?,?,?,?)",
+                    UUID.randomUUID().toString(), id, mimeTypes.get(i), decoded.get(i));
+        }
+        return id;
+    }
     public Map<String,Object> image(String id){List<Map<String,Object>> rows=db.queryForList("SELECT mime_type,image_data FROM ql_staff_interview_image WHERE id=?",id);if(rows.isEmpty())throw new CustomException("图片不存在",404);return rows.get(0);}
     @Transactional
     public void enroll(String customerId,String sessionId,Map<String,Object> a){

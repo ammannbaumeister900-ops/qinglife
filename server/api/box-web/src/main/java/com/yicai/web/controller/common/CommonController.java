@@ -6,6 +6,8 @@ import com.yicai.common.constant.Constants;
 import com.yicai.common.core.domain.AjaxResult;
 import com.yicai.common.utils.file.FileUploadUtils;
 import com.yicai.common.utils.file.FileUtils;
+import com.yicai.common.utils.file.ExportFileAccess;
+import com.yicai.common.utils.file.UploadContentValidator;
 import com.yicai.framework.config.ServerConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,20 +50,24 @@ public class CommonController
     {
         try
         {
-            if (!FileUtils.checkAllowDownload(fileName))
-            {
-                throw new IllegalArgumentException(StrUtil.format("文件名称({})非法，不允许下载。 ", fileName));
+            if (fileName == null || !fileName.matches("[0-9a-fA-F-]{36}_[^/\\\\]+\\.xlsx") ||
+                    !FileUtils.checkAllowDownload(fileName)) {
+                response.sendError(HttpServletResponse.SC_NOT_FOUND);
+                return;
             }
-            String realFileName = System.currentTimeMillis() + fileName.substring(fileName.indexOf("_") + 1);
             Path filePath = resolveInside(RuoYiConfig.getDownloadPath(), fileName);
             if (!Files.isRegularFile(filePath)) {
                 response.sendError(HttpServletResponse.SC_NOT_FOUND);
                 return;
             }
-			File file = filePath.toFile();
+            if (!ExportFileAccess.ownedByCurrentUser(filePath)) {
+                response.sendError(HttpServletResponse.SC_FORBIDDEN);
+                return;
+            }
+            String realFileName = System.currentTimeMillis() + fileName.substring(fileName.indexOf("_") + 1);
             response.setContentType(MediaType.APPLICATION_OCTET_STREAM_VALUE);
             FileUtils.setAttachmentResponseHeader(response, realFileName);
-			FileUtils.writeToStream(file, response.getOutputStream());
+            FileUtils.writeToStream(filePath.toFile(), response.getOutputStream());
         }
         catch (IllegalArgumentException e)
         {
@@ -74,7 +80,6 @@ public class CommonController
             if (!response.isCommitted()) response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
         }
     }
-
     /**
      * 本地资源通用下载
      */
@@ -87,11 +92,11 @@ public class CommonController
             {
                 throw new IllegalArgumentException(StrUtil.format("资源文件({})非法，不允许下载。 ", resource));
             }
-            if (resource == null || !resource.startsWith(Constants.RESOURCE_PREFIX + "/")) {
+            if (resource == null || !resource.startsWith(Constants.RESOURCE_PREFIX + "/public/")) {
                 throw new IllegalArgumentException("resource prefix");
             }
-            String relativePath = resource.substring((Constants.RESOURCE_PREFIX + "/").length());
-            Path downloadPath = resolveInside(RuoYiConfig.getProfile(), relativePath);
+            String relativePath = resource.substring((Constants.RESOURCE_PREFIX + "/public/").length());
+            Path downloadPath = resolveInside(RuoYiConfig.getProfile() + "/public", relativePath);
             if (!Files.isRegularFile(downloadPath)) {
                 response.sendError(HttpServletResponse.SC_NOT_FOUND);
                 return;
@@ -136,11 +141,13 @@ public class CommonController
     {
         try
         {
+            UploadContentValidator.validateCommonMedia(file);
             // 上传文件路径
-            String filePath = RuoYiConfig.getProfile();
+            String filePath = RuoYiConfig.getProfile() + "/public";
             // 上传并返回新文件名称
             String fileName = FileUploadUtils.upload(filePath, file);
-            String url = RuoYiConfig.getImagePath() + fileName;
+            fileName = "public/" + fileName;
+            String url = RuoYiConfig.getImagePath().replaceAll("/+$", "") + "/" + fileName;
             Map<String,Object> ajax = new HashMap<>();
             ajax.put("fileName", fileName);
             ajax.put("url", url);
@@ -151,9 +158,14 @@ public class CommonController
             }
             return AjaxResult.success(ajax);
         }
+        catch (com.yicai.common.exception.CustomException e)
+        {
+            throw e;
+        }
         catch (Exception e)
         {
-            return AjaxResult.error(e.getMessage());
+            log.error("Public media upload failed", e);
+            return AjaxResult.error("上传失败，请稍后重试");
         }
     }
 }
