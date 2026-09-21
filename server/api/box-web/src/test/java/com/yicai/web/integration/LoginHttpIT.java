@@ -90,8 +90,25 @@ class LoginHttpIT {
         }
         finally{db.execute("ALTER TABLE app_user_info DROP CHECK ql_http_refuse_insert");}
     }
+    @Test void onlyExplicitPublicFilesAreServedAnonymously() throws Exception {
+        Path publicDir=Files.createDirectories(uploads.resolve("public"));
+        Path publicFile=publicDir.resolve("http-contract.txt");
+        Path privateFile=uploads.resolve("private.html");
+        Files.write(publicFile,"public-content".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        Files.write(privateFile,"private-content".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        try {
+            ResponseEntity<String> allowed=http.getForEntity("/profile/public/http-contract.txt",String.class);
+            assertEquals(200,allowed.getStatusCodeValue());
+            assertEquals("public-content",allowed.getBody());
+            ResponseEntity<String> denied=http.getForEntity("/data/static/private.html",String.class);
+            assertFalse(denied.getBody().contains("private-content"));
+            assertEquals(401,((Number)get("/data/static/private.html",null).get("code")).intValue());
+        } finally {
+            Files.deleteIfExists(publicFile);Files.deleteIfExists(privateFile);Files.deleteIfExists(publicDir);
+        }
+    }
     @Test void securityChainProtectsDocsFilesAndManagement() {
-        for(String path:Arrays.asList("/doc.html","/common/download?fileName=synthetic.txt","/profile/private.txt","/actuator/env","/druid/index.html"))
+        for(String path:Arrays.asList("/doc.html","/common/download?fileName=synthetic.txt","/profile/private.txt","/data/static/private.html","/profile/download/private.xlsx","/actuator/env","/druid/index.html"))
             assertEquals(401,((Number)get(path,null).get("code")).intValue(),path);
         ResponseEntity<String> health=http.getForEntity("/actuator/health",String.class);assertEquals(200,health.getStatusCodeValue());assertFalse(health.getBody().contains("components"));
     }

@@ -1,0 +1,21 @@
+# Candidate for the integrated Java build using server.servlet.context-path=/admin.
+# Deploy with the matching application/configuration; the old staging app uses /.
+location = /test-admin { return 302 /test-admin/; }
+location /test-admin/ {
+    root /var/www/html;
+    try_files $uri $uri/ /test-admin/index.html;
+    add_header Cache-Control "no-cache";
+    add_header X-Robots-Tag "noindex, nofollow" always;
+}
+location /test-api/ {
+    if ($uri !~ "^/test-api/((captchaImage|login|logout|getInfo|getRouters)$|app/qinglife/|life/|system/|common/(upload|download|download/resource)$|profile/public/)") { return 404; }
+    proxy_pass http://qinglife-test-api:8081/admin/;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto https;
+    proxy_connect_timeout 10s;
+    proxy_read_timeout 60s;
+    client_max_body_size 20m;
+    add_header X-Robots-Tag "noindex, nofollow" always;
+}

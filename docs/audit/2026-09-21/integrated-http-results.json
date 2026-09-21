@@ -1,0 +1,67 @@
+{
+  "finished_at": "2026-09-21T09:41:12+08:00",
+  "base_commit": "8a4ced6",
+  "result": "BUILD SUCCESS",
+  "suites": [
+    {
+      "name": "com.yicai.life.service.QlCustomerIdentityServiceTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.yicai.life.service.QlMiniAppDailyHabitServiceTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.yicai.life.service.QlWechatLoginServiceTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.yicai.web.config.ProductionConfigurationGuardTest",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.yicai.web.controller.common.CommonControllerTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.yicai.web.controller.common.UploadContentValidatorTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.yicai.web.integration.LoginHttpIT",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.yicai.web.integration.ProductionLoginHttpIT",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  ],
+  "log_sha256": "635410ae701108d8c902e5d3907a603dc5ec55c5554a83bf008bbd3e17d39656",
+  "wechat_mocked": true,
+  "nginx_candidate_syntax": "passed; not deployed",
+  "temporary_redis_cleanup_exit": 0
+}
