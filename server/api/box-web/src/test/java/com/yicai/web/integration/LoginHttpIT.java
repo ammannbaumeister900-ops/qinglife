@@ -38,11 +38,13 @@ class LoginHttpIT {
         String url=System.getenv("QINGLIFE_HTTP_MYSQL_URL"),port=System.getenv("QINGLIFE_TEST_REDIS_PORT");
         if(url==null||!url.matches("jdbc:mysql://127\\.0\\.0\\.1:[0-9]+/qinglife_it_http_[a-z0-9_]+\\?.*"))throw new IllegalStateException("Fresh isolated HTTP test MySQL database required");
         if(port==null||!port.matches("[0-9]+"))throw new IllegalStateException("Isolated Redis tunnel port required");
-        try(Connection c=DriverManager.getConnection(url,"root","")){DatabaseMigration.run(c,Paths.get(System.getProperty("qinglife.migrations")).getParent());}
+        String user=System.getenv().getOrDefault("QINGLIFE_HTTP_MYSQL_USER","root");
+        String password=System.getenv().getOrDefault("QINGLIFE_HTTP_MYSQL_PASSWORD","");
+        try(Connection c=DriverManager.getConnection(url,user,password)){DatabaseMigration.run(c,Paths.get(System.getProperty("qinglife.migrations")).getParent());}
         uploads=Files.createTempDirectory("qinglife-http-uploads-");
         p.add("spring.datasource.dynamic.datasource.master.url",()->url);
-        p.add("spring.datasource.dynamic.datasource.master.username",()->"root");
-        p.add("spring.datasource.dynamic.datasource.master.password",()->"");
+        p.add("spring.datasource.dynamic.datasource.master.username",()->user);
+        p.add("spring.datasource.dynamic.datasource.master.password",()->password);
         p.add("spring.redis.host",()->"127.0.0.1");p.add("spring.redis.port",()->port);p.add("spring.redis.password",()->"");p.add("spring.redis.database",()->0);
         p.add("ruoyi.profile",()->uploads.toString());
     }
@@ -76,17 +78,17 @@ class LoginHttpIT {
     }
     @Test void databaseFailureNeverIssuesToken() {
         int before=appTokenCount();String code=UUID.randomUUID().toString();
-        db.execute("CREATE TRIGGER ql_http_refuse_insert BEFORE INSERT ON app_user_info FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='synthetic rollback test'");
+        db.execute("ALTER TABLE app_user_info ADD CONSTRAINT ql_http_refuse_insert CHECK (open_id <> 'http-test-"+code+"')");
         try {
             Map<String,Object> response=login(code);
             assertEquals(500,((Number)response.get("code")).intValue());
             assertEquals("服务暂不可用，请稍后重试",response.get("msg"));
-            assertFalse(response.toString().contains("synthetic rollback test"));
+            assertFalse(response.toString().contains("ql_http_refuse_insert"));
             assertFalse(response.toString().contains("app_user_info"));
             assertEquals(before,appTokenCount());
             assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM app_user_info WHERE open_id=?",Integer.class,"http-test-"+code));
         }
-        finally{db.execute("DROP TRIGGER ql_http_refuse_insert");}
+        finally{db.execute("ALTER TABLE app_user_info DROP CHECK ql_http_refuse_insert");}
     }
     @Test void securityChainProtectsDocsFilesAndManagement() {
         for(String path:Arrays.asList("/doc.html","/common/download?fileName=synthetic.txt","/profile/private.txt","/actuator/env","/druid/index.html"))

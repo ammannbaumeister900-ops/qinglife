@@ -11,7 +11,7 @@
 - JDK 8、Maven、独立 MySQL 8 测试实例。
 - 每次创建一个空数据库，名称必须为 `qinglife_it_http_` 加小写字母、数字或下划线。迁移由测试自动执行。
 - 独立、无密码、仅通过回环地址访问的临时 Redis。不能指向已有业务 Redis：测试会写入、枚举、过期和删除 `appToken:*` 测试键。
-- 当前测试 MySQL 固定使用本机隔离实例的 root/空密码；不是生产数据库配置范例。
+- 测试 MySQL 通过 QINGLIFE_HTTP_MYSQL_USER / QINGLIFE_HTTP_MYSQL_PASSWORD 指定独立库账号。prod 验收要求非空密码；不应给应用账号全局 SUPER 权限。
 
 在仓库根目录设置：
 
@@ -29,4 +29,4 @@ mvn -f server/api/pom.xml -Phttp-it -pl box-web -am verify
 
 Maven Failsafe 报告位于 `server/api/box-web/target/failsafe-reports`；只发布去除环境属性和日志正文的结果摘要。
 
-这组测试采用 `dev` profile。它不证明生产配置和部署正确，不覆盖真实微信登录、真机邀请链接、历史业务库迁移或全部业务页面。数据库失败用例主动制造 SQL 异常，因此日志中出现该异常并不自动代表用例失败，应以 Failsafe 结果为准。
+这组测试分别采用 `dev` 和 `prod` profile，执行相同的 HTTP 契约。它不证明生产配置和部署正确，不覆盖真实微信登录、真机邀请链接、历史业务库迁移或全部业务页面。数据库失败用例主动制造 SQL 异常，因此日志中出现该异常并不自动代表用例失败，应以 Failsafe 结果为准。
