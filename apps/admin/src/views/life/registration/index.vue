@@ -18,7 +18,7 @@
       <el-table-column label="报名来源" prop="registrationSource" width="110" />
       <el-table-column label="报名时间" prop="registeredAt" width="160" />
       <el-table-column label="备注" prop="remark" min-width="150" show-overflow-tooltip />
-      <el-table-column label="操作" width="90" fixed="right"><template slot-scope="scope"><el-button size="mini" type="text" icon="el-icon-edit" @click="handleUpdate(scope.row)" v-hasPermi="['life:registration:edit']">编辑</el-button></template></el-table-column>
+      <el-table-column label="操作" width="160" fixed="right"><template slot-scope="scope"><el-button size="mini" type="text" icon="el-icon-edit" @click="handleUpdate(scope.row)" v-hasPermi="['life:registration:edit']">编辑</el-button><el-button v-if="scope.row.batchId && scope.row.registrationStatus !== 'cancelled'" size="mini" type="text" @click="handleBatchCancel(scope.row)" v-hasPermi="['life:registration:edit']">取消整单</el-button></template></el-table-column>
     </el-table>
     <pagination v-show="total > 0" :total="total" :page.sync="queryParams.pageNum" :limit.sync="queryParams.pageSize" @pagination="getList" />
 
@@ -47,7 +47,7 @@
 </template>
 
 <script>
-import { listRegistration, getRegistration, addRegistration, updateRegistration, changePayment, changeBatchPayment } from '@/api/life/registration'
+import { listRegistration, getRegistration, addRegistration, updateRegistration, changePayment, changeBatchPayment, cancelBatchRegistration } from '@/api/life/registration'
 import { listCustomer } from '@/api/life/customer'
 import { listSession } from '@/api/life/session'
 import { checkPermi } from '@/utils/permission'
@@ -83,6 +83,12 @@ export default {
       }).finally(() => { if (requestId === this.listRequestId) this.loading = false })
     },
     loadOptions() { listCustomer({ pageNum: 1, pageSize: 1000, status: 'active' }).then(res => { this.customerOptions = res.rows }); listSession({ pageNum: 1, pageSize: 1000 }).then(res => { this.sessionOptions = res.rows }) },
+    handleBatchCancel(row) {
+      this.$prompt('将取消该订单全部参与人的报名；已付款或已有到场记录时不可取消。请填写原因。', '取消整单报名', {
+        inputValidator: value => !!(value && value.trim() && value.trim().length <= 500) || '请填写500字以内的原因',
+        confirmButtonText: '确认取消整单', cancelButtonText: '返回'
+      }).then(({ value }) => cancelBatchRegistration(row.batchId, value.trim())).then(() => { this.msgSuccess('整单已取消'); this.getList() }).catch(() => {})
+    },
     handleQuery() { this.queryParams.pageNum = 1; this.getList() }, resetQuery() { this.resetForm('queryForm'); this.handleQuery() },
     reset() { this.form = { id: undefined, customerId: '', sessionId: '', registrationStatus: 'pending', registrationSource: 'web_admin', sessionReferrerCustomerId: '', remark: '' }; this.resetForm('form') },
     handleAdd() { this.reset(); this.title = '新增报名'; this.open = true },

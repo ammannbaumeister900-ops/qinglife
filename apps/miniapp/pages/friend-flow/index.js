@@ -1,4 +1,5 @@
 const store = require('../../utils/store')
+const business = require('../../services/business-api')
 const legacyApi = require('../../services/legacy-api')
 const domain = require('../../utils/domain')
 const navigation = require('../../utils/navigation')
@@ -11,6 +12,7 @@ Page({
   },
   onShow() {
     this.refresh()
+    if (this.data.view === 'daily' && business.enabled()) business.refreshHabit().then(() => this.refresh()).catch(error => wx.showToast({ title: error.message || '计划读取失败', icon: 'none' }))
     if (this.data.view === 'archive' && !this.data.archiveLoaded) this.loadArchive()
   },
   refresh() {
@@ -27,17 +29,36 @@ Page({
   },
   chooseDaily(event) { this.setData({ dailyChoice: event.currentTarget.dataset.value }) },
   onDailyNote(event) { this.setData({ dailyNote: event.detail.value }) },
-  saveDaily() {
+  async saveDaily() {
     if (!this.data.state.phoneLinked) return navigation.navigateTo({ url: '/pages/mine-flow/index?view=auth&next=daily' })
     if (!['done', 'light', 'rest'].includes(this.data.dailyChoice)) return wx.showToast({ title: '请选择今天的实际情况', icon: 'none' })
     const record = domain.privateRecord(this.data.dailyChoice, this.data.dailyNote)
+    if (business.enabled()) {
+      try {
+        const habit = await business.refreshHabit()
+        this.refresh()
+        const state = this.data.state
+        if (state.stage === 'habit' && !habit.canRecordToday) throw new Error('今天不在可记录的计划日内')
+        await business.saveDailyRecord({
+          sessionId: state.registration && state.registration.activityId || null,
+          recordDate: state.stage === 'habit' ? habit.serverDate : domain.localDate(),
+          recordStage: ['refeed', 'habit'].includes(state.stage) ? state.stage : 'general',
+          planDay: state.stage === 'habit' ? state.habit.currentDay : 0,
+          choiceValue: record.choice,
+          note: record.note
+        })
+        business.refreshHabit().then(() => this.refresh()).catch(() => {})
+      } catch (error) {
+        return wx.showToast({ title: error.message || '记录保存失败', icon: 'none' })
+      }
+    }
     store.updateState(state => {
       state.dailyRecords[this.data.dailyKey] = record
-      if (state.stage === 'habit' && !state.habit.completedDays.includes(state.habit.currentDay)) state.habit.completedDays.push(state.habit.currentDay)
+      if (!business.enabled() && state.stage === 'habit' && !state.habit.completedDays.includes(state.habit.currentDay)) state.habit.completedDays.push(state.habit.currentDay)
       return state
     })
     this.refresh()
-    wx.showToast({ title: '私人记录已保存', icon: 'success' })
+    wx.showToast({ title: business.enabled() ? '私人记录已保存' : '演示记录已保存', icon: 'success' })
   },
   async loadArchive() {
     if (this.data.archiveLoading) return

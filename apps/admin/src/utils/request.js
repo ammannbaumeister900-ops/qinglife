@@ -14,6 +14,13 @@ const service = axios.create({
 })
 // request拦截器
 service.interceptors.request.use(config => {
+  // 后台 API 只接受相对接口路径，禁止调用方覆盖已配置的服务地址。
+  // 在附加登录凭证之前检查，避免绝对 URL 将 Bearer token 带到外站。
+  if (typeof config.url !== 'string' || !/^\/(?!\/)/.test(config.url) ||
+      /[\\\x00-\x20\x7f]/.test(config.url) ||
+      config.baseURL !== process.env.VUE_APP_BASE_API) {
+    return Promise.reject(new Error('接口地址不合法'))
+  }
   // 是否需要设置 token
   const isToken = (config.headers || {}).isToken === false
   if (getToken() && !isToken) {
@@ -44,7 +51,7 @@ service.interceptors.request.use(config => {
   return config
 }, error => {
     console.log(error)
-    Promise.reject(error)
+    return Promise.reject(error)
 })
 
 // 响应拦截器

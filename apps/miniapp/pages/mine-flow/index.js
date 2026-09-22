@@ -1,7 +1,9 @@
 const store = require('../../utils/store')
+const business = require('../../services/business-api')
 const legacyApi = require('../../services/legacy-api')
 const demo = require('../../data/demo')
 const navigation = require('../../utils/navigation')
+const domain = require('../../utils/domain')
 
 Page({
   data: {
@@ -33,6 +35,7 @@ Page({
 
   onShow() {
     this.refresh()
+    if (this.data.view === 'habit' && business.enabled()) business.refreshHabit().then(() => this.refresh()).catch(error => wx.showToast({ title: error.message || '计划读取失败', icon: 'none' }))
     if (this.data.view === 'collections' && !this.data.collections.length) this.loadCollections()
   },
 
@@ -81,8 +84,19 @@ Page({
     }, 500)
   },
 
-  setPlanLength(event) {
+  async setPlanLength(event) {
     const value = Number(event.currentTarget.dataset.value)
+    if (business.enabled()) {
+      try {
+        const state = this.data.state
+        const habit = await business.startHabit({ sessionId: state.registration && state.registration.activityId || null, planLength: value, startedAt: domain.localDate() })
+        business.applyHabit(habit)
+        this.refresh()
+        return
+      } catch (error) {
+        return wx.showToast({ title: error.message || '计划创建失败', icon: 'none' })
+      }
+    }
     store.updateState((state) => {
       state.habit.planLength = value
       if (state.habit.currentDay > value) state.habit.currentDay = value
@@ -91,7 +105,21 @@ Page({
     this.refresh()
   },
 
-  togglePause() {
+  async togglePause() {
+    if (business.enabled()) {
+      if (this.data.habitBusy) return
+      const habit = this.data.state.habit
+      if (!habit.id) return wx.showToast({ title: '请先开始计划', icon: 'none' })
+      this.setData({ habitBusy: true })
+      try {
+        business.applyHabit(await business.changeHabit(habit.id, !habit.paused))
+        this.refresh()
+        wx.showToast({ title: this.data.state.habit.paused ? '计划已暂停，今天不计入' : '计划已恢复', icon: 'none' })
+      } catch (error) {
+        wx.showToast({ title: error.message || '计划更新失败', icon: 'none' })
+      } finally { this.setData({ habitBusy: false }) }
+      return
+    }
     store.updateState((state) => {
       state.habit.paused = !state.habit.paused
       return state

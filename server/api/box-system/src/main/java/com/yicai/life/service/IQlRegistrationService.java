@@ -13,5 +13,6 @@ public interface IQlRegistrationService extends IServicePlus<QlRegistration, QlR
     boolean insertByBo(QlRegistrationBo bo, Long operatorId);
     boolean updateByBo(QlRegistrationBo bo, Long operatorId);
     boolean changePayment(String id, QlPaymentBo bo, Long operatorId);
+    boolean cancelBatch(String batchId, String reason, Long operatorId);
     boolean changeBatchPayment(String batchId, QlPaymentBo bo, Long operatorId);
 }

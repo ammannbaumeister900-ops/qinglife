@@ -5,6 +5,7 @@ import lombok.Data;
 
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
+import javax.validation.constraints.Size;
 import java.util.Date;
 
 @Data
@@ -18,5 +19,6 @@ public class QlMiniAppDailyRecordBo {
     private Integer planDay;
     @NotBlank(message = "今日选择不能为空")
     private String choiceValue;
+    @Size(max = 500, message = "记录内容不能超过500字")
     private String note;
 }

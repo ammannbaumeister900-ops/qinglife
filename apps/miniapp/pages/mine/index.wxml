@@ -11,7 +11,12 @@
     </view>
   </view>
 
-  <view wx:if="{{staffAccess}}" class="staff-entry"><text>工作人员专属</text><view class="staff-entry-title">工作人员工作台</view><view>查轻友、看名单，接续每一次服务。</view><button bindtap="openStaff">进入工作台 →</button></view>
+  <view wx:if="{{staffAccess}}" class="staff-entry">
+    <view class="staff-entry-top"><text class="staff-entry-tag">工作人员专属</text><text class="staff-entry-arrow">↗</text></view>
+    <view class="staff-entry-title">工作人员工作台</view>
+    <view class="staff-entry-desc">查轻友、看名单，接续每一次服务。</view>
+    <button class="staff-entry-btn" bindtap="openStaff">进入工作台 →</button>
+  </view>
   <view class="index-head timeline-head"><view class="index-rule"></view><text class="index-label">最近一次参与经历</text></view>
   <view wx:if="{{participationTimeline.length}}" class="journey-timeline">
     <view wx:for="{{participationTimeline}}" wx:if="{{index === 0}}" wx:key="id" class="timeline-item" data-view="experience" data-id="{{item.id}}" bindtap="openFlow">

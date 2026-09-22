@@ -12,13 +12,13 @@
   </block>
 
   <block wx:elif="{{view === 'habit'}}">
-    <view class="hero"><view class="hero-title">愿意再回来，就已经在继续。</view><view class="hero-copy">活动默认推荐计划长度，用户可以调整；暂停后从下一计划日继续。</view></view>
+    <view class="hero"><view class="hero-title">愿意再回来，就已经在继续。</view><view class="hero-copy">按有效自然日推进；漏打卡不延长。暂停当天不计入，恢复后从被冻结的计划日继续。</view></view>
     <view class="card sage">
       <view class="card-title">当前 {{state.habit.planLength}} 天计划</view>
       <view class="chips"><button class="chip {{state.habit.planLength === 14 ? 'active' : ''}}" data-value="14" bindtap="setPlanLength">14天</button><button class="chip {{state.habit.planLength === 21 ? 'active' : ''}}" data-value="21" bindtap="setPlanLength">21天</button></view>
-      <button class="secondary" bindtap="togglePause">{{state.habit.paused ? '恢复计划' : '暂停并顺延'}}</button>
+      <view wx:if="{{state.habit.status === 'completed'}}" class="card-copy">本次计划已到期结束。</view><button wx:else class="secondary" disabled="{{habitBusy}}" bindtap="togglePause">{{state.habit.paused ? '恢复计划' : '暂停并顺延'}}</button>
     </view>
-    <view class="card-copy">只需按自己的节奏继续。过去的记录不会因调整计划长度而删除。</view>
+    <view class="card-copy">只需按自己的节奏继续。已有计划不能直接更改长度。暂停保留真实记录，但暂停日不计入计划进度。</view>
   </block>
 
   <block wx:elif="{{view === 'collections'}}">

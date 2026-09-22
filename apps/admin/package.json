@@ -1,8 +1,8 @@
 {
-  "name": "box-admin-ui",
+  "name": "qinglife-admin",
   "version": "2.6.0",
-  "description": "盲盒后台管理系统",
-  "author": "Box",
+  "description": "轻生活运营管理后台",
+  "author": "Qinglife",
   "license": "MIT",
   "scripts": {
     "dev": "vue-cli-service serve",
@@ -28,17 +28,11 @@
     "admin",
     "dashboard",
     "element-ui",
-    "boilerplate",
-    "admin-template",
     "management-system"
   ],
-  "repository": {
-    "type": "git",
-    "url": "https://gitee.com/y_project/RuoYi-Vue.git"
-  },
   "dependencies": {
     "@riophae/vue-treeselect": "0.4.0",
-    "axios": "0.21.0",
+    "axios": "0.34.0",
     "babel-plugin-dynamic-import-node": "^2.3.3",
     "babel-plugin-import": "^1.13.3",
     "clipboard": "2.0.6",

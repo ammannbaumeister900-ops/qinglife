@@ -11,6 +11,7 @@ function activities(list) {
     .sort((a, b) => Number(b.canRegister) - Number(a.canRegister) || String(a.startDate || '').localeCompare(String(b.startDate || '')))
 }
 function returning(state) {
+  if (typeof state.returningEligible === 'boolean') return !!state.loggedIn && state.returningEligible
   return !!state.loggedIn && Object.values(state.registrations || {}).some(r => r.status === 'completed' && (r.participants || []).some(p => p.id === 'person-self' && (!p.status || p.status === 'completed')))
 }
 module.exports = { activities, returning }

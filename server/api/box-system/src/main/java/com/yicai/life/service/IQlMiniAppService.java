@@ -17,6 +17,7 @@ public interface IQlMiniAppService {
     void saveDailyRecord(String token, QlMiniAppDailyRecordBo bo);
     List<Map<String, Object>> listDailyRecords(String token);
     Map<String, Object> startHabit(String token, QlMiniAppHabitBo bo);
+    Map<String, Object> changeHabit(String token, String planId, boolean paused);
     void reportPost(String token, Long publishId, QlMiniAppReportBo bo);
     void saveSubscription(String token, String templateKey, QlMiniAppSubscriptionBo bo);
 }

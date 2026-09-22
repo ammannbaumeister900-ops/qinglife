@@ -160,4 +160,11 @@
 
 .mine-page .asset { width: 100%; margin: 0; text-align: left; }
 
-.staff-entry{background:#465d49;color:#fff;padding:40rpx;border-radius:28rpx;margin:32rpx 0}.staff-entry-title{font-size:42rpx;margin:22rpx 0}.staff-entry button{margin-top:30rpx;background:#faf6ed;color:#354c3a;min-height:90rpx;display:flex;align-items:center;justify-content:center}
+.staff-entry{background:#465d49;color:#fff;padding:44rpx 40rpx;border-radius:28rpx;margin:32rpx 0}
+.staff-entry-top{display:flex;justify-content:space-between;align-items:center}
+.staff-entry-tag{font-size:22rpx;padding:8rpx 22rpx;border-radius:999rpx;background:rgba(255,255,255,.13);color:#edf3e7;letter-spacing:2rpx}
+.staff-entry-arrow{color:#d5decd;font-size:34rpx}
+.staff-entry-title{font-family:var(--ql-serif);font-size:44rpx;margin:30rpx 0 12rpx}
+.staff-entry-desc{color:#d5decd;font-size:25rpx;line-height:1.7}
+.staff-entry-btn{margin-top:36rpx;background:#f8f3e8;color:#354c3a;min-height:92rpx;display:flex;align-items:center;justify-content:center;font-weight:600;border-radius:20rpx}
+.staff-entry-btn::after{border:0}

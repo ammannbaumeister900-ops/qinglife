@@ -2,15 +2,22 @@ const runtime = require('../config/runtime')
 const demo = require('../data/demo')
 const domain = require('../utils/domain')
 
-const BASE_URL = 'https://wxapi.qinglife.top/servers'
 const TOKEN_KEY = 'qinglife_legacy_token'
+
+function baseUrl() {
+  if (!runtime.legacyEnabled) throw new Error('历史内容服务未启用')
+  if (runtime.environment === 'staging') throw new Error('测试版未接入历史内容，原有内容未改动')
+  const value = String(runtime.legacyBaseUrl || '').replace(/\/$/, '')
+  if (!/^https:\/\/[^/]+(?:\/[^?#]*)?$/.test(value)) throw new Error('历史内容服务地址无效')
+  return value
+}
 
 function request(path, method, data, useToken = true) {
   return new Promise((resolve, reject) => {
     const header = { 'content-type': 'application/json' }
-    if (useToken) header.token = wx.getStorageSync(TOKEN_KEY) || wx.getStorageSync('token') || ''
+    if (useToken) header.token = wx.getStorageSync(TOKEN_KEY) || ''
     wx.request({
-      url: `${BASE_URL}${path}`,
+      url: `${baseUrl()}${path}`,
       method,
       data: data || {},
       header,
@@ -25,8 +32,8 @@ function request(path, method, data, useToken = true) {
 }
 
 function ensureToken() {
-  if (runtime.environment === 'staging') return Promise.reject(new Error('测试版未接入历史内容，原有内容未改动'))
-  const token = wx.getStorageSync(TOKEN_KEY) || wx.getStorageSync('token')
+  try { baseUrl() } catch (error) { return Promise.reject(error) }
+  const token = wx.getStorageSync(TOKEN_KEY)
   if (token) return Promise.resolve(token)
   return new Promise((resolve, reject) => {
     wx.login({
@@ -108,6 +115,7 @@ async function getCollections() {
 }
 
 async function toggleCollection(id) {
+  if (!runtime.legacyWritesEnabled) throw new Error('历史收藏写入已停用')
   await ensureToken()
   return request('/collect', 'POST', { essay: id })
 }
@@ -124,7 +132,7 @@ async function getLegacyPosts(pageNum = 1) {
 }
 
 module.exports = {
-  BASE_URL,
+  baseUrl,
   ensureToken,
   getArticles,
   getArticle,

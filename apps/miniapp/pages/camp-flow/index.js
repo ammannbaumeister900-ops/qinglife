@@ -19,7 +19,13 @@ Page({
   },
 
   onLoad(options) {
-    this.setData({ routeActivityId: options.id || '', invitationCode: options.invite || '' })
+    options = options || {}
+    let scene = ''
+    if (options.scene) {
+      try { scene = decodeURIComponent(options.scene) } catch (error) { scene = '' }
+      if (!/^[a-f0-9]{32}$/i.test(scene)) scene = ''
+    }
+    this.setData({ routeActivityId: options.id || '', invitationCode: options.invite || scene })
     if (options.id && demo.activities.some(item => item.id === options.id)) store.updateState(state => { state.selectedActivityId = options.id; return state })
     this.setData({ view: options.view || 'detail' })
   },
@@ -126,11 +132,7 @@ Page({
   },
   chooseMotivation(event) {
     const value = event.currentTarget.dataset.value
-    store.updateState((state) => {
-      state.registration.motivation = value
-      return state
-    })
-    this.refresh()
+    this.setData({ draft: { ...this.data.draft, motivation: value } })
   },
 
   toggleConsent() {
@@ -159,7 +161,7 @@ Page({
       if (!this.data.requestId) this.setData({ requestId: 'registration-' + Date.now() + '-' + Math.random().toString(36).slice(2) })
       this.setData({ submitting: true })
       try {
-        await business.register({ sessionId: this.data.activity.id, clientRequestId: this.data.requestId, invitationCode: this.data.invitationCode || null, serviceConsent: true,
+        await business.register({ sessionId: this.data.activity.id, clientRequestId: this.data.requestId, invitationCode: this.data.invitationCode || null, serviceConsent: true, motivation: this.data.draft.motivation || null,
           participants: participants.map(person => ({ self: person.id === 'person-self', customerId: person.id === 'person-self' ? null : person.customerId || null, name: person.name, relation: person.relation, minor: !!person.minor, phone: person.phone || (person.id === 'person-self' ? this.data.state.phone : '') })) })
         this.setData({ view: 'journey' })
         await this.refresh()

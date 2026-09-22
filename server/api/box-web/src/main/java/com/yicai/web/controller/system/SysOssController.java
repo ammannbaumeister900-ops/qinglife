@@ -94,16 +94,7 @@ SysOssController extends BaseController {
 	@RepeatSubmit
 	@PostMapping("/localUpload")
 	public AjaxResult<Map<String, String>> localUpload(@RequestPart("file") MultipartFile file) throws IOException{
-		if (file.isEmpty()) {
-			throw new CustomException("上传文件不能为空");
-		}
-		String fileName = FileUploadUtils.upload(RuoYiConfig.getProfile(), file);
-		Map<String, String> map = new HashMap<>(2);
-		System.out.println(fileName);
-		map.put("url", serverConfig.getUrl() + "/" + fileName);
-		map.put("fileName", fileName);
-
-		return AjaxResult.success(map);
+		return AjaxResult.success(com.yicai.common.utils.file.PublicMediaUpload.upload(file));
 	}
 
 	@ApiOperation("下载OSS云存储")

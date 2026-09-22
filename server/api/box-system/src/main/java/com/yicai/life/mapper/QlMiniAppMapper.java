@@ -45,6 +45,9 @@ public interface QlMiniAppMapper {
     @Select("SELECT COALESCE(real_name,nickname) AS name, (birth_date IS NOT NULL AND TIMESTAMPDIFF(YEAR,birth_date,CURRENT_DATE())<18) AS minor FROM ql_customer WHERE id=#{id}")
     Map<String,Object> selectCustomerProfile(@Param("id") String id);
 
+    @Select("SELECT id FROM ql_customer WHERE id=#{id} FOR UPDATE")
+    String lockCustomer(@Param("id") String id);
+
     @Select("SELECT s.id, s.session_number AS sessionNumber, s.name, s.intro, s.start_date AS startDate, " +
             "s.end_date AS endDate, s.capacity, s.standard_price AS standardPrice, s.returning_price AS returningPrice, s.public_venue AS venue, " +
             "s.city, s.status, s.registration_confirm_mode AS confirmMode, s.registration_open_at AS registrationOpenAt, " +
@@ -57,6 +60,13 @@ public interface QlMiniAppMapper {
             "end_time AS endTime, theme, status FROM ql_session_day WHERE session_id=#{sessionId} " +
             "AND status<>'cancelled' ORDER BY day_no")
     List<Map<String, Object>> selectSessionDays(@Param("sessionId") String sessionId);
+
+    @Select("<script>SELECT id, session_id AS sessionId, day_no AS dayNo, activity_date AS activityDate, " +
+            "start_time AS startTime, end_time AS endTime, theme, status FROM ql_session_day " +
+            "WHERE status&lt;&gt;'cancelled' AND session_id IN " +
+            "&lt;foreach collection='sessionIds' item='sessionId' open='(' separator=',' close=')'&gt;#{sessionId}&lt;/foreach&gt; " +
+            "ORDER BY session_id, day_no</script>")
+    List<Map<String, Object>> selectSessionDaysBySessionIds(@Param("sessionIds") List<String> sessionIds);
 
     @Insert("INSERT INTO ql_session_day(id, session_id, day_no, activity_date, status, created_by, created_at, updated_by, updated_at) " +
             "VALUES(#{id}, #{sessionId}, #{dayNo}, #{activityDate}, 'scheduled', #{operatorId}, #{now}, #{operatorId}, #{now}) " +
@@ -125,7 +135,8 @@ public interface QlMiniAppMapper {
 
     @Select("SELECT r.id AS registrationId, r.registration_status AS registrationStatus, r.payment_status AS paymentStatus, " +
             "r.registered_at AS registeredAt, b.id AS batchId, b.order_no AS orderNo, b.payment_status AS orderPaymentStatus, b.payable_amount AS payableAmount, r.unit_price AS unitPrice, " +
-            "r.customer_id AS customerId, c.nickname AS participantName, (r.customer_id=#{customerId}) AS isSelf, r.is_minor_snapshot AS minor, r.relation_snapshot AS relation, s.status AS sessionStatus, s.id AS sessionId, s.session_number AS sessionNumber, s.name AS sessionName, s.start_date AS startDate, s.end_date AS endDate " +
+            "r.customer_id AS customerId, c.nickname AS participantName, (r.customer_id=#{customerId}) AS isSelf, r.is_minor_snapshot AS minor, r.relation_snapshot AS relation, s.status AS sessionStatus, s.id AS sessionId, s.session_number AS sessionNumber, s.name AS sessionName, s.start_date AS startDate, s.end_date AS endDate, " +
+            "EXISTS(SELECT 1 FROM ql_participation_day pd WHERE pd.registration_id=r.id AND pd.attendance_status IN ('checked_in','late','left_early')) OR EXISTS(SELECT 1 FROM ql_participation p WHERE p.customer_id=r.customer_id AND p.session_id=r.session_id AND p.attendance_status IN ('checked_in','late','left_early','completed') AND NOT EXISTS(SELECT 1 FROM ql_participation_day existing_day JOIN ql_session_day existing_session_day ON existing_session_day.id=existing_day.session_day_id WHERE existing_day.customer_id=r.customer_id AND existing_session_day.session_id=r.session_id)) AS participated " +
             "FROM ql_registration r JOIN ql_customer c ON c.id=r.customer_id JOIN ql_session s ON s.id=r.session_id LEFT JOIN ql_registration_batch b ON b.id=r.batch_id " +
             "WHERE r.customer_id=#{customerId} OR b.submitted_by_customer_id=#{customerId} ORDER BY s.start_date DESC")
     List<Map<String, Object>> selectCustomerRegistrations(@Param("customerId") String customerId);
@@ -135,6 +146,9 @@ public interface QlMiniAppMapper {
             "FROM ql_participation_day p JOIN ql_session_day d ON d.id=p.session_day_id " +
             "WHERE p.customer_id=#{customerId} ORDER BY d.activity_date DESC, d.day_no")
     List<Map<String, Object>> selectCustomerAttendance(@Param("customerId") String customerId);
+
+    @Select("SELECT COUNT(*) FROM ql_registration r JOIN ql_session s ON s.id=r.session_id WHERE r.customer_id=#{customerId} AND r.session_id=#{sessionId} AND r.registration_status='confirmed' AND (EXISTS(SELECT 1 FROM ql_participation_day pd WHERE pd.registration_id=r.id AND pd.attendance_status IN ('checked_in','late','left_early')) OR EXISTS(SELECT 1 FROM ql_participation p WHERE p.customer_id=r.customer_id AND p.session_id=r.session_id AND p.attendance_status IN ('checked_in','late','left_early','completed') AND NOT EXISTS(SELECT 1 FROM ql_participation_day existing_day JOIN ql_session_day existing_session_day ON existing_session_day.id=existing_day.session_day_id WHERE existing_day.customer_id=r.customer_id AND existing_session_day.session_id=r.session_id)))")
+    int countAttendedSession(@Param("customerId") String customerId, @Param("sessionId") String sessionId);
 
     @Update("UPDATE ql_participation_day p JOIN ql_registration r ON r.id=p.registration_id " +
             "SET p.attendance_status='checked_in', p.check_in_source='mini_program', p.checked_in_at=#{now}, " +
@@ -173,7 +187,7 @@ public interface QlMiniAppMapper {
 
     @Select("SELECT id, session_id AS sessionId, plan_length AS planLength, current_day AS currentDay, status, " +
             "started_at AS startedAt, paused_at AS pausedAt, completed_at AS completedAt FROM ql_habit_plan " +
-            "WHERE customer_id=#{customerId} ORDER BY created_at DESC LIMIT 1")
+            "WHERE customer_id=#{customerId} ORDER BY created_at DESC, id DESC LIMIT 1 FOR UPDATE")
     Map<String, Object> selectLatestHabit(@Param("customerId") String customerId);
 
     @Insert("INSERT INTO ql_post_report(id, legacy_publish_id, reporter_customer_id, reason_code, reason_note, status, created_at) " +
@@ -199,10 +213,10 @@ public interface QlMiniAppMapper {
     @Select("SELECT code,session_id AS sessionId,owner_customer_id AS ownerId FROM ql_invitation WHERE code=#{code}")
     Map<String,Object> selectInvitation(@Param("code") String code);
 
-    @Select("SELECT COUNT(*) FROM ql_registration r JOIN ql_session s ON s.id=r.session_id JOIN ql_customer c ON c.id=r.customer_id WHERE r.customer_id=#{customerId} AND r.registration_status='confirmed' AND r.is_minor_snapshot=0 AND (c.birth_date IS NULL OR TIMESTAMPDIFF(YEAR,c.birth_date,CURRENT_DATE())>=18) AND s.status='completed'")
+    @Select("SELECT COUNT(DISTINCT r.session_id) FROM ql_registration r JOIN ql_session s ON s.id=r.session_id JOIN ql_customer c ON c.id=r.customer_id WHERE r.customer_id=#{customerId} AND r.registration_status='confirmed' AND r.is_minor_snapshot=0 AND (c.birth_date IS NULL OR TIMESTAMPDIFF(YEAR,c.birth_date,CURRENT_DATE())>=18) AND s.status='completed' AND (EXISTS(SELECT 1 FROM ql_participation_day pd WHERE pd.registration_id=r.id AND pd.attendance_status IN ('checked_in','late','left_early')) OR EXISTS(SELECT 1 FROM ql_participation p WHERE p.customer_id=r.customer_id AND p.session_id=r.session_id AND p.attendance_status IN ('checked_in','late','left_early','completed') AND NOT EXISTS(SELECT 1 FROM ql_participation_day existing_day JOIN ql_session_day existing_session_day ON existing_session_day.id=existing_day.session_day_id WHERE existing_day.customer_id=r.customer_id AND existing_session_day.session_id=r.session_id)))")
     int countCompletedExperience(@Param("customerId") String customerId);
 
-    @Select("SELECT COUNT(*) FROM ql_registration r JOIN ql_session s ON s.id=r.session_id WHERE r.customer_id=#{customerId} AND r.registration_status='confirmed' AND s.status='completed'")
+    @Select("SELECT COUNT(DISTINCT r.session_id) FROM ql_registration r JOIN ql_session s ON s.id=r.session_id WHERE r.customer_id=#{customerId} AND r.registration_status='confirmed' AND s.status='completed' AND (EXISTS(SELECT 1 FROM ql_participation_day pd WHERE pd.registration_id=r.id AND pd.attendance_status IN ('checked_in','late','left_early')) OR EXISTS(SELECT 1 FROM ql_participation p WHERE p.customer_id=r.customer_id AND p.session_id=r.session_id AND p.attendance_status IN ('checked_in','late','left_early','completed') AND NOT EXISTS(SELECT 1 FROM ql_participation_day existing_day JOIN ql_session_day existing_session_day ON existing_session_day.id=existing_day.session_day_id WHERE existing_day.customer_id=r.customer_id AND existing_session_day.session_id=r.session_id)))")
     int countCompletedSessions(@Param("customerId") String customerId);
 
     @Update("UPDATE ql_registration SET unit_price=#{price} WHERE id=#{id}")

@@ -4,9 +4,9 @@ import cn.hutool.core.util.StrUtil;
 import cn.hutool.crypto.digest.DigestUtil;
 import com.yicai.common.core.redis.RedisCache;
 import com.yicai.common.exception.CustomException;
-import com.yicai.life.domain.AppUserInfo;
+
 import com.yicai.life.domain.bo.*;
-import com.yicai.life.mapper.AppUserInfoMapper;
+import com.yicai.life.service.QlCustomerIdentityService;
 import com.yicai.life.mapper.QlMiniAppMapper;
 import com.yicai.life.service.IQlMiniAppService;
 import lombok.RequiredArgsConstructor;
@@ -29,20 +29,29 @@ public class QlMiniAppServiceImpl implements IQlMiniAppService {
     private static final Set<String> DAILY_CHOICES = new HashSet<>(Arrays.asList("done", "light", "rest"));
     private static final Set<String> SUBSCRIPTION_STATUSES = new HashSet<>(Arrays.asList("enabled", "disabled", "rejected"));
 
+    @Autowired private com.yicai.life.service.QlRegistrationPolicy policy;
     private final RedisCache redisCache;
-    private final AppUserInfoMapper appUserInfoMapper;
+    private final QlCustomerIdentityService identityService;
     private final QlMiniAppMapper miniAppMapper;
     private final com.yicai.life.service.QlSessionPricing pricing;
+    private final com.yicai.life.service.QlHabitPlanService habitPlans;
 
     @Override
     public List<Map<String, Object>> listSessions() {
         List<Map<String, Object>> sessions = miniAppMapper.selectPublicSessions();
+        if (sessions.isEmpty()) return sessions;
+        List<String> sessionIds = new ArrayList<>();
+        for (Map<String, Object> session : sessions) sessionIds.add(String.valueOf(session.get("id")));
+        Map<String, List<Map<String, Object>>> daysBySession = new HashMap<>();
+        for (Map<String, Object> day : miniAppMapper.selectSessionDaysBySessionIds(sessionIds)) {
+            String sessionId = String.valueOf(day.remove("sessionId"));
+            daysBySession.computeIfAbsent(sessionId, key -> new ArrayList<>()).add(day);
+        }
         for (Map<String, Object> session : sessions) {
-            session.put("days", miniAppMapper.selectSessionDays(String.valueOf(session.get("id"))));
+            session.put("days", daysBySession.getOrDefault(String.valueOf(session.get("id")), Collections.emptyList()));
         }
         return sessions;
     }
-
     @Override
     public Map<String, Object> overview(String token) {
         String customerId = requireCustomerId(token);
@@ -53,7 +62,9 @@ public class QlMiniAppServiceImpl implements IQlMiniAppService {
         result.put("attendance", miniAppMapper.selectCustomerAttendance(customerId));
         result.put("dailyRecords", miniAppMapper.selectDailyRecords(customerId));
         result.put("experienceRecords", miniAppMapper.selectExperienceRecords(customerId));
-        result.put("habit", miniAppMapper.selectLatestHabit(customerId));
+        result.put("habit", habitPlans.latest(customerId));
+        result.put("returningEligible", miniAppMapper.countCompletedSessions(customerId) > 0);
+        result.put("invitationEligible", miniAppMapper.countCompletedExperience(customerId) > 0);
         return result;
     }
 
@@ -80,21 +91,8 @@ public class QlMiniAppServiceImpl implements IQlMiniAppService {
         }
         existing = miniAppMapper.selectBatchByClientRequestId(scopedRequestId);
         if (existing != null) return replayRegistration(existing, fingerprint);
+        policy.admit(bo.getSessionId(), bo.getParticipants().size(), true);
         Date requestTime = new Date();
-        Date registrationOpenAt = asDate(session.get("registrationOpenAt"));
-        Date registrationCloseAt = asDate(session.get("registrationCloseAt"));
-        if (registrationOpenAt != null && requestTime.before(registrationOpenAt)) {
-            throw new CustomException("报名尚未开始");
-        }
-        if (registrationCloseAt != null && dateKey(requestTime).compareTo(dateKey(registrationCloseAt)) > 0) {
-            throw new CustomException("报名已经截止");
-        }
-        if (dateKey(requestTime).compareTo(dateKey(asDate(session.get("endDate")))) > 0) throw new CustomException("报名已经截止");
-        int registered = miniAppMapper.selectOccupiedRegistrations(bo.getSessionId()).size();
-        int capacity = number(session.get("capacity")).intValue();
-        if (registered + bo.getParticipants().size() > capacity) {
-            throw new CustomException("剩余名额不足");
-        }
 
         String referrerId = null;
         if (StrUtil.isNotBlank(bo.getInvitationCode())) {
@@ -184,6 +182,7 @@ public class QlMiniAppServiceImpl implements IQlMiniAppService {
     @Transactional
     public void checkIn(String token, QlMiniAppAttendanceBo bo) {
         String customerId = requireCustomerId(token);
+        policy.lockRegistration(bo.getRegistrationId());
         int rows = miniAppMapper.checkIn(bo.getRegistrationId(), bo.getSessionDayId(), customerId, new Date());
         if (rows != 1) {
             throw new CustomException("签到失败：请确认报名已通过且今日尚未签到");
@@ -197,9 +196,30 @@ public class QlMiniAppServiceImpl implements IQlMiniAppService {
         if (!DAILY_STAGES.contains(bo.getRecordStage()) || !DAILY_CHOICES.contains(bo.getChoiceValue())) {
             throw new CustomException("记录类型不合法");
         }
-        miniAppMapper.upsertDailyRecord(uuid(), customerId, bo.getSessionId(), bo.getRecordDate(),
-                bo.getRecordStage(), bo.getPlanDay() == null ? 0 : bo.getPlanDay(),
+        Date today = new Date();
+        if (bo.getRecordDate() == null || !dateKey(today).equals(dateKey(bo.getRecordDate()))) {
+            throw new CustomException("today 接口只能保存今天的记录");
+        }
+        String sessionId = bo.getSessionId();
+        int planDay = 0;
+        Map<String,Object> habit = null;
+        if ("habit".equals(bo.getRecordStage())) {
+            habit = habitPlans.latest(customerId);
+            if (habit == null || !"active".equals(String.valueOf(habit.get("status")))) throw new CustomException("当前没有进行中的习惯计划");
+            if (!Boolean.TRUE.equals(habit.get("canRecordToday"))) throw new CustomException("今天不在可记录的计划日内");
+            sessionId = habit.get("sessionId") == null ? null : String.valueOf(habit.get("sessionId"));
+            planDay = number(habit.get("currentDay")).intValue();
+            if (planDay < 1 || planDay > number(habit.get("planLength")).intValue()) throw new CustomException("计划天数状态异常");
+            if (bo.getPlanDay() != null && bo.getPlanDay() != planDay) throw new CustomException("计划天数与服务端进度不一致");
+        } else if ("refeed".equals(bo.getRecordStage())) {
+            if (StrUtil.isBlank(sessionId) || miniAppMapper.countAttendedSession(customerId, sessionId) == 0) throw new CustomException("只能记录本人实际参与过的活动");
+        } else {
+            sessionId = null;
+        }
+        miniAppMapper.upsertDailyRecord(uuid(), customerId, sessionId, today,
+                bo.getRecordStage(), planDay,
                 bo.getChoiceValue(), bo.getNote(), new Date());
+        if (habit != null) habitPlans.record(habit);
     }
 
     @Override
@@ -210,28 +230,13 @@ public class QlMiniAppServiceImpl implements IQlMiniAppService {
     @Override
     @Transactional
     public Map<String, Object> startHabit(String token, QlMiniAppHabitBo bo) {
-        String customerId = requireCustomerId(token);
-        if (bo.getPlanLength() == null || (bo.getPlanLength() != 14 && bo.getPlanLength() != 21)) {
-            throw new CustomException("计划天数只能是14天或21天");
-        }
-        Map<String, Object> current = miniAppMapper.selectLatestHabit(customerId);
-        if (current != null && "active".equals(String.valueOf(current.get("status")))) {
-            return current;
-        }
-        Date now = new Date();
-        String planId = uuid();
-        miniAppMapper.insertHabitPlan(planId, customerId, bo.getSessionId(), bo.getPlanLength(), bo.getStartedAt(), now);
-        for (int day = 1; day <= bo.getPlanLength(); day++) {
-            miniAppMapper.insertHabitDay(uuid(), planId, day, now);
-        }
-        Map<String, Object> result = new LinkedHashMap<>();
-        result.put("id", planId);
-        result.put("planLength", bo.getPlanLength());
-        result.put("currentDay", 1);
-        result.put("status", "active");
-        return result;
+        return habitPlans.start(requireCustomerId(token), bo);
     }
 
+    @Override
+    public Map<String,Object> changeHabit(String token, String planId, boolean paused) {
+        return habitPlans.change(requireCustomerId(token), planId, paused);
+    }
     @Override
     @Transactional
     public void reportPost(String token, Long publishId, QlMiniAppReportBo bo) {
@@ -356,31 +361,7 @@ public class QlMiniAppServiceImpl implements IQlMiniAppService {
         } catch (NumberFormatException e) {
             throw new CustomException("登录信息无效", 401);
         }
-        String customerId = miniAppMapper.selectCustomerIdByLegacyUserId(legacyUserId);
-        if (customerId != null) {
-            return customerId;
-        }
-        synchronized (this) {
-            customerId = miniAppMapper.selectCustomerIdByLegacyUserId(legacyUserId);
-            if (customerId != null) {
-                return customerId;
-            }
-            AppUserInfo appUser = appUserInfoMapper.selectById(legacyUserId);
-            if (appUser == null || Integer.valueOf(0).equals(appUser.getStatus())) {
-                throw new CustomException("小程序账号不存在或已停用", 401);
-            }
-            Date now = new Date();
-            customerId = uuid();
-            String nickname = StrUtil.blankToDefault(appUser.getNickName(), "微信轻友");
-            String gender = Integer.valueOf(1).equals(appUser.getGender()) ? "male"
-                    : Integer.valueOf(2).equals(appUser.getGender()) ? "female" : "unknown";
-            miniAppMapper.insertCustomer(customerId, customerNo(), nickname, gender, now);
-            String openId = StrUtil.blankToDefault(appUser.getOpenId(), "legacy-user:" + legacyUserId);
-            miniAppMapper.insertIdentifier(uuid(), customerId,
-                    StrUtil.isBlank(appUser.getOpenId()) ? "other" : "wechat_openid", openId,
-                    DigestUtil.sha256Hex(openId), null, "legacy-miniapp", true, "verified", legacyUserId, now);
-            return customerId;
-        }
+        return identityService.resolve(legacyUserId);
     }
 
     private String createParticipant(QlMiniAppRegistrationBo.Participant participant, String buyerId, Date now) {

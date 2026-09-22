@@ -193,7 +193,8 @@ export default {
       // 如果上传成功
       if (res.code == 200) {
         // 获取光标所在位置
-        let length = quill.getSelection().index;
+        const selection = quill.getSelection();
+        let length = selection ? selection.index : Math.max(0, quill.getLength() - 1);
         // 插入图片  res.url为服务器返回的图片地址
         // quill.insertEmbed(length, "image", process.env.VUE_APP_BASE_API + res.data.fileName);
         if(res.data.fileType == "video"){

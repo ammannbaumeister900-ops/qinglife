@@ -1,0 +1,104 @@
+{
+  "verifiedAt": "2026-09-21T16:55:39.7046514+08:00",
+  "unitTests": 31,
+  "mysqlIntegrationTests": 25,
+  "httpIntegrationTests": 14,
+  "suites": [
+    {
+      "suite": "com.yicai.life.service.QlCustomerIdentityServiceTest",
+      "tests": 2,
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0,
+      "reportUpdatedAt": "2026-09-21T16:53:19.6389459+08:00"
+    },
+    {
+      "suite": "com.yicai.life.service.QlHabitCalendarTest",
+      "tests": 7,
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0,
+      "reportUpdatedAt": "2026-09-21T16:53:19.6698623+08:00"
+    },
+    {
+      "suite": "com.yicai.life.service.QlMiniAppDailyHabitServiceTest",
+      "tests": 4,
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0,
+      "reportUpdatedAt": "2026-09-21T16:53:19.7835583+08:00"
+    },
+    {
+      "suite": "com.yicai.life.service.QlWechatLoginServiceTest",
+      "tests": 4,
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0,
+      "reportUpdatedAt": "2026-09-21T16:53:19.8084949+08:00"
+    },
+    {
+      "suite": "com.yicai.web.config.ProductionConfigurationGuardTest",
+      "tests": 8,
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0,
+      "reportUpdatedAt": "2026-09-21T16:53:28.2051790+08:00"
+    },
+    {
+      "suite": "com.yicai.web.controller.common.CommonControllerTest",
+      "tests": 4,
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0,
+      "reportUpdatedAt": "2026-09-21T16:53:28.3675318+08:00"
+    },
+    {
+      "suite": "com.yicai.web.controller.common.UploadContentValidatorTest",
+      "tests": 2,
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0,
+      "reportUpdatedAt": "2026-09-21T16:53:28.4965054+08:00"
+    },
+    {
+      "suite": "com.yicai.web.integration.LoginConcurrencyIT",
+      "tests": 9,
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0,
+      "reportUpdatedAt": "2026-09-21T16:52:54.8369885+08:00"
+    },
+    {
+      "suite": "com.yicai.web.integration.LoginHttpIT",
+      "tests": 7,
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0,
+      "reportUpdatedAt": "2026-09-21T16:54:20.5120296+08:00"
+    },
+    {
+      "suite": "com.yicai.web.integration.ProductionLoginHttpIT",
+      "tests": 7,
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0,
+      "reportUpdatedAt": "2026-09-21T16:54:47.5507432+08:00"
+    },
+    {
+      "suite": "com.yicai.web.integration.RegistrationReadinessIT",
+      "tests": 16,
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0,
+      "reportUpdatedAt": "2026-09-21T16:53:05.6912294+08:00"
+    }
+  ],
+  "mysqlLogFinished": "2026-09-21T16:53:05+08:00",
+  "httpLogFinished": "2026-09-21T16:54:49+08:00",
+  "miniapp": "All test files passed, including 3 habit page behavior tests",
+  "legacyUpgradeDatabase": "qinglife_it_upgrade_r9512d6db45",
+  "legacyHabitPlanCount": 0,
+  "legacyPauseMigrationApplied": true,
+  "wechatExchangeMocked": true,
+  "productionDeployed": false
+}

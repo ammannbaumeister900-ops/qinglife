@@ -2,7 +2,7 @@
 
 轻生活完整业务系统 Monorepo，统一维护微信小程序、运营管理后台、Java API、数据库迁移和产品文档。
 
-当前代码快照更新于 2026-09-15，对应轻生活 V1.3.x 隔离测试环境的实际范围。仓库不包含生产环境密钥、验收账号、数据库备份、用户数据或构建产物。
+当前统一验收候选版为 **acceptance-20260922**，唯一主线为 **main**。三端入口、启动配置和验收清单见 [统一验收说明](docs/operations/acceptance-20260922.md)。本版本尚未部署，仍有明确待验收事项。仓库不包含生产环境密钥、验收账号、数据库备份、用户数据或构建产物。
 
 ## 仓库结构
 
@@ -13,7 +13,7 @@ qinglife/
 │  └─ admin/            # Vue 2 运营管理后台
 ├─ server/
 │  ├─ api/              # Spring Boot / MyBatis Plus 后端 API
-│  └─ migrations/       # V1.1—V1.3.10 数据库增量迁移
+│  └─ migrations/       # V1.1—V1.3.12 数据库增量迁移
 ├─ packages/
 │  └─ shared/           # 待逐步抽取的共享业务契约
 └─ docs/
@@ -27,13 +27,13 @@ qinglife/
 
 - 首页、轻体营、轻读、我的四个主要频道。
 - 微信登录、公开期次、报名与参与进度、个人历史和旧内容只读回看。
-- 工作人员移动工作台：报名、付款、签到、改期、服务记录等内部操作入口。
+- 工作人员移动工作台：报名、付款、签到、服务记录等内部操作入口。
 - 保留本地 Demo 与回归测试能力；真实能力由 `services/business-api.js` 和测试环境 API 配置启用。
 
 ### 运营管理后台
 
 - 轻友统一档案、详情时间线和服务记录。
-- 活动期次、报名与付款、活动签到、改期审核。
+- 活动期次、报名与付款、活动签到；改期本次不开放。
 - 工作人员配置及后台账号、角色和权限管理。
 - 当前左侧导航采用一级菜单常驻、二级菜单原位折叠、蓝绿色选中态的新版样式。
 
@@ -52,21 +52,33 @@ qinglife/
 
 ## 开发与验证
 
+小程序测试只有一个发现入口；在仓库根目录运行下列命令，或在 `apps/miniapp` 运行其 `test` 脚本，都会执行同一组 `*.test.js` 文件。小程序没有独立锁文件，不要为它额外生成 `package-lock.json` 或 `pnpm-lock.yaml`。
+
 ```bash
-# 小程序逻辑与契约测试
-npm --prefix apps/miniapp test
+# 小程序逻辑、契约和工作人员图片下载测试
+node scripts/test-miniapp.cjs
+# 等价入口：npm --prefix apps/miniapp test
 
-# 管理后台
-npm --prefix apps/admin install
-npm --prefix apps/admin run build:stage
+# 管理后台：此子包使用已提交的 pnpm-lock.yaml
+pnpm --dir apps/admin install --frozen-lockfile
+pnpm --dir apps/admin run build:stage
 
-# Java API
+# Java 单元测试与可发布 jar；不执行 mysql-it 集成测试
 cd server/api
 mvn -pl box-web -am clean package
+
+# 仅在全新、隔离的本机 qinglife_it_* 数据库上执行 MySQL 集成测试
+# PowerShell 示例（不要指向生产、staging 或已有测试数据库）
+$env:QINGLIFE_TEST_MYSQL_URL='jdbc:mysql://127.0.0.1:33317/qinglife_it_local?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai'
+$env:QINGLIFE_TEST_MYSQL_PASSWORD=''
+mvn -pl box-web -am -Pmysql-it verify
 ```
 
-微信小程序请使用微信开发者工具导入 `apps/miniapp`。本地运行 API 前，请先根据根目录 `.env.example` 设置环境变量，不要把真实凭据写回仓库。
+`.env.example` 仅是变量名和安全默认值的样例文件；Spring Boot 不会自动读取它。请在实际启动进程中注入环境变量（PowerShell 使用 `$env:NAME='value'`，CI/服务管理器使用各自的受管密钥注入），再启动 Java 服务。生产环境必须显式设置 `SPRING_PROFILES_ACTIVE=prod`。
 
+Windows 生产发布统一使用 `scripts/start-production.ps1`。该入口强制设置并复核 `prod` profile，且要求显式传入构建产物；生产所需密钥、数据库密码及 `QINGLIFE_PUBLIC_IMAGE_BASE_URL` 仍由服务管理器注入，不写入脚本或仓库。
+
+仓库当前没有 `.github/workflows` 工作流。添加 CI 前，应使用合成测试数据、受管测试凭证与已锁定的依赖安装，不得把 `.env`、数据库备份或客户材料加入流水线。
 ## 安全约定
 
 - `.private/`、`.env`、证书、日志、数据库备份和测试截图禁止提交。
