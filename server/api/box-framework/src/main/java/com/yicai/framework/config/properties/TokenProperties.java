@@ -25,7 +25,7 @@ public class TokenProperties {
     private String secret;
 
     /**
-     * 令牌有效期（默认30分钟）
+     * 管理后台令牌绝对有效期（分钟）
      */
     private int expireTime;
 }

@@ -5,10 +5,17 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 
+import java.net.URI;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
+
 /** Refuse to start a production process with the repository's example credentials. */
 @Component
 @Profile("prod")
 public class ProductionConfigurationGuard implements InitializingBean {
+    private static final Set<String> OSS_PROVIDERS = new HashSet<>(Arrays.asList(
+            "disabled", "minio", "qiniu", "aliyun", "qcloud"));
     private final Environment environment;
 
     public ProductionConfigurationGuard(Environment environment) {
@@ -22,6 +29,8 @@ public class ProductionConfigurationGuard implements InitializingBean {
             throw new IllegalStateException("Production requires a non-example JWT secret of at least 32 characters");
         }
         required("spring.datasource.dynamic.datasource.master.password");
+        boundedMinutes("token.expireTime", 1, 480);
+        boundedMinutes("qinglife.app-token.expire-minutes", 1, 1440);
         String imagePath = required("ruoyi.imagePath");
         if (!imagePath.startsWith("https://")) throw new IllegalStateException("Production public image URL must use HTTPS");
         positiveSize("server.undertow.max-http-post-size");
@@ -35,6 +44,76 @@ public class ProductionConfigurationGuard implements InitializingBean {
         if (!"health".equalsIgnoreCase(exposed.replace(" ", "").trim())) {
             throw new IllegalStateException("Production management HTTP exposure must be limited to health");
         }
+        validateRedis();
+        validateOss();
+    }
+
+    private void validateRedis() {
+        String host = required("spring.redis.host");
+        required("spring.redis.password");
+        boolean ssl = environment.getProperty("spring.redis.ssl", Boolean.class, false);
+        boolean allowInternal = environment.getProperty("qinglife.redis.allow-insecure-internal", Boolean.class, false);
+        if (!ssl && !(allowInternal && isInternalHost(host))) {
+            throw new IllegalStateException("Production Redis requires TLS or an explicit private-network exception");
+        }
+    }
+
+    private void validateOss() {
+        String provider = environment.getProperty("qinglife.oss.provider", "disabled").trim().toLowerCase();
+        if (!OSS_PROVIDERS.contains(provider)) {
+            throw new IllegalStateException("Unsupported production OSS provider: qinglife.oss.provider");
+        }
+        if ("disabled".equals(provider)) return;
+        String prefix = "cloud-storage." + provider + ".";
+        String endpointKey = "qiniu".equals(provider) ? prefix + "domain" : prefix + "endpoint";
+        String endpoint = notTemplate(endpointKey, required(endpointKey));
+        notTemplate(prefix + "bucketName", required(prefix + "bucketName"));
+        if ("aliyun".equals(provider)) {
+            required(prefix + "accessKeyId"); required(prefix + "accessKeySecret");
+        } else if ("qcloud".equals(provider)) {
+            required(prefix + "secretId"); required(prefix + "secretKey");
+        } else {
+            required(prefix + "accessKey"); required(prefix + "secretKey");
+        }
+        boolean allowInternal = environment.getProperty("qinglife.oss.allow-insecure-internal", Boolean.class, false);
+        URI uri;
+        try { uri = URI.create(endpoint); }
+        catch (IllegalArgumentException error) { throw new IllegalStateException("Invalid production OSS endpoint: " + endpointKey); }
+        if (uri.getHost() == null || uri.getHost().trim().isEmpty()) {
+            throw new IllegalStateException("Production OSS endpoint must include a host: " + endpointKey);
+        }
+        if (!"https".equalsIgnoreCase(uri.getScheme())
+                && !("http".equalsIgnoreCase(uri.getScheme()) && allowInternal && isInternalHost(uri.getHost()))) {
+            throw new IllegalStateException("Production OSS endpoint must use HTTPS: " + endpointKey);
+        }
+    }
+
+    private boolean isInternalHost(String host) {
+        if (host == null) return false;
+        String value = host.trim().toLowerCase();
+        if ("localhost".equals(value) || value.startsWith("127.") || value.startsWith("10.") || value.startsWith("192.168.")) return true;
+        if (value.startsWith("172.")) {
+            String[] parts = value.split("\\.");
+            try { return parts.length == 4 && Integer.parseInt(parts[1]) >= 16 && Integer.parseInt(parts[1]) <= 31; }
+            catch (NumberFormatException ignored) { return false; }
+        }
+        return false;
+    }
+
+    private String notTemplate(String key, String value) {
+        String normalized = value.trim().toLowerCase();
+        if (normalized.equals("ruoyi") || normalized.contains("xxx") || normalized.contains("example")) {
+            throw new IllegalStateException("Production configuration still uses a template value: " + key);
+        }
+        return value;
+    }
+
+    private void boundedMinutes(String key, int minimum, int maximum) {
+        try {
+            int value = Integer.parseInt(required(key));
+            if (value >= minimum && value <= maximum) return;
+        } catch (NumberFormatException ignored) {}
+        throw new IllegalStateException("Production token lifetime is outside the allowed range: " + key);
     }
 
     private void positiveSize(String key) {

@@ -108,8 +108,8 @@ token:
   header: Authorization
   # 令牌密钥
   secret: ${QINGLIFE_JWT_SECRET:change-me-before-running}
-  # 令牌有效期（默认30分钟）
-  expireTime: 43200
+  # 管理后台令牌绝对有效期（分钟）；生产守卫限制为不超过8小时。
+  expireTime: ${QINGLIFE_ADMIN_TOKEN_EXPIRE_MINUTES:480}
 
 # MyBatisPlus配置
 # https://baomidou.com/config/
@@ -321,6 +321,9 @@ spring:
 
 ---
 qinglife:
+  app-token:
+    # 微信登录可静默刷新，避免把工作人员身份令牌保留30天。
+    expire-minutes: ${QINGLIFE_APP_TOKEN_EXPIRE_MINUTES:1440}
   wechat:
     enabled: ${QINGLIFE_WECHAT_ENABLED:false}
     app-id: ${QINGLIFE_WECHAT_APP_ID:}

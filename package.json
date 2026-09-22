@@ -5,6 +5,7 @@
   "description": "轻生活微信小程序、运营管理后台、Java API 与数据库迁移 Monorepo",
   "scripts": {
     "test:miniapp": "node scripts/test-miniapp.cjs",
+    "test:admin:auth": "node scripts/test-admin-auth.cjs",
     "test:miniapp:lifecycle": "npm --prefix apps/miniapp run test:lifecycle",
     "test:miniapp:staff": "npm --prefix apps/miniapp run test:staff",
     "build:admin:stage": "npm --prefix apps/admin run build:stage",

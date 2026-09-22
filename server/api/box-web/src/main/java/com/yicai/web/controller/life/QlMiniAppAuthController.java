@@ -8,6 +8,7 @@ import com.yicai.life.domain.AppUserInfo;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.beans.factory.annotation.Value;
 
 import org.springframework.web.bind.annotation.*;
 import java.util.*;
@@ -22,6 +23,8 @@ public class QlMiniAppAuthController {
     private final QlWechatLoginService loginService;
     private final RedisCache redisCache;
     private final com.yicai.web.service.QlWechatSessionClient wechat;
+    @Value("${qinglife.app-token.expire-minutes:1440}")
+    private long tokenExpireMinutes;
 
     @PostMapping("/login")
     public AjaxResult<Map<String,String>> login(@RequestBody Map<String,String> body) {
@@ -30,7 +33,13 @@ public class QlMiniAppAuthController {
         String openId = wechat.exchange(code);
         AppUserInfo user = loginService.resolveUser(openId);
         String token = UUID.randomUUID().toString().replace("-", "");
-        redisCache.setCacheObject("appToken:" + token, user.getId(), 43200, TimeUnit.MINUTES);
+        redisCache.setCacheObject("appToken:" + token, user.getId(), tokenExpireMinutes, TimeUnit.MINUTES);
         return AjaxResult.success(Collections.singletonMap("token", token));
+    }
+
+    @PostMapping("/logout")
+    public AjaxResult<Void> logout(@RequestHeader("token") String token) {
+        redisCache.deleteObject("appToken:" + token);
+        return AjaxResult.success();
     }
 }

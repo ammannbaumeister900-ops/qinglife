@@ -25,7 +25,9 @@ class QlMiniAppDailyHabitServiceTest {
         mapper = mock(QlMiniAppMapper.class);
         when(redis.getCacheObject("appToken:token")).thenReturn(7L);
         when(identity.resolve(7L)).thenReturn("customer-1");
-        service = new QlMiniAppServiceImpl(redis, identity, mapper, mock(QlSessionPricing.class), new QlHabitPlanService(mapper, mock(com.yicai.life.mapper.QlHabitPlanMapper.class)));
+        service = new QlMiniAppServiceImpl(redis, identity, mapper, mock(QlSessionPricing.class),
+                new QlHabitPlanService(mapper, mock(com.yicai.life.mapper.QlHabitPlanMapper.class)),
+                new QlSessionAdmissionPolicy());
     }
 
     @Test void todayEndpointRejectsClientForgedDate() {

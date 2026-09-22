@@ -93,7 +93,14 @@ spring:
     # 连接超时时间
     timeout: 10s
     # 是否开启ssl
-    ssl: false
+    ssl: ${QINGLIFE_REDIS_SSL:false}
+
+qinglife:
+  redis:
+    allow-insecure-internal: ${QINGLIFE_REDIS_ALLOW_INSECURE_INTERNAL:false}
+  oss:
+    provider: ${QINGLIFE_OSS_PROVIDER:disabled}
+    allow-insecure-internal: ${QINGLIFE_OSS_ALLOW_INSECURE_INTERNAL:false}
 
 redisson:
   # 线程池数量
@@ -161,37 +168,37 @@ management:
 cloud-storage:
   # minio配置
   minio:
-    endpoint: http://172.30.0.54:9000
+    endpoint: ${QINGLIFE_OSS_ENDPOINT:}
     accessKey: ${QINGLIFE_OSS_ACCESS_KEY:${QINGLIFE_OSS_A_CC_ES_SK_EY:}}
     secretKey: ${QINGLIFE_OSS_SECRET_KEY:${QINGLIFE_OSS_S_EC_RE_TK_EY:}}
-    bucketName: ruoyi
+    bucketName: ${QINGLIFE_OSS_BUCKET:}
   # 七牛云配置
   qiniu:
-    domain: http://XXX.XXXX.com
+    domain: ${QINGLIFE_OSS_ENDPOINT:}
     prefix:
     accessKey: ${QINGLIFE_OSS_ACCESS_KEY:${QINGLIFE_OSS_A_CC_ES_SK_EY:}}
     secretKey: ${QINGLIFE_OSS_SECRET_KEY:${QINGLIFE_OSS_S_EC_RE_TK_EY:}}
-    bucketName: ruoyi
-    isHttps: false
+    bucketName: ${QINGLIFE_OSS_BUCKET:}
+    isHttps: ${QINGLIFE_OSS_HTTPS:true}
     # z0 华东  z1 华北  z2 华南  na0 北美  as0 东南亚
     # 不填为自动获取(性能低 易出问题)
     region: z0
   # 阿里云配置
   aliyun:
-    endpoint: http://oss-cn-beijing.aliyuncs.com
+    endpoint: ${QINGLIFE_OSS_ENDPOINT:}
     prefix:
     accessKeyId: ${QINGLIFE_OSS_ACCESS_KEY_ID:${QINGLIFE_OSS_A_CC_ES_SK_EY_ID:}}
     accessKeySecret: ${QINGLIFE_OSS_ACCESS_KEY_SECRET:${QINGLIFE_OSS_A_CC_ES_SK_EY_SE_CR_ET:}}
-    bucketName: ruoyi
+    bucketName: ${QINGLIFE_OSS_BUCKET:}
   # 腾讯云配置
   qcloud:
-    endpoint: http://cos.ap-beijing.myqcloud.com
+    endpoint: ${QINGLIFE_OSS_ENDPOINT:}
     prefix:
     secretId: ${QINGLIFE_OSS_SECRET_ID:${QINGLIFE_OSS_S_EC_RE_TI_D:}}
     secretKey: ${QINGLIFE_OSS_SECRET_KEY:${QINGLIFE_OSS_S_EC_RE_TK_EY:}}
     # 腾讯云bucket名规则 格式为 BucketName-APPID 此处填写的存储桶名称必须为此格式
-    bucketName: ruoyi-1250000000
-    isHttps: false
+    bucketName: ${QINGLIFE_OSS_BUCKET:}
+    isHttps: ${QINGLIFE_OSS_HTTPS:true}
     # 地域名参考官方文档
     # https://cloud.tencent.com/document/product/436/6224
     region: ap-beijing

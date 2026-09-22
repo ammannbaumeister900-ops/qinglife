@@ -35,6 +35,7 @@ public class QlMiniAppServiceImpl implements IQlMiniAppService {
     private final QlMiniAppMapper miniAppMapper;
     private final com.yicai.life.service.QlSessionPricing pricing;
     private final com.yicai.life.service.QlHabitPlanService habitPlans;
+    private final com.yicai.life.service.QlSessionAdmissionPolicy admissionPolicy;
 
     @Override
     public List<Map<String, Object>> listSessions() {
@@ -282,8 +283,7 @@ public class QlMiniAppServiceImpl implements IQlMiniAppService {
 
     private Map<String,Object> requireOpenInvitationSession(String sessionId) {
         Map<String,Object> session = sessionDetail(sessionId);
-        Date now = new Date();
-        if (!"open".equals(session.get("status")) || (session.get("registrationOpenAt") != null && now.before(asDate(session.get("registrationOpenAt")))) || (session.get("registrationCloseAt") != null && dateKey(now).compareTo(dateKey(asDate(session.get("registrationCloseAt")))) > 0) || dateKey(now).compareTo(dateKey(asDate(session.get("endDate")))) > 0) throw new CustomException("活动尚未开放、已截止或已取消");
+        admissionPolicy.requireNewRegistrationOpen(session);
         return session;
     }
 

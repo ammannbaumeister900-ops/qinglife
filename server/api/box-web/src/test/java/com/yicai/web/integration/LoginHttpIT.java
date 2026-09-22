@@ -40,12 +40,13 @@ class LoginHttpIT {
         if(port==null||!port.matches("[0-9]+"))throw new IllegalStateException("Isolated Redis tunnel port required");
         String user=System.getenv().getOrDefault("QINGLIFE_HTTP_MYSQL_USER","root");
         String password=System.getenv().getOrDefault("QINGLIFE_HTTP_MYSQL_PASSWORD","");
+        String redisPassword=System.getenv().getOrDefault("QINGLIFE_TEST_REDIS_PASSWORD","");
         try(Connection c=DriverManager.getConnection(url,user,password)){DatabaseMigration.run(c,Paths.get(System.getProperty("qinglife.migrations")).getParent());}
         uploads=Files.createTempDirectory("qinglife-http-uploads-");
         p.add("spring.datasource.dynamic.datasource.master.url",()->url);
         p.add("spring.datasource.dynamic.datasource.master.username",()->user);
         p.add("spring.datasource.dynamic.datasource.master.password",()->password);
-        p.add("spring.redis.host",()->"127.0.0.1");p.add("spring.redis.port",()->port);p.add("spring.redis.password",()->"");p.add("spring.redis.database",()->0);
+        p.add("spring.redis.host",()->"127.0.0.1");p.add("spring.redis.port",()->port);p.add("spring.redis.password",()->redisPassword);p.add("spring.redis.database",()->0);
         p.add("ruoyi.profile",()->uploads.toString());
     }
     @BeforeEach void mockWechat(){when(wechat.exchange(anyString())).thenAnswer(i->"http-test-"+i.getArgument(0));}

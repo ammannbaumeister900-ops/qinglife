@@ -5,6 +5,10 @@ import org.springframework.test.context.TestPropertySource;
 
 /** Same real HTTP contract with production security/configuration/schema guards enabled. */
 @ActiveProfiles(value="prod", inheritProfiles=false)
-@TestPropertySource(properties="ruoyi.imagePath=https://example.invalid/images/")
+@TestPropertySource(properties={
+        "ruoyi.imagePath=https://example.invalid/images/",
+        "qinglife.redis.allow-insecure-internal=true",
+        "qinglife.oss.provider=disabled"
+})
 class ProductionLoginHttpIT extends LoginHttpIT {
 }
