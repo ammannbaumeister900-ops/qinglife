@@ -58,7 +58,7 @@ public class MiniAppAuthenticationTokenFilter extends OncePerRequestFilter {
         } catch (NumberFormatException error) {
             userId = null;
         }
-        AppUserInfo user = userId == null ? null : userMapper.selectForIdentity(userId);
+        AppUserInfo user = userId == null ? null : userMapper.selectById(userId);
         if (user == null || !Integer.valueOf(1).equals(user.getStatus())) {
             unauthorized(response, "登录已失效，请重新登录");
             return;

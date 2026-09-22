@@ -66,6 +66,10 @@ class ProductionConfigurationGuardTest {
                 valid().withProperty("spring.redis.password", " ")).afterPropertiesSet());
         assertThrows(IllegalStateException.class, () -> new ProductionConfigurationGuard(
                 valid().withProperty("qinglife.redis.allow-insecure-internal", "false")).afterPropertiesSet());
+        assertThrows(IllegalStateException.class, () -> new ProductionConfigurationGuard(
+                valid().withProperty("spring.redis.host", "10.evil.example")).afterPropertiesSet());
+        assertThrows(IllegalStateException.class, () -> new ProductionConfigurationGuard(
+                valid().withProperty("spring.redis.host", "192.168.attacker.example")).afterPropertiesSet());
     }
     @Test void validatesOnlyTheSelectedOssProvider() {
         MockEnvironment minio = valid().withProperty("qinglife.oss.provider", "minio")

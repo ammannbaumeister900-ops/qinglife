@@ -48,7 +48,7 @@ class MiniAppAuthenticationTokenFilterTest {
         when(redis.getCacheObject("appToken:valid-token")).thenReturn(7L);
         AppUserInfo user = new AppUserInfo();
         user.setStatus(1);
-        when(users.selectForIdentity(7L)).thenReturn(user);
+        when(users.selectById(7L)).thenReturn(user);
         FilterChain chain = (req, res) -> {
             assertNotNull(SecurityContextHolder.getContext().getAuthentication());
             assertEquals(7L, SecurityContextHolder.getContext().getAuthentication().getPrincipal());

@@ -91,13 +91,23 @@ public class ProductionConfigurationGuard implements InitializingBean {
     private boolean isInternalHost(String host) {
         if (host == null) return false;
         String value = host.trim().toLowerCase();
-        if ("localhost".equals(value) || value.startsWith("127.") || value.startsWith("10.") || value.startsWith("192.168.")) return true;
-        if (value.startsWith("172.")) {
-            String[] parts = value.split("\\.");
-            try { return parts.length == 4 && Integer.parseInt(parts[1]) >= 16 && Integer.parseInt(parts[1]) <= 31; }
-            catch (NumberFormatException ignored) { return false; }
+        if ("localhost".equals(value)) return true;
+        String[] parts = value.split("\\.", -1);
+        if (parts.length != 4) return false;
+        int[] octets = new int[4];
+        try {
+            for (int index = 0; index < parts.length; index++) {
+                if (parts[index].isEmpty() || !parts[index].matches("[0-9]{1,3}")) return false;
+                octets[index] = Integer.parseInt(parts[index]);
+                if (octets[index] > 255) return false;
+            }
+        } catch (NumberFormatException ignored) {
+            return false;
         }
-        return false;
+        return octets[0] == 10
+                || octets[0] == 127
+                || (octets[0] == 192 && octets[1] == 168)
+                || (octets[0] == 172 && octets[1] >= 16 && octets[1] <= 31);
     }
 
     private String notTemplate(String key, String value) {
