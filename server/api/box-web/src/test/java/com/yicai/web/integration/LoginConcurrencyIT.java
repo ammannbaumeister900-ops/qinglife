@@ -61,7 +61,8 @@ class LoginConcurrencyIT {
         @Bean QlMiniAppMapper mini(SqlSessionTemplate sql) { return sql.getMapper(QlMiniAppMapper.class); }
         @Bean QlWechatLoginService login(AppUserInfoMapper users) { return new QlWechatLoginService(users); }
         @Bean QlCustomerIdentityService identity(AppUserInfoMapper users, QlMiniAppMapper mini) { return new QlCustomerIdentityService(users, mini); }
-        @Bean com.yicai.life.service.QlRegistrationPolicy registrationPolicy(JdbcTemplate jdbc) { return new com.yicai.life.service.QlRegistrationPolicy(jdbc); }
+        @Bean com.yicai.life.service.QlSessionAdmissionPolicy admissionPolicy() { return new com.yicai.life.service.QlSessionAdmissionPolicy(); }
+        @Bean com.yicai.life.service.QlRegistrationPolicy registrationPolicy(JdbcTemplate jdbc, com.yicai.life.service.QlSessionAdmissionPolicy admission) { return new com.yicai.life.service.QlRegistrationPolicy(jdbc, admission); }
         @Bean QlAttendanceAudit attendanceAudit(JdbcTemplate jdbc) { return new QlAttendanceAudit(jdbc); }
         @Bean RedisCache redisCache() { return mock(RedisCache.class); }
         @Bean RedissonClient redissonClient() { return mock(RedissonClient.class); }

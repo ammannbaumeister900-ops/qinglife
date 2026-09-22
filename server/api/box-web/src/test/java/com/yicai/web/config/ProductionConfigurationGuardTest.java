@@ -12,7 +12,14 @@ class ProductionConfigurationGuardTest {
             .withProperty("server.undertow.max-http-post-size", "20MB")
             .withProperty("spring.servlet.multipart.max-file-size", "10MB")
             .withProperty("spring.servlet.multipart.max-request-size", "20MB")
-            .withProperty("management.endpoints.web.exposure.include", "health");
+            .withProperty("management.endpoints.web.exposure.include", "health")
+            .withProperty("token.expireTime", "480")
+            .withProperty("qinglife.app-token.expire-minutes", "1440")
+            .withProperty("spring.redis.host", "127.0.0.1")
+            .withProperty("spring.redis.password", "synthetic-redis-password")
+            .withProperty("spring.redis.ssl", "false")
+            .withProperty("qinglife.redis.allow-insecure-internal", "true")
+            .withProperty("qinglife.oss.provider", "disabled");
     }
     @Test void acceptsExplicitProductionSettings() {
         assertDoesNotThrow(() -> new ProductionConfigurationGuard(valid()).afterPropertiesSet());
@@ -47,5 +54,33 @@ class ProductionConfigurationGuardTest {
     @Test void refusesUnlimitedHttpRequests() {
         assertThrows(IllegalStateException.class, () -> new ProductionConfigurationGuard(
             valid().withProperty("server.undertow.max-http-post-size", "-1")).afterPropertiesSet());
+    }
+    @Test void refusesLongLivedTokens() {
+        assertThrows(IllegalStateException.class, () -> new ProductionConfigurationGuard(
+                valid().withProperty("token.expireTime", "481")).afterPropertiesSet());
+        assertThrows(IllegalStateException.class, () -> new ProductionConfigurationGuard(
+                valid().withProperty("qinglife.app-token.expire-minutes", "1441")).afterPropertiesSet());
+    }
+    @Test void refusesBlankOrUnprotectedRedis() {
+        assertThrows(IllegalStateException.class, () -> new ProductionConfigurationGuard(
+                valid().withProperty("spring.redis.password", " ")).afterPropertiesSet());
+        assertThrows(IllegalStateException.class, () -> new ProductionConfigurationGuard(
+                valid().withProperty("qinglife.redis.allow-insecure-internal", "false")).afterPropertiesSet());
+        assertThrows(IllegalStateException.class, () -> new ProductionConfigurationGuard(
+                valid().withProperty("spring.redis.host", "10.evil.example")).afterPropertiesSet());
+        assertThrows(IllegalStateException.class, () -> new ProductionConfigurationGuard(
+                valid().withProperty("spring.redis.host", "192.168.attacker.example")).afterPropertiesSet());
+    }
+    @Test void validatesOnlyTheSelectedOssProvider() {
+        MockEnvironment minio = valid().withProperty("qinglife.oss.provider", "minio")
+                .withProperty("cloud-storage.minio.endpoint", "https://storage.qinglife.test")
+                .withProperty("cloud-storage.minio.accessKey", "synthetic-access")
+                .withProperty("cloud-storage.minio.secretKey", "synthetic-secret")
+                .withProperty("cloud-storage.minio.bucketName", "qinglife-media");
+        assertDoesNotThrow(() -> new ProductionConfigurationGuard(minio).afterPropertiesSet());
+        assertThrows(IllegalStateException.class, () -> new ProductionConfigurationGuard(
+                minio.withProperty("cloud-storage.minio.bucketName", "ruoyi")).afterPropertiesSet());
+        assertThrows(IllegalStateException.class, () -> new ProductionConfigurationGuard(
+                minio.withProperty("cloud-storage.minio.endpoint", "https:///missing-host")).afterPropertiesSet());
     }
 }

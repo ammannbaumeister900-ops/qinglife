@@ -1,6 +1,7 @@
 package com.yicai.framework.config;
 
 import com.yicai.framework.security.filter.JwtAuthenticationTokenFilter;
+import com.yicai.framework.security.filter.MiniAppAuthenticationTokenFilter;
 import com.yicai.framework.security.handle.AuthenticationEntryPointImpl;
 import com.yicai.framework.security.handle.LogoutSuccessHandlerImpl;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -49,6 +50,9 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter
      */
     @Autowired
     private JwtAuthenticationTokenFilter authenticationTokenFilter;
+
+    @Autowired
+    private MiniAppAuthenticationTokenFilter miniAppAuthenticationTokenFilter;
 
     /**
      * 跨域过滤器
@@ -118,8 +122,14 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter
                 .antMatchers("/webjars/**").authenticated()
                 .antMatchers("/*/api-docs").authenticated()
                 .antMatchers("/druid/**").authenticated()
-                // 小程序沿用旧 token header；具体身份校验由统一业务服务完成。
-                .antMatchers("/app/qinglife/**").permitAll()
+                // Miniapp public discovery/login endpoints are explicit. Every future
+                // route under this prefix is authenticated by default.
+                .antMatchers(HttpMethod.POST, "/app/qinglife/auth/login").permitAll()
+                .antMatchers(HttpMethod.GET,
+                        "/app/qinglife/sessions",
+                        "/app/qinglife/sessions/*",
+                        "/app/qinglife/invitations/*").permitAll()
+                .antMatchers("/app/qinglife/**").authenticated()
                 // Spring Boot Actuator 的安全配置
                 .antMatchers("/actuator/health").permitAll()
                 .antMatchers("/actuator", "/actuator/**").denyAll()
@@ -130,6 +140,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter
         httpSecurity.logout().logoutUrl("/logout").logoutSuccessHandler(logoutSuccessHandler);
         // 添加JWT filter
         httpSecurity.addFilterBefore(authenticationTokenFilter, UsernamePasswordAuthenticationFilter.class);
+        httpSecurity.addFilterAfter(miniAppAuthenticationTokenFilter, JwtAuthenticationTokenFilter.class);
         // 添加CORS filter
         httpSecurity.addFilterBefore(corsFilter, JwtAuthenticationTokenFilter.class);
         httpSecurity.addFilterBefore(corsFilter, LogoutFilter.class);

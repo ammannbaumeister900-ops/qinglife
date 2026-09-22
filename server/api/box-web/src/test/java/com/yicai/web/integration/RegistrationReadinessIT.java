@@ -38,7 +38,7 @@ class RegistrationReadinessIT {
     static int number=5000;
     static final Map<String,Object> access=new HashMap<>();
     @Configuration @EnableTransactionManagement
-    @Import({QlRegistrationPolicy.class,QlRegistrationServiceImpl.class,QlSessionPricing.class,QlMiniAppServiceImpl.class,QlStaffWorkspaceService.class,QlAttendanceAudit.class,QlHabitPlanService.class})
+    @Import({QlRegistrationPolicy.class,QlSessionAdmissionPolicy.class,QlRegistrationServiceImpl.class,QlSessionPricing.class,QlMiniAppServiceImpl.class,QlStaffWorkspaceService.class,QlAttendanceAudit.class,QlHabitPlanService.class})
     static class Config {
         @Bean DataSource dataSource() {
             String url=System.getenv("QINGLIFE_TEST_MYSQL_URL");
