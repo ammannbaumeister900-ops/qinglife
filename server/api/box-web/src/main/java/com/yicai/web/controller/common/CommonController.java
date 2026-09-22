@@ -141,22 +141,7 @@ public class CommonController
     {
         try
         {
-            UploadContentValidator.validateCommonMedia(file);
-            // 上传文件路径
-            String filePath = RuoYiConfig.getProfile() + "/public";
-            // 上传并返回新文件名称
-            String fileName = FileUploadUtils.upload(filePath, file);
-            fileName = "public/" + fileName;
-            String url = RuoYiConfig.getImagePath().replaceAll("/+$", "") + "/" + fileName;
-            Map<String,Object> ajax = new HashMap<>();
-            ajax.put("fileName", fileName);
-            ajax.put("url", url);
-            if(fileName.contains(".mp4") || fileName.contains(".rmvb") || fileName.contains(".avi")){
-                ajax.put("fileType", "video");
-            }else if(fileName.contains(".jpg") || fileName.contains(".jpeg") || fileName.contains(".png") || fileName.contains(".gif")){
-                ajax.put("fileType", "image");
-            }
-            return AjaxResult.success(ajax);
+            return AjaxResult.success(com.yicai.common.utils.file.PublicMediaUpload.upload(file));
         }
         catch (com.yicai.common.exception.CustomException e)
         {
