@@ -25,6 +25,21 @@ public class QlMiniAppController {
         return AjaxResult.success(miniAppService.listSessions());
     }
 
+    @GetMapping("/readings/featured")
+    public AjaxResult<List<Map<String, Object>>> featuredReadings() {
+        return AjaxResult.success(miniAppService.listFeaturedReadings());
+    }
+
+    @GetMapping("/readings/{id}")
+    public AjaxResult<Map<String, Object>> reading(@PathVariable Long id) {
+        return AjaxResult.success(miniAppService.readingDetail(id));
+    }
+
+    @GetMapping("/contact")
+    public AjaxResult<Map<String, Object>> contact() {
+        return AjaxResult.success(miniAppService.contact());
+    }
+
     @GetMapping("/sessions/{id}")
     public AjaxResult<Map<String,Object>> sessionDetail(@PathVariable String id) { return AjaxResult.success(miniAppService.sessionDetail(id)); }
 

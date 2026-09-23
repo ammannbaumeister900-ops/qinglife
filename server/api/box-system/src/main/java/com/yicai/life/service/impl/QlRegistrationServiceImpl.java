@@ -12,6 +12,7 @@ import com.yicai.life.domain.QlRegistrationStatusLog;
 import com.yicai.life.domain.QlTransaction;
 import com.yicai.life.domain.bo.QlPaymentBo;
 import com.yicai.life.domain.bo.QlRegistrationBo;
+import com.yicai.life.domain.bo.QlSettlementBo;
 import com.yicai.life.domain.vo.QlRegistrationVo;
 import com.yicai.life.mapper.QlRegistrationMapper;
 import com.yicai.life.mapper.QlRegistrationStatusLogMapper;
@@ -37,6 +38,7 @@ public class QlRegistrationServiceImpl
 
     private static final java.util.List<String> PAYMENT_STATUSES = Arrays.asList("unpaid", "paid");
     private static final java.util.List<String> REGISTRATION_STATUSES = Arrays.asList("pending", "confirmed", "waitlisted", "cancelled");
+    private static final java.util.List<String> SETTLEMENT_TYPES = Arrays.asList("money", "pass");
 
     @Autowired private com.yicai.life.service.QlRegistrationPolicy policy;
     private final QlRegistrationMapper registrationMapper;
@@ -44,6 +46,7 @@ public class QlRegistrationServiceImpl
     private final com.yicai.life.service.QlSessionPricing pricing;
     private final QlRegistrationStatusLogMapper statusLogMapper;
     private final QlTransactionMapper transactionMapper;
+    private final com.yicai.life.service.QlPassService passService;
 
     @Override
     public TableDataInfo<QlRegistrationVo> queryPageList(QlRegistrationBo bo) {
@@ -130,6 +133,39 @@ public class QlRegistrationServiceImpl
 
     @Override
     @Transactional
+    public boolean confirmSettlement(String id, QlSettlementBo bo, Long operatorId) {
+        validateSettlement(bo);
+        QlRegistration snapshot = getById(id);
+        if (snapshot == null) throw new CustomException("报名记录不存在", 404);
+        policy.lockSession(snapshot.getSessionId());
+        Date now = new Date();
+        if (StrUtil.isNotBlank(snapshot.getBatchId())) {
+            Map<String,Object> batch = registrationMapper.selectBatchForPayment(snapshot.getBatchId());
+            if (batch == null) throw new CustomException("报名订单不存在", 404);
+            if (!"unpaid".equals(String.valueOf(batch.get("paymentStatus")))) throw new CustomException("已付款订单不能改动最终结算", 400);
+            if ("confirmed".equals(String.valueOf(batch.get("settlementStatus")))) throw new CustomException("结算结果已确认；如需更正，请通过受控调整保留原记录", 400);
+            List<QlRegistration> participants = registrationMapper.selectBatchRegistrationsForUpdate(snapshot.getBatchId());
+            if (participants.isEmpty()) throw new CustomException("报名订单没有参与人", 400);
+            for (QlRegistration participant : participants) if (!"confirmed".equals(participant.getRegistrationStatus())) throw new CustomException("请先确认订单内全部报名", 400);
+            Integer balanceAfter = null;
+            if ("pass".equals(bo.getSettlementType())) balanceAfter = passService.consume(bo.getPassAccountId(), String.valueOf(batch.get("buyerCustomerId")), snapshot.getSessionId(), null, snapshot.getBatchId(), bo.getPassUnits(), bo.getNote(), operatorId, now);
+            if (registrationMapper.confirmBatchSettlement(snapshot.getBatchId(), bo.getFinalAmount(), bo.getSettlementType(), bo.getPassUnits(), bo.getPassAccountId(), bo.getNote(), operatorId, now) != 1) throw new CustomException("结算状态已变化，请刷新后重试", 409);
+            registrationMapper.insertSettlementLog(UUID.randomUUID().toString(), null, snapshot.getBatchId(), decimal(batch.get("quotedAmount")), bo.getFinalAmount(), bo.getSettlementType(), bo.getPassUnits(), bo.getPassAccountId(), balanceAfter, bo.getNote(), operatorId, now);
+            return true;
+        }
+        QlRegistration current = registrationMapper.selectForUpdate(id);
+        if (!"confirmed".equals(current.getRegistrationStatus())) throw new CustomException("请先确认报名", 400);
+        if (!"unpaid".equals(current.getPaymentStatus())) throw new CustomException("已付款报名不能改动最终结算", 400);
+        if ("confirmed".equals(current.getSettlementStatus())) throw new CustomException("结算结果已确认；如需更正，请通过受控调整保留原记录", 400);
+        Integer balanceAfter = null;
+        if ("pass".equals(bo.getSettlementType())) balanceAfter = passService.consume(bo.getPassAccountId(), current.getCustomerId(), current.getSessionId(), id, null, bo.getPassUnits(), bo.getNote(), operatorId, now);
+        if (registrationMapper.confirmRegistrationSettlement(id, bo.getFinalAmount(), bo.getSettlementType(), bo.getPassUnits(), bo.getPassAccountId(), bo.getNote(), operatorId, now) != 1) throw new CustomException("结算状态已变化，请刷新后重试", 409);
+        registrationMapper.insertSettlementLog(UUID.randomUUID().toString(), id, null, current.getUnitPrice(), bo.getFinalAmount(), bo.getSettlementType(), bo.getPassUnits(), bo.getPassAccountId(), balanceAfter, bo.getNote(), operatorId, now);
+        return true;
+    }
+
+    @Override
+    @Transactional
     public boolean changePayment(String id, QlPaymentBo bo, Long operatorId) {
         if (!PAYMENT_STATUSES.contains(bo.getPaymentStatus())) {
             throw new CustomException("当前版本仅支持未付款或已付款", 400);
@@ -152,7 +188,9 @@ public class QlRegistrationServiceImpl
                 throw new CustomException("请先确认报名", 400);
             }
             QlRegistrationVo quote = registrationMapper.selectVoById(id);
-            validateFullPayment(bo, quote == null ? null : quote.getStandardPrice());
+            if (quote == null || !"confirmed".equals(quote.getSettlementStatus())) throw new CustomException("请先确认最终结算结果", 400);
+            if (!"money".equals(quote.getSettlementType())) throw new CustomException("卡次结算不能登记现金收款", 400);
+            validateFullPayment(bo, quote.getFinalAmount());
         } else if (StrUtil.isBlank(bo.getChangeReason())) {
             throw new CustomException("撤销已付款必须填写原因", 400);
         }
@@ -215,7 +253,9 @@ public class QlRegistrationServiceImpl
                     throw new CustomException("请先确认订单内全部报名", 400);
                 }
             }
-            Object amount = batch.get("payableAmount");
+            if (!"confirmed".equals(String.valueOf(batch.get("settlementStatus")))) throw new CustomException("请先确认最终结算结果", 400);
+            if (!"money".equals(String.valueOf(batch.get("settlementType")))) throw new CustomException("卡次结算不能登记现金收款", 400);
+            Object amount = batch.get("finalAmount");
             validateFullPayment(bo, amount == null ? null : new BigDecimal(amount.toString()));
         } else if (StrUtil.isBlank(bo.getChangeReason())) {
             throw new CustomException("撤销已付款必须填写原因", 400);
@@ -292,6 +332,21 @@ public class QlRegistrationServiceImpl
         if (!Arrays.asList("wechat_scan","alipay_scan","transfer","cash","other").contains(bo.getPaymentMethod())) {
             throw new CustomException("确认付款时必须填写付款方式", 400);
         }
+    }
+
+    private void validateSettlement(QlSettlementBo bo) {
+        if (bo == null || bo.getFinalAmount() == null || bo.getFinalAmount().signum() < 0) throw new CustomException("最终金额不能小于0", 400);
+        if (!SETTLEMENT_TYPES.contains(bo.getSettlementType())) throw new CustomException("结算方式无效", 400);
+        int units = bo.getPassUnits() == null ? 0 : bo.getPassUnits();
+        if ("pass".equals(bo.getSettlementType()) && units < 1) throw new CustomException("使用卡次结算时请填写卡次", 400);
+        if ("money".equals(bo.getSettlementType()) && units > 0) throw new CustomException("现金结算不能填写卡次", 400);
+        if ("pass".equals(bo.getSettlementType()) && bo.getFinalAmount().signum() != 0) throw new CustomException("卡次结算的现金金额应为0", 400);
+        if ("pass".equals(bo.getSettlementType()) && StrUtil.isBlank(bo.getPassAccountId())) throw new CustomException("请选择要使用的卡次账户", 400);
+        if ("money".equals(bo.getSettlementType()) && StrUtil.isNotBlank(bo.getPassAccountId())) throw new CustomException("现金结算不能选择卡次账户", 400);
+    }
+
+    private BigDecimal decimal(Object value) {
+        return value == null ? null : new BigDecimal(value.toString());
     }
 
     private void validateRegistrationStatus(String status) {

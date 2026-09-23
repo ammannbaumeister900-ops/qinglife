@@ -14,7 +14,16 @@ public class QlRegistrationVo {
     private String buyerCustomerId;
     private String buyerNickname;
     private Integer participantCount;
+    private String contactName;
+    private String contactPhone;
+    private BigDecimal quotedAmount;
     private BigDecimal payableAmount;
+    private BigDecimal finalAmount;
+    private String settlementStatus;
+    private String settlementType;
+    private Integer passUnits;
+    private String passAccountId;
+    private String settlementNote;
     private String batchPaymentStatus;
     private String customerId;
     private String customerNo;

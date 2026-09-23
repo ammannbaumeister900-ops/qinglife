@@ -10,7 +10,8 @@ Page({
     avatarText: '登录',
     participationTimeline: [],
     loginLoading: false,
-    staffAccess: false
+    staffAccess: false,
+    contact: { name: '桃子', wechat: '', configured: false }
   },
 
   openStaff() { wx.navigateTo({url: "/staff/workspace/index?view=desk"}) },
@@ -19,8 +20,18 @@ Page({
     this.setData({ staffAccess: false })
     const tab = this.getTabBar && this.getTabBar()
     if (tab) tab.setData({ selected: 3 })
-    await this.refresh()
+    await Promise.all([this.refresh(), this.refreshContact()])
     if (this.data.state.loggedIn) await this.refreshStaffAccess()
+  },
+
+  async refreshContact() {
+    if (!business.enabled()) return
+    try { this.setData({ contact: await business.contact() }) } catch (error) { this.setData({ contact: { name: '桃子', wechat: '', configured: false } }) }
+  },
+
+  copyContact() {
+    if (!this.data.contact.configured) return wx.showToast({ title: '联系方式正在配置，请稍后再试', icon: 'none' })
+    wx.setClipboardData({ data: this.data.contact.wechat, success: () => wx.showToast({ title: '微信号已复制', icon: 'success' }) })
   },
 
   async refreshStaffAccess() {
@@ -51,7 +62,8 @@ Page({
       try {
         const { state, activities } = await business.context()
         const participationTimeline = Object.values(state.registrations).map(reg => { const a = activities.find(a => a.id === reg.activityId) || { id: reg.activityId, date: '', place: '', endDate: '' }; return { id: a.id, sessionNumber: a.sessionNumber, status: { pending:'待确认', confirmed:'已确认', completed:'已完成', cancelled:'已取消', waitlisted:'候补中' }[reg.status] || reg.status, meta: a.date + ' · ' + a.place, endDate: a.endDate } }).sort((a,b) => b.endDate.localeCompare(a.endDate))
-        this.setData({ state, participationTimeline, avatarText: state.loggedIn ? state.profile.nickname.slice(0,1) : '登录' })
+        const passConsumptions=(state.passLedger||[]).filter(item=>item.entryType==='consume').slice(0,3)
+        this.setData({ state, participationTimeline, passConsumptions, avatarText: state.loggedIn ? state.profile.nickname.slice(0,1) : '登录' })
       } catch (error) { this.setData({ loadError: error.message, ...(error.code === 401 ? { state: {}, participationTimeline: [], currentRegistrations: [], returning: false } : {}) }) }
       finally { this.setData({ loading: false, refreshing: false, ready: true }) }
       return

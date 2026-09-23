@@ -10,6 +10,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="content" column="content"/>
         <result property="Introduction" column="Introduction"/>
         <result property="status" column="status"/>
+        <result property="homeFeatured" column="home_featured"/>
         <result property="orderNum" column="order_num"/>
         <result property="insertTime" column="insert_time"/>
         <result property="author" column="author"/>

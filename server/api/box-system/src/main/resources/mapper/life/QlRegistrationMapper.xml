@@ -3,7 +3,14 @@
 <mapper namespace="com.yicai.life.mapper.QlRegistrationMapper">
     <sql id="registrationColumns">
         r.id, r.batch_id, b.order_no, b.submitted_by_customer_id AS buyer_customer_id,
-        buyer.nickname AS buyer_nickname, b.participant_count, b.payable_amount,
+        buyer.nickname AS buyer_nickname, b.contact_name, b.contact_phone, b.participant_count,
+        b.quoted_amount, b.payable_amount,
+        COALESCE(b.final_amount,r.final_amount) AS final_amount,
+        COALESCE(b.settlement_status,r.settlement_status) AS settlement_status,
+        COALESCE(b.settlement_type,r.settlement_type) AS settlement_type,
+        COALESCE(b.pass_units,r.pass_units) AS pass_units,
+        COALESCE(b.pass_account_id,r.pass_account_id) AS pass_account_id,
+        COALESCE(b.settlement_note,r.settlement_note) AS settlement_note,
         b.payment_status AS batch_payment_status,
         r.customer_id, c.customer_no, c.nickname, c.real_name,
         r.session_id, s.session_number, s.name AS session_name, COALESCE(r.unit_price,s.standard_price) AS standard_price,
@@ -60,7 +67,10 @@
 
     <select id="selectBatchForPayment" resultType="java.util.HashMap">
         SELECT b.id, b.session_id AS sessionId, b.submitted_by_customer_id AS buyerCustomerId,
-               b.payment_status AS paymentStatus, b.payable_amount AS payableAmount
+               b.payment_status AS paymentStatus, b.quoted_amount AS quotedAmount,
+               b.payable_amount AS payableAmount, b.final_amount AS finalAmount,
+               b.settlement_status AS settlementStatus, b.settlement_type AS settlementType,
+               b.pass_account_id AS passAccountId
         FROM ql_registration_batch b
         WHERE b.id = #{batchId} FOR UPDATE
     </select>
@@ -80,5 +90,21 @@
         SET payment_status = #{toStatus}, revision = revision + 1,
             updated_by = #{operatorId}, updated_at = #{updatedAt}
         WHERE batch_id = #{batchId}
+    </update>
+
+    <update id="confirmBatchSettlement">
+        UPDATE ql_registration_batch
+        SET final_amount=#{finalAmount}, payable_amount=#{finalAmount}, settlement_status='confirmed',
+            settlement_type=#{settlementType}, pass_units=#{passUnits}, pass_account_id=#{passAccountId}, settlement_note=#{note},
+            settlement_confirmed_by=#{operatorId}, settlement_confirmed_at=#{confirmedAt}
+        WHERE id=#{batchId} AND payment_status='unpaid' AND settlement_status='pending'
+    </update>
+
+    <update id="confirmRegistrationSettlement">
+        UPDATE ql_registration
+        SET final_amount=#{finalAmount}, settlement_status='confirmed', settlement_type=#{settlementType},
+            pass_units=#{passUnits}, pass_account_id=#{passAccountId}, settlement_note=#{note}, settlement_confirmed_by=#{operatorId},
+            settlement_confirmed_at=#{confirmedAt}, updated_by=#{operatorId}, updated_at=#{confirmedAt}, revision=revision+1
+        WHERE id=#{id} AND payment_status='unpaid' AND settlement_status='pending'
     </update>
 </mapper>

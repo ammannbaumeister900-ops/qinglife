@@ -168,3 +168,6 @@
 .staff-entry-desc{color:#d5decd;font-size:25rpx;line-height:1.7}
 .staff-entry-btn{margin-top:36rpx;background:#f8f3e8;color:#354c3a;min-height:92rpx;display:flex;align-items:center;justify-content:center;font-weight:600;border-radius:20rpx}
 .staff-entry-btn::after{border:0}
+.contact-card { display: flex; align-items: center; justify-content: space-between; gap: 24rpx; margin-top: 28rpx; padding: 30rpx 32rpx; border: 1rpx solid var(--ql-border); border-radius: var(--ql-radius-card); background: rgba(255,255,255,.58); }
+.contact-title { margin: 8rpx 0; font-family: var(--ql-serif); font-size: 34rpx; }
+.contact-copy { width: auto; min-width: 190rpx; margin: 0; }

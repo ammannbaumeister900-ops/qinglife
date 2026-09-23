@@ -7,12 +7,7 @@
   <view class="welcome-block">
     <view class="pill">{{returning ? '欢迎回来，轻友' : '从认识轻生活开始'}}</view>
     <view class="welcome-title">{{returning ? '把那一点轻松，带回日常。' : '生活很满，也可以留一点轻。'}}</view>
-    <view class="card-copy">{{returning ? '不必每天都有进步。你愿意停下来看看自己的感受，就已经很好。我们仍在这里，陪你慢慢走。' : '轻生活是一段从日常出发的生活方式体验。通过线下轻体营、日常小练习与阅读，给饮食、休息和自我感受留出更多关注。'}}</view>
-  </view>
-  <view wx:if="{{!state.loggedIn || state.registration.status === 'none'}}" class="intro-grid">
-    <view class="intro-item"><view class="card-title">忙到顾不上自己</view><view class="card-copy">留一段专注的时间，看看自己的生活节奏。</view></view>
-    <view class="intro-item"><view class="card-title">想开始，却没头绪</view><view class="card-copy">从一次体验、一个小练习开始，不必一下改变全部。</view></view>
-    <view class="intro-item"><view class="card-title">希望有人同行</view><view class="card-copy">与导游和轻友一起体验，按自己的感受参与。</view></view>
+    <view class="card-copy">{{returning ? '不必每天都有进步。愿意停下来看看自己的感受，就已经很好。' : '从一次线下体验或一篇轻读开始，给日常留一点余地。'}}</view>
   </view>
   <view wx:if="{{state.loggedIn && state.registration.status !== 'none'}}" class="card home-task">
     <view class="pill">{{view.kicker}}</view>
@@ -22,13 +17,20 @@
   </view>
   <view class="index-head"><text class="index-label">{{returning ? '近期动态 · 下一次相聚' : '从一次轻体营开始'}}</text></view>
   <view wx:if="{{featured}}" class="card featured-camp">
+    <image wx:if="{{featured.cover}}" class="home-session-cover" src="{{featured.cover}}" mode="aspectFill" />
     <view class="pill">下一期 · {{featured.status}}</view><view class="card-title">{{featured.name}}</view>
+    <view class="home-session-theme">{{featured.theme}}</view>
     <view class="card-copy">{{featured.date}}</view><view class="card-copy">{{featured.city}} {{featured.place}}</view>
-    <view class="card-copy">新轻友 ¥{{featured.fee}}<text wx:if="{{featured.returningFee != null}}"> · 老轻友 ¥{{featured.returningFee}}</text></view>
+    <view class="card-copy">公开价：新轻友 ¥{{featured.fee}}<text wx:if="{{featured.returningFee != null}}"> · 老轻友 ¥{{featured.returningFee}}</text></view><view class="card-copy">最终结算由工作人员核对确认。</view>
     <view class="button-row"><button class="primary" data-view="register" bindtap="openActivity">报名</button><button class="secondary" data-view="detail" bindtap="openActivity">查看详情</button></view>
   </view>
   <view wx:else class="card"><view class="card-copy">新的开放期次正在准备中。可以先看看轻读，认识轻生活。</view></view>
   <button class="text-button" bindtap="openCamp">查看全部期次 ›</button>
-  <view class="card support-card"><view class="card-title">{{returning ? '今天，也给自己一点支持' : '先了解，再决定'}}</view><view class="card-copy">{{returning ? '翻一篇轻读，或回顾一段自己的记录。轻生活不只发生在营里，也发生在愿意照顾自己的日常。' : '在轻读中认识我们的参与方式。活动安排、费用和个人身体边界，报名之前都值得仔细了解。'}}</view><button class="secondary" bindtap="openReading">去轻读走走</button></view>
+  <view class="index-head"><text class="index-label">精选轻读</text></view>
+  <swiper wx:if="{{featuredReadings.length}}" class="reading-swiper" autoplay circular interval="5000" duration="450" indicator-dots>
+    <swiper-item wx:for="{{featuredReadings}}" wx:key="id"><view class="reading-slide" data-id="{{item.id}}" data-title="{{item.title}}" bindtap="openArticle"><image wx:if="{{item.cover}}" class="reading-cover" src="{{item.cover}}" mode="aspectFill" /><view wx:else class="reading-cover reading-cover-placeholder">轻读</view><view class="reading-copy"><view class="pill">{{item.category || '轻读'}}</view><view class="reading-title">{{item.title}}</view><view class="card-copy">{{item.summary}}</view><view class="latest-link">打开阅读 ›</view></view></view></swiper-item>
+  </swiper>
+  <view wx:else class="card support-card"><view class="card-title">轻读正在准备中</view><view class="card-copy">可以前往轻读查看全部已发布内容。</view></view>
+  <button class="text-button" bindtap="openReading">查看全部轻读 ›</button>
   </block>
 </view>
