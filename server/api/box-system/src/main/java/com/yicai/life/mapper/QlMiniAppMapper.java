@@ -65,7 +65,7 @@ public interface QlMiniAppMapper {
     @Select("<script>SELECT id, session_id AS sessionId, day_no AS dayNo, activity_date AS activityDate, " +
             "start_time AS startTime, end_time AS endTime, theme, status FROM ql_session_day " +
             "WHERE status&lt;&gt;'cancelled' AND session_id IN " +
-            "&lt;foreach collection='sessionIds' item='sessionId' open='(' separator=',' close=')'&gt;#{sessionId}&lt;/foreach&gt; " +
+            "<foreach collection='sessionIds' item='sessionId' open='(' separator=',' close=')'>#{sessionId}</foreach> " +
             "ORDER BY session_id, day_no</script>")
     List<Map<String, Object>> selectSessionDaysBySessionIds(@Param("sessionIds") List<String> sessionIds);
 

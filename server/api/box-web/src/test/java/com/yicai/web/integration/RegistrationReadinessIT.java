@@ -82,6 +82,14 @@ class RegistrationReadinessIT {
     QlPaymentBo payment(String state,String amount){QlPaymentBo b=new QlPaymentBo();b.setPaymentStatus(state);b.setAmount(new BigDecimal(amount));b.setPaymentMethod("cash");b.setChangeReason("Synthetic correction");return b;}
     void settle(String id,String amount){QlSettlementBo b=new QlSettlementBo();b.setFinalAmount(new BigDecimal(amount));b.setSettlementType("money");b.setNote("Synthetic settlement");registrations.confirmSettlement(id,b,9L);}
     String pass(String customer,int units){QlPassAccountBo b=new QlPassAccountBo();b.setCustomerId(customer);b.setPassType("Synthetic card");b.setInitialUnits(units);b.setReason("Synthetic verified opening");return passes.open(b,9L);}
+    @Test @SuppressWarnings("unchecked") void publicSessionsIncludeScheduledDays() {
+        String sessionId=session(2);
+        db.update("INSERT INTO ql_session_day(id,session_id,day_no,activity_date,status) VALUES(?,?,1,CURRENT_DATE(),'scheduled')",UUID.randomUUID().toString(),sessionId);
+        Map<String,Object> found=mini.listSessions().stream().filter(row->sessionId.equals(row.get("id"))).findFirst().orElseThrow(AssertionError::new);
+        List<Map<String,Object>> days=(List<Map<String,Object>>)found.get("days");
+        assertEquals(1,days.size());
+        assertEquals(1,((Number)days.get(0).get("dayNo")).intValue());
+    }
     @Test void migratedSchemaCanBeReplayedAndTamperingFails()throws Exception {
         try(Connection c=context.getBean(DataSource.class).getConnection()) {
             Path server=Paths.get(System.getProperty("qinglife.migrations")).getParent();DatabaseMigration.run(c,server);
