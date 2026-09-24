@@ -90,6 +90,12 @@ class RegistrationReadinessIT {
         assertEquals(1,days.size());
         assertEquals(1,((Number)days.get(0).get("dayNo")).intValue());
     }
+    @Test void completeAdminBusinessNavigationIsSeeded() {
+        assertEquals(4,db.queryForObject("SELECT COUNT(*) FROM sys_menu WHERE menu_id IN (2054,2055,2056,2057) AND parent_id=0 AND visible='0'",Integer.class));
+        assertEquals(10,db.queryForObject("SELECT COUNT(*) FROM sys_menu WHERE component IN ('life/collect/index','life/contact/index','life/essay/index','life/label/index','life/tag/index','life/userComment/index','life/userMessage/index','life/userPublish/index','life/publishTemplate/index','life/publishTemplateProject/index') AND visible='0'",Integer.class));
+        assertEquals("contentPublishing",db.queryForObject("SELECT path FROM sys_menu WHERE menu_id=2055",String.class));
+        assertEquals("customerMoments",db.queryForObject("SELECT path FROM sys_menu WHERE menu_id=2056",String.class));
+    }
     @Test void migratedSchemaCanBeReplayedAndTamperingFails()throws Exception {
         try(Connection c=context.getBean(DataSource.class).getConnection()) {
             Path server=Paths.get(System.getProperty("qinglife.migrations")).getParent();DatabaseMigration.run(c,server);
