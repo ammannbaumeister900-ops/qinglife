@@ -18,6 +18,7 @@ function fixture() {
     Page: value => { page = value }, require: name => mocks[name], wx: { showToast() {} }
   })
   page.data = { ...page.data, activity: { id: 's1' }, state: { phone: '13800000000' }, draft: { serviceConsent: true,
+    contactName: '测试轻友', contactPhone: '13800000000',
     participants: [{ id: 'person-self', name: '测试轻友', selected: true, minor: false }], motivation: '用户主动填写的原因' } }
   page.setData = value => Object.assign(page.data, value)
   page.refresh = async () => {}
@@ -42,4 +43,11 @@ test('an unfilled motivation remains optional and does not use demo defaults', a
   delete page.data.draft.motivation
   await page.submitRegistration()
   assert.equal(submissions[0].motivation, null)
+})
+
+test('companion cannot reuse the main contact phone as a separate identity', async () => {
+  const { page, submissions } = fixture()
+  page.data.draft.participants.push({ id: 'person-2', name: '同行人', phone: '13800000000', selected: true, minor: false })
+  await page.submitRegistration()
+  assert.equal(submissions.length, 0)
 })

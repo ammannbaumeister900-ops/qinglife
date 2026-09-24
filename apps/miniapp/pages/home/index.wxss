@@ -1,6 +1,14 @@
 .home-page {
   padding-top: 24rpx;
 }
+.featured-camp { overflow: hidden; }
+.home-session-cover { width: calc(100% + 80rpx); height: 300rpx; margin: -38rpx -40rpx 28rpx; }
+.home-session-theme { margin: 10rpx 0 18rpx; color: var(--ql-sage-deep); font-size: 25rpx; }
+.reading-swiper { height: 650rpx; }
+.reading-slide { overflow: hidden; height: 600rpx; border: 1rpx solid rgba(255,255,255,.7); border-radius: var(--ql-radius-card); background: var(--ql-paper); box-shadow: var(--ql-shadow-soft); }
+.reading-cover { display: flex; width: 100%; height: 300rpx; align-items: center; justify-content: center; background: linear-gradient(145deg,#e6eee5,#eaded2); color: var(--ql-sage-deep); font-family: var(--ql-serif); font-size: 48rpx; }
+.reading-copy { padding: 28rpx 32rpx; }
+.reading-title { margin-top: 16rpx; font-family: var(--ql-serif); font-size: 36rpx; line-height: 1.45; }
 
 .home-greeting {
   margin-bottom: 12rpx;

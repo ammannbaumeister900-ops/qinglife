@@ -4,6 +4,7 @@ import cn.hutool.core.util.StrUtil;
 import cn.hutool.crypto.digest.DigestUtil;
 import com.yicai.common.core.redis.RedisCache;
 import com.yicai.common.exception.CustomException;
+import com.yicai.common.config.RuoYiConfig;
 
 import com.yicai.life.domain.bo.*;
 import com.yicai.life.service.QlCustomerIdentityService;
@@ -18,6 +19,7 @@ import org.springframework.transaction.annotation.Isolation;
 
 import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
+import java.time.LocalTime;
 import java.util.*;
 
 @Service
@@ -50,8 +52,38 @@ public class QlMiniAppServiceImpl implements IQlMiniAppService {
         }
         for (Map<String, Object> session : sessions) {
             session.put("days", daysBySession.getOrDefault(String.valueOf(session.get("id")), Collections.emptyList()));
+            session.put("coverUrl", publicMediaUrl(session.get("coverUrl")));
         }
         return sessions;
+    }
+
+    @Override
+    public List<Map<String, Object>> listFeaturedReadings() {
+        List<Map<String,Object>> readings = miniAppMapper.selectFeaturedReadings();
+        for (Map<String,Object> reading : readings) reading.put("cover", publicMediaUrl(reading.get("cover")));
+        return readings;
+    }
+
+    @Override
+    public Map<String, Object> readingDetail(Long id) {
+        Map<String,Object> reading = miniAppMapper.selectPublicReading(id);
+        if (reading == null) throw new CustomException("轻读不存在或未发布", 404);
+        reading.put("cover", publicMediaUrl(reading.get("cover")));
+        return reading;
+    }
+
+    @Override
+    public Map<String, Object> contact() {
+        Map<String,Object> result = new LinkedHashMap<>();
+        result.put("name", "桃子");
+        result.put("wechat", "");
+        for (Map<String,Object> row : miniAppMapper.selectContactConfig()) {
+            String value = Objects.toString(row.get("configValue"), "").trim();
+            if ("qinglife.contact.name".equals(row.get("configKey")) && StrUtil.isNotBlank(value)) result.put("name", value);
+            if ("qinglife.contact.wechat".equals(row.get("configKey"))) result.put("wechat", value);
+        }
+        result.put("configured", StrUtil.isNotBlank(String.valueOf(result.get("wechat"))));
+        return result;
     }
     @Override
     public Map<String, Object> overview(String token) {
@@ -60,6 +92,8 @@ public class QlMiniAppServiceImpl implements IQlMiniAppService {
         result.put("customerId", customerId);
         result.put("profile", miniAppMapper.selectCustomerProfile(customerId));
         result.put("registrations", miniAppMapper.selectCustomerRegistrations(customerId));
+        result.put("passAccounts", miniAppMapper.selectCustomerPassAccounts(customerId));
+        result.put("passLedger", miniAppMapper.selectCustomerPassLedger(customerId));
         result.put("attendance", miniAppMapper.selectCustomerAttendance(customerId));
         result.put("dailyRecords", miniAppMapper.selectDailyRecords(customerId));
         result.put("experienceRecords", miniAppMapper.selectExperienceRecords(customerId));
@@ -73,6 +107,16 @@ public class QlMiniAppServiceImpl implements IQlMiniAppService {
     @Transactional(isolation = Isolation.READ_COMMITTED)
     public Map<String, Object> register(String token, QlMiniAppRegistrationBo bo) {
         String buyerId = requireCustomerId(token);
+        if (bo == null || StrUtil.isBlank(bo.getSessionId()) || StrUtil.isBlank(bo.getClientRequestId())) {
+            throw new CustomException("报名参数不完整");
+        }
+        if (StrUtil.isBlank(bo.getContactName()) || StrUtil.isBlank(bo.getContactPhone())
+                || !bo.getContactPhone().trim().matches("^1\\d{10}$")) {
+            throw new CustomException("请填写可靠的主要联系人和手机号");
+        }
+        if (bo.getParticipants() == null || bo.getParticipants().isEmpty()) {
+            throw new CustomException("请至少选择一位参与人");
+        }
         if (!Boolean.TRUE.equals(bo.getServiceConsent())) {
             throw new CustomException("请先同意服务必要信息处理");
         }
@@ -108,18 +152,23 @@ public class QlMiniAppServiceImpl implements IQlMiniAppService {
         BigDecimal returningPrice = session.get("returningPrice") == null ? null : new BigDecimal(String.valueOf(session.get("returningPrice")));
         BigDecimal amount = BigDecimal.ZERO;
         miniAppMapper.insertRegistrationBatch(batchId, orderNo, bo.getSessionId(), buyerId,
-                scopedRequestId, bo.getParticipants().size(), amount, now);
+                bo.getContactName().trim(), bo.getContactPhone().trim(), scopedRequestId,
+                bo.getParticipants().size(), amount, now);
         miniAppMapper.setRequestFingerprint(batchId, fingerprint);
         miniAppMapper.insertServiceConsent(uuid(), buyerId, CONSENT_POLICY_VERSION, now);
 
         String registrationStatus = "auto".equals(String.valueOf(session.get("confirmMode"))) ? "confirmed" : "pending";
         boolean selfUsed = false;
         Set<String> participantIds = new HashSet<>();
+        Set<String> participantPhones = new HashSet<>();
         List<Map<String, Object>> registrations = new ArrayList<>();
         List<Map<String, Object>> days = miniAppMapper.selectSessionDays(bo.getSessionId());
         for (QlMiniAppRegistrationBo.Participant participant : bo.getParticipants()) {
             boolean isSelf = Boolean.TRUE.equals(participant.getSelf());
-            if (!Boolean.TRUE.equals(participant.getMinor()) && (participant.getPhone() == null || !participant.getPhone().matches("^1\\d{10}$"))) throw new CustomException("成年人必须填写本人手机号");
+            String participantPhone = StrUtil.blankToDefault(participant.getPhone(), "").replaceAll("\\s+", "");
+            if (StrUtil.isNotBlank(participantPhone) && !participantPhone.matches("^1\\d{10}$")) throw new CustomException("参与人手机号格式不正确");
+            if (!isSelf && StrUtil.isNotBlank(participantPhone) && participantPhone.equals(bo.getContactPhone().trim())) throw new CustomException("同行参与人手机号不能填写主要联系人手机号；没有本人号码可留空", 400);
+            if (StrUtil.isNotBlank(participantPhone) && !participantPhones.add(participantPhone)) throw new CustomException("同一手机号不能作为多名参与人的独立身份");
             if (isSelf && selfUsed) {
                 throw new CustomException("本人只能登记一次");
             }
@@ -169,11 +218,13 @@ public class QlMiniAppServiceImpl implements IQlMiniAppService {
         }
 
         Map<String, Object> result = new LinkedHashMap<>();
-        miniAppMapper.setBatchAmount(batchId, amount);
+        miniAppMapper.setBatchQuote(batchId, amount);
         result.put("id", batchId);
         result.put("orderNo", orderNo);
         result.put("paymentStatus", "unpaid");
-        result.put("payableAmount", amount);
+        result.put("quotedAmount", amount);
+        result.put("finalAmount", null);
+        result.put("settlementStatus", "pending");
         result.put("registrationStatus", registrationStatus);
         result.put("registrations", registrations);
         return result;
@@ -277,6 +328,7 @@ public class QlMiniAppServiceImpl implements IQlMiniAppService {
     public Map<String,Object> sessionDetail(String sessionId) {
         Map<String,Object> session = miniAppMapper.selectSessionDetail(sessionId);
         if (session == null) throw new CustomException("活动不存在或未发布", 404);
+        session.put("coverUrl", publicMediaUrl(session.get("coverUrl")));
         session.put("days", miniAppMapper.selectSessionDays(sessionId));
         return session;
     }
@@ -333,7 +385,7 @@ public class QlMiniAppServiceImpl implements IQlMiniAppService {
         String phase = bo.getPhase(), sessionId = String.valueOf(owner.get("sessionId"));
         String today = dateKey(new Date()), nodeKey = "";
         if ("before".equals(phase)) {
-            if (today.compareTo(dateKey(asDate(owner.get("startDate")))) >= 0) throw new CustomException("活动前记录已结束");
+            if (!today.equals(dateKey(asDate(owner.get("startDate")))) || hasReached(owner.get("startTime"))) throw new CustomException("请在活动当天正式开始前记录");
         } else if ("during".equals(phase)) {
             boolean validDay = false;
             for (Map<String,Object> day : miniAppMapper.selectSessionDays(sessionId)) {
@@ -342,7 +394,8 @@ public class QlMiniAppServiceImpl implements IQlMiniAppService {
             if (!validDay) throw new CustomException("只能保存当天活动感受");
             nodeKey = bo.getSessionDayId();
         } else if ("after".equals(phase)) {
-            if (!"completed".equals(owner.get("sessionStatus")) && today.compareTo(dateKey(asDate(owner.get("endDate")))) <= 0) throw new CustomException("活动尚未结束");
+            String endDate = dateKey(asDate(owner.get("endDate")));
+            if (!"completed".equals(owner.get("sessionStatus")) && (today.compareTo(endDate) < 0 || today.equals(endDate) && !hasReached(owner.get("endTime")))) throw new CustomException("活动尚未结束");
         } else throw new CustomException("记录阶段无效");
         miniAppMapper.upsertExperience(uuid(), bo.getRegistrationId(), customerId, sessionId, phase, nodeKey, bo.getEnergy(), bo.getRelaxation(), bo.getNote(), new Date());
     }
@@ -380,6 +433,18 @@ public class QlMiniAppServiceImpl implements IQlMiniAppService {
                     DigestUtil.sha256Hex(normalized), hint, null, true, "unverified", null, now);
         }
         return customerId;
+    }
+
+    private boolean hasReached(Object time) {
+        if (time == null) return false;
+        try { return !LocalTime.now(java.time.ZoneId.of("Asia/Shanghai")).isBefore(LocalTime.parse(String.valueOf(time).substring(0, 8))); }
+        catch (RuntimeException ignored) { return false; }
+    }
+
+    private String publicMediaUrl(Object raw) {
+        String value = Objects.toString(raw, "").trim();
+        if (value.isEmpty() || value.startsWith("https://") || value.startsWith("http://")) return value;
+        return RuoYiConfig.getImagePath() + value;
     }
 
     private Number number(Object value) {

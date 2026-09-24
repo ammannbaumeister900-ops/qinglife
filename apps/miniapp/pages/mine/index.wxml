@@ -29,12 +29,15 @@
   </view>
   <view wx:else class="card mist"><view class="card-title">你的轻生活经历，会从这里开始。</view><button class="secondary" bindtap="openCamp">看看近期轻体营</button></view>
 
+  <view wx:if="{{state.loggedIn && state.passAccounts && state.passAccounts.length}}" class="card"><view class="card-title">我的卡次</view><view class="hero-title">当前剩余 {{state.currentPassBalance}} 次</view><view wx:for="{{passConsumptions}}" wx:key="id" class="card-copy">{{item.occurredAt}} · {{item.sessionNumber ? '第' + item.sessionNumber + '期 · ' : ''}}使用 {{0-item.quantityDelta}} 次，余 {{item.balanceAfter}} 次</view><view wx:if="{{!passConsumptions.length}}" class="card-copy">暂无卡次消耗记录</view></view>
+
   <view class="asset-list">
     <button class="asset" data-view="experiences" bindtap="openFlow"><view class="asset-main"><view class="asset-name">全部参与经历</view><view class="asset-description">每一期的报名、状态与安排</view></view><text class="asset-chevron">›</text></button>
     <button class="asset" data-view="records" bindtap="openFlow"><view class="asset-main"><view class="asset-name">私人记录</view><view class="asset-description">自己的感受，只留给自己</view></view><text class="asset-chevron">›</text></button>
     <button class="asset" data-view="collections" bindtap="openFlow"><view class="asset-main"><view class="asset-name">内容收藏</view><view class="asset-description">把喜欢的阅读留在这里</view></view><text class="asset-chevron">›</text></button>
     <button class="asset" data-view="privacy" bindtap="openFlow"><view class="asset-main"><view class="asset-name">设置与隐私</view><view class="asset-description">查看个人信息与隐私设置</view></view><text class="asset-chevron">›</text></button>
   </view>
+  <view class="contact-card"><view><view class="eyebrow">联系轻生活</view><view class="contact-title">{{contact.name || '桃子'}}</view><view class="asset-description">{{contact.configured ? '微信号：' + contact.wechat : '微信号待运营配置'}}</view></view><button class="secondary contact-copy" bindtap="copyContact">{{contact.configured ? '复制微信号' : '暂未配置'}}</button></view>
   <button class="text-button history-entry" data-view="archive" bindtap="openFlow">历史打卡</button>
   </block>
 </view>

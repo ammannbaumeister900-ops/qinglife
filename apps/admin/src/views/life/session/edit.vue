@@ -6,6 +6,8 @@
       <div class="form-grid">
         <el-form-item label="期次编号" prop="sessionNumber"><el-input-number v-model="form.sessionNumber" :min="1" :max="2147483647" :precision="0" :controls="false" placeholder="例如：501" /></el-form-item>
         <el-form-item label="期次名称" prop="name"><el-input v-model="form.name" maxlength="100" placeholder="例如：轻体营·第501期" /><div class="hint">按“XX营·第XXX期”填写，例如：清体营·第501期。</div></el-form-item>
+        <el-form-item label="当期主题" prop="theme"><el-input v-model="form.theme" maxlength="200" placeholder="例如：在秋天，重新听见身体" /></el-form-item>
+        <el-form-item label="展示封面" prop="coverUrl"><imageLocalUpload v-model="form.coverUrl" :limit="1" /><div class="hint">用于首页、轻体营列表和活动详情；建议横向图片。</div></el-form-item>
         <el-form-item label="开始日期" prop="startDate"><el-date-picker v-model="form.startDate" type="date" value-format="yyyy-MM-dd" :picker-options="startOptions" placeholder="选择活动第一天" /></el-form-item>
         <el-form-item label="结束日期" prop="endDate"><el-date-picker v-model="form.endDate" type="date" value-format="yyyy-MM-dd" :picker-options="endOptions" placeholder="选择活动最后一天" /><div class="hint">开始日 00:00 起，结束日全天有效（至当天 24:00）。</div></el-form-item>
         <el-form-item label="报名开放日期"><el-date-picker v-model="openDate" type="date" value-format="yyyy-MM-dd" :picker-options="openOptions" placeholder="不填则不限制开放日期" /></el-form-item>
@@ -42,9 +44,9 @@ export default {
   data() {
     return {
       loading: false, loadFailed: false, submitting: false, regions, region: ['上海市', '上海城区'], legacyCity: '', guides: [], openDate: '', closeDate: '',
-      form: { sessionNumber: undefined, name: '', startDate: '', endDate: '', capacity: 30, standardPrice: 3800, returningPrice: 2500, province: '上海市', city: '上海市', publicVenue: '', status: 'draft', registrationConfirmMode: 'manual', intro: '', cancelPolicy: '' },
+      form: { sessionNumber: undefined, name: '', theme: '', coverUrl: '', startDate: '', endDate: '', capacity: 30, standardPrice: 3800, returningPrice: 2500, province: '上海市', city: '上海市', publicVenue: '', status: 'draft', registrationConfirmMode: 'manual', intro: '', cancelPolicy: '' },
       statusOptions: [{label:'草稿',value:'draft'},{label:'报名中',value:'open'},{label:'已关闭',value:'closed'},{label:'进行中',value:'in_progress'},{label:'已完成',value:'completed'},{label:'已取消',value:'cancelled'}],
-      rules: { sessionNumber: [{required:true,message:'请输入期次编号',trigger:'change'}], name: [{required:true,message:'请输入期次名称，例如：轻体营·第501期',trigger:'blur'}], startDate: [{required:true,message:'请选择开始日期',trigger:'change'}], endDate: [{required:true,message:'请选择结束日期',trigger:'change'}], city: [{required:true,message:'请选择省、市',trigger:'change'}], capacity: [{required:true,message:'请输入名额',trigger:'change'}], standardPrice: [{required:true,message:'请输入新轻友价格',trigger:'change'}], returningPrice: [{required:true,message:'请输入老轻友价格',trigger:'change'}] }
+      rules: { sessionNumber: [{required:true,message:'请输入期次编号',trigger:'change'}], name: [{required:true,message:'请输入期次名称，例如：轻体营·第501期',trigger:'blur'}], theme: [{required:true,message:'请输入本期主题',trigger:'blur'}], coverUrl: [{required:true,message:'请上传本期展示封面',trigger:'change'}], startDate: [{required:true,message:'请选择开始日期',trigger:'change'}], endDate: [{required:true,message:'请选择结束日期',trigger:'change'}], city: [{required:true,message:'请选择省、市',trigger:'change'}], capacity: [{required:true,message:'请输入名额',trigger:'change'}], standardPrice: [{required:true,message:'请输入新轻友价格',trigger:'change'}], returningPrice: [{required:true,message:'请输入老轻友价格',trigger:'change'}] }
     }
   },
   computed: {

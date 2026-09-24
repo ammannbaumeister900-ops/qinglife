@@ -35,10 +35,11 @@ class RegistrationReadinessIT {
     static IQlRegistrationService registrations;
     static QlStaffWorkspaceService staff;
     static IQlMiniAppService mini;
+    static QlPassService passes;
     static int number=5000;
     static final Map<String,Object> access=new HashMap<>();
     @Configuration @EnableTransactionManagement
-    @Import({QlRegistrationPolicy.class,QlSessionAdmissionPolicy.class,QlRegistrationServiceImpl.class,QlSessionPricing.class,QlMiniAppServiceImpl.class,QlStaffWorkspaceService.class,QlAttendanceAudit.class,QlHabitPlanService.class})
+    @Import({QlRegistrationPolicy.class,QlSessionAdmissionPolicy.class,QlRegistrationServiceImpl.class,QlSessionPricing.class,QlMiniAppServiceImpl.class,QlStaffWorkspaceService.class,QlAttendanceAudit.class,QlHabitPlanService.class,QlPassService.class})
     static class Config {
         @Bean DataSource dataSource() {
             String url=System.getenv("QINGLIFE_TEST_MYSQL_URL");
@@ -70,7 +71,7 @@ class RegistrationReadinessIT {
         context=new AnnotationConfigApplicationContext(Config.class);db=context.getBean(JdbcTemplate.class);
         try(Connection c=context.getBean(DataSource.class).getConnection()){DatabaseMigration.run(c,Paths.get(System.getProperty("qinglife.migrations")).getParent());}
         db.update("INSERT INTO sys_user(user_id,dept_id,user_name,nick_name,user_type,status,del_flag) VALUES(9,0,'synthetic','Synthetic','00','0','0')");
-        registrations=context.getBean(IQlRegistrationService.class);staff=context.getBean(QlStaffWorkspaceService.class);mini=context.getBean(IQlMiniAppService.class);
+        registrations=context.getBean(IQlRegistrationService.class);staff=context.getBean(QlStaffWorkspaceService.class);mini=context.getBean(IQlMiniAppService.class);passes=context.getBean(QlPassService.class);
         access.put("sys_user_id",9L);access.put("can_operate",1);access.put("can_payment",1);
     }
     @AfterAll static void close(){if(context!=null)context.close();}
@@ -79,6 +80,22 @@ class RegistrationReadinessIT {
     String add(String customer,String session,String status){QlRegistrationBo b=new QlRegistrationBo();b.setCustomerId(customer);b.setSessionId(session);b.setRegistrationStatus(status);registrations.insertByBo(b,9L);return db.queryForObject("SELECT id FROM ql_registration WHERE customer_id=? AND session_id=?",String.class,customer,session);}
     void status(String id,String status){QlRegistrationBo b=new QlRegistrationBo();b.setId(id);b.setRegistrationStatus(status);registrations.updateByBo(b,9L);}
     QlPaymentBo payment(String state,String amount){QlPaymentBo b=new QlPaymentBo();b.setPaymentStatus(state);b.setAmount(new BigDecimal(amount));b.setPaymentMethod("cash");b.setChangeReason("Synthetic correction");return b;}
+    void settle(String id,String amount){QlSettlementBo b=new QlSettlementBo();b.setFinalAmount(new BigDecimal(amount));b.setSettlementType("money");b.setNote("Synthetic settlement");registrations.confirmSettlement(id,b,9L);}
+    String pass(String customer,int units){QlPassAccountBo b=new QlPassAccountBo();b.setCustomerId(customer);b.setPassType("Synthetic card");b.setInitialUnits(units);b.setReason("Synthetic verified opening");return passes.open(b,9L);}
+    @Test @SuppressWarnings("unchecked") void publicSessionsIncludeScheduledDays() {
+        String sessionId=session(2);
+        db.update("INSERT INTO ql_session_day(id,session_id,day_no,activity_date,status) VALUES(?,?,1,CURRENT_DATE(),'scheduled')",UUID.randomUUID().toString(),sessionId);
+        Map<String,Object> found=mini.listSessions().stream().filter(row->sessionId.equals(row.get("id"))).findFirst().orElseThrow(AssertionError::new);
+        List<Map<String,Object>> days=(List<Map<String,Object>>)found.get("days");
+        assertEquals(1,days.size());
+        assertEquals(1,((Number)days.get(0).get("dayNo")).intValue());
+    }
+    @Test void completeAdminBusinessNavigationIsSeeded() {
+        assertEquals(4,db.queryForObject("SELECT COUNT(*) FROM sys_menu WHERE menu_id IN (2054,2055,2056,2057) AND parent_id=0 AND visible='0'",Integer.class));
+        assertEquals(10,db.queryForObject("SELECT COUNT(*) FROM sys_menu WHERE component IN ('life/collect/index','life/contact/index','life/essay/index','life/label/index','life/tag/index','life/userComment/index','life/userMessage/index','life/userPublish/index','life/publishTemplate/index','life/publishTemplateProject/index') AND visible='0'",Integer.class));
+        assertEquals("contentPublishing",db.queryForObject("SELECT path FROM sys_menu WHERE menu_id=2055",String.class));
+        assertEquals("customerMoments",db.queryForObject("SELECT path FROM sys_menu WHERE menu_id=2056",String.class));
+    }
     @Test void migratedSchemaCanBeReplayedAndTamperingFails()throws Exception {
         try(Connection c=context.getBean(DataSource.class).getConnection()) {
             Path server=Paths.get(System.getProperty("qinglife.migrations")).getParent();DatabaseMigration.run(c,server);
@@ -89,17 +106,76 @@ class RegistrationReadinessIT {
         }
     }
     @Test void pendingSeatCanConfirmWhenFullButWaitlistCannot(){String s=session(1),r=add(customer(),s,"pending"),w=add(customer(),s,"waitlisted");staff.confirm(r,access);assertThrows(CustomException.class,()->status(w,"confirmed"));assertThrows(CustomException.class,()->add(customer(),s,"pending"));}
-    @Test void paymentAndCancellationShareRules(){String s=session(2),r=add(customer(),s,"confirmed");assertThrows(CustomException.class,()->registrations.changePayment(r,payment("paid","99"),9L));registrations.changePayment(r,payment("paid","100"),9L);assertThrows(CustomException.class,()->staff.cancel(r,access));registrations.changePayment(r,payment("unpaid","0"),9L);staff.cancel(r,access);assertThrows(CustomException.class,()->status(r,"confirmed"));}
-    @Test void freeSessionAndMethodValidationAreShared(){String s=session(1);db.update("UPDATE ql_session SET standard_price=0 WHERE id=?",s);String r=add(customer(),s,"confirmed");QlPaymentBo b=payment("paid","0");b.setPaymentMethod("unsupported");assertThrows(CustomException.class,()->registrations.changePayment(r,b,9L));b.setPaymentMethod("cash");staff.payment(r,b,access);assertEquals("paid",registrations.getById(r).getPaymentStatus());}
+    @Test void paymentAndCancellationShareRules(){String s=session(2),r=add(customer(),s,"confirmed");assertThrows(CustomException.class,()->registrations.changePayment(r,payment("paid","100"),9L));settle(r,"100");assertThrows(CustomException.class,()->registrations.changePayment(r,payment("paid","99"),9L));registrations.changePayment(r,payment("paid","100"),9L);assertThrows(CustomException.class,()->staff.cancel(r,access));registrations.changePayment(r,payment("unpaid","0"),9L);staff.cancel(r,access);assertThrows(CustomException.class,()->status(r,"confirmed"));}
+    @Test void freeSessionAndMethodValidationAreShared(){String s=session(1);db.update("UPDATE ql_session SET standard_price=0 WHERE id=?",s);String r=add(customer(),s,"confirmed");settle(r,"0");QlPaymentBo b=payment("paid","0");b.setPaymentMethod("unsupported");assertThrows(CustomException.class,()->registrations.changePayment(r,b,9L));b.setPaymentMethod("cash");staff.payment(r,b,access);assertEquals("paid",registrations.getById(r).getPaymentStatus());}
+    @Test void passSettlementAtomicallyConsumesOneOwnedAccount(){String customer=customer(),r=add(customer,session(1),"confirmed"),account=pass(customer,3);QlSettlementBo b=new QlSettlementBo();b.setSettlementType("pass");b.setPassUnits(2);b.setPassAccountId(account);b.setFinalAmount(new BigDecimal("10"));assertThrows(CustomException.class,()->registrations.confirmSettlement(r,b,9L));b.setFinalAmount(BigDecimal.ZERO);registrations.confirmSettlement(r,b,9L);assertEquals("confirmed",registrations.getById(r).getSettlementStatus());assertThrows(CustomException.class,()->registrations.changePayment(r,payment("paid","0"),9L));assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM ql_transaction WHERE registration_id=?",Integer.class,r));assertEquals(1,db.queryForObject("SELECT SUM(quantity_delta) FROM ql_pass_ledger WHERE pass_account_id=?",Integer.class,account));assertEquals(1,db.queryForObject("SELECT balance_after FROM ql_pass_ledger WHERE registration_id=? AND entry_type='consume'",Integer.class,r));assertThrows(CustomException.class,()->registrations.confirmSettlement(r,b,9L));assertEquals(1,db.queryForObject("SELECT COUNT(*) FROM ql_pass_ledger WHERE registration_id=? AND entry_type='consume'",Integer.class,r));}
+    @Test void passSettlementRejectsWrongOwnerAndInsufficientBalanceWithoutLedger(){String owner=customer(),other=customer(),r=add(owner,session(1),"confirmed"),account=pass(other,1);QlSettlementBo b=new QlSettlementBo();b.setSettlementType("pass");b.setPassUnits(1);b.setPassAccountId(account);b.setFinalAmount(BigDecimal.ZERO);assertThrows(CustomException.class,()->registrations.confirmSettlement(r,b,9L));assertEquals(1,db.queryForObject("SELECT SUM(quantity_delta) FROM ql_pass_ledger WHERE pass_account_id=?",Integer.class,account));String own=pass(owner,1);b.setPassAccountId(own);b.setPassUnits(2);assertThrows(CustomException.class,()->registrations.confirmSettlement(r,b,9L));assertEquals(1,db.queryForObject("SELECT SUM(quantity_delta) FROM ql_pass_ledger WHERE pass_account_id=?",Integer.class,own));}
+    @Test void failedSettlementLogRollsBackPassAndSettlement() {
+        String owner = customer(), registration = add(owner, session(1), "confirmed"), account = pass(owner, 2);
+        QlSettlementBo settlement = new QlSettlementBo();
+        settlement.setSettlementType("pass");
+        settlement.setPassUnits(1);
+        settlement.setPassAccountId(account);
+        settlement.setFinalAmount(BigDecimal.ZERO);
+        db.execute("CREATE TRIGGER ql_it_fail_settlement_log BEFORE INSERT ON ql_settlement_log FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='synthetic settlement log failure'");
+        try {
+            assertThrows(RuntimeException.class, () -> registrations.confirmSettlement(registration, settlement, 9L));
+            assertEquals(2, db.queryForObject("SELECT SUM(quantity_delta) FROM ql_pass_ledger WHERE pass_account_id=?", Integer.class, account));
+            assertEquals(0, db.queryForObject("SELECT COUNT(*) FROM ql_pass_ledger WHERE registration_id=? AND entry_type='consume'", Integer.class, registration));
+            assertEquals("pending", registrations.getById(registration).getSettlementStatus());
+            assertEquals(0, db.queryForObject("SELECT COUNT(*) FROM ql_settlement_log WHERE registration_id=?", Integer.class, registration));
+        } finally {
+            db.execute("DROP TRIGGER ql_it_fail_settlement_log");
+        }
+        registrations.confirmSettlement(registration, settlement, 9L);
+        assertEquals("confirmed", registrations.getById(registration).getSettlementStatus());
+        assertEquals(1, db.queryForObject("SELECT COUNT(*) FROM ql_pass_ledger WHERE registration_id=? AND entry_type='consume'", Integer.class, registration));
+    }
+    @Test void passManagementAdjustsByLedgerAndNeverAllowsNegativeBalance(){String account=pass(customer(),5);QlPassAdjustmentBo b=new QlPassAdjustmentBo();b.setQuantityDelta(-2);b.setReason("Synthetic correction");assertEquals(3,passes.adjust(account,b,9L));assertEquals(2,db.queryForObject("SELECT COUNT(*) FROM ql_pass_ledger WHERE pass_account_id=?",Integer.class,account));b.setQuantityDelta(-4);assertThrows(CustomException.class,()->passes.adjust(account,b,9L));assertEquals(3,db.queryForObject("SELECT SUM(quantity_delta) FROM ql_pass_ledger WHERE pass_account_id=?",Integer.class,account));}
+    @Test void groupPassSettlementUsesInitiatorAccountNotParticipantAccount(){String buyer=customer(),participant=customer(),s=session(1),r=add(participant,s,"confirmed"),batch=UUID.randomUUID().toString();db.update("INSERT INTO ql_registration_batch(id,session_id,submitted_by_customer_id,source,participant_count,submitted_at,payable_amount,payment_status,order_no) VALUES(?,?,?,'mini_program',1,NOW(),100,'unpaid',?)",batch,s,buyer,"T"+batch.replace("-","").substring(0,20));db.update("UPDATE ql_registration SET batch_id=? WHERE id=?",batch,r);String participantAccount=pass(participant,2),buyerAccount=pass(buyer,2);QlSettlementBo b=new QlSettlementBo();b.setSettlementType("pass");b.setPassUnits(1);b.setFinalAmount(BigDecimal.ZERO);b.setPassAccountId(participantAccount);assertThrows(CustomException.class,()->registrations.confirmSettlement(r,b,9L));assertEquals(2,db.queryForObject("SELECT SUM(quantity_delta) FROM ql_pass_ledger WHERE pass_account_id=?",Integer.class,participantAccount));b.setPassAccountId(buyerAccount);registrations.confirmSettlement(r,b,9L);assertThrows(CustomException.class,()->registrations.changeBatchPayment(batch,payment("paid","0"),9L));assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM ql_transaction WHERE registration_batch_id=?",Integer.class,batch));assertEquals(1,db.queryForObject("SELECT SUM(quantity_delta) FROM ql_pass_ledger WHERE pass_account_id=?",Integer.class,buyerAccount));assertEquals(buyerAccount,db.queryForObject("SELECT pass_account_id FROM ql_registration_batch WHERE id=?",String.class,batch));}
     @Test void threeEntrypointsCompeteForLastSeat()throws Exception {
         String s=session(1),buyer=customer(),adminCustomer=customer(),staffCustomer=customer();
         when(context.getBean(RedisCache.class).getCacheObject("appToken:synthetic")).thenReturn(77L);
         when(context.getBean(QlCustomerIdentityService.class).resolve(77L)).thenReturn(buyer);
-        QlMiniAppRegistrationBo b=new QlMiniAppRegistrationBo();b.setSessionId(s);b.setClientRequestId(UUID.randomUUID().toString());b.setServiceConsent(true);
+        QlMiniAppRegistrationBo b=new QlMiniAppRegistrationBo();b.setSessionId(s);b.setClientRequestId(UUID.randomUUID().toString());b.setServiceConsent(true);b.setContactName("Synthetic");b.setContactPhone("13800000000");
         QlMiniAppRegistrationBo.Participant p=new QlMiniAppRegistrationBo.Participant();p.setSelf(true);p.setName("Synthetic");p.setMinor(false);p.setPhone("13800000000");b.setParticipants(Collections.singletonList(p));
         List<Callable<Boolean>> actions=Arrays.asList(()->{add(adminCustomer,s,"pending");return true;},()->{staff.enroll(staffCustomer,s,access);return true;},()->{mini.register("synthetic",b);return true;});
         ExecutorService pool=Executors.newFixedThreadPool(3);CountDownLatch start=new CountDownLatch(1);List<Future<Boolean>> futures=new ArrayList<>();
         try{for(Callable<Boolean> action:actions)futures.add(pool.submit(()->{start.await();try{return action.call();}catch(CustomException expected){return false;}}));start.countDown();int success=0;for(Future<Boolean> f:futures)if(f.get(30,TimeUnit.SECONDS))success++;assertEquals(1,success);assertEquals(1,db.queryForObject("SELECT COUNT(*) FROM ql_registration WHERE session_id=?",Integer.class,s));}finally{pool.shutdownNow();}
+    }
+    @Test @SuppressWarnings("unchecked") void contactParticipantAndSettlementFactsStaySeparate() {
+        String s=session(3),buyer=customer();
+        when(context.getBean(RedisCache.class).getCacheObject("appToken:p0-contact")).thenReturn(80L);
+        when(context.getBean(QlCustomerIdentityService.class).resolve(80L)).thenReturn(buyer);
+        QlMiniAppRegistrationBo b=new QlMiniAppRegistrationBo();b.setSessionId(s);b.setClientRequestId(UUID.randomUUID().toString());b.setServiceConsent(true);b.setContactName("家庭联系人");b.setContactPhone("13900000000");
+        QlMiniAppRegistrationBo.Participant self=new QlMiniAppRegistrationBo.Participant();self.setSelf(true);self.setName("本人");
+        QlMiniAppRegistrationBo.Participant companion=new QlMiniAppRegistrationBo.Participant();companion.setSelf(false);companion.setName("同行人");companion.setRelation("家人");
+        b.setParticipants(Arrays.asList(self,companion));
+        Map<String,Object> result=mini.register("p0-contact",b);
+        List<Map<String,Object>> rows=(List<Map<String,Object>>)result.get("registrations");
+        assertEquals(2,rows.size());
+        assertEquals(new BigDecimal("200.00"),new BigDecimal(result.get("quotedAmount").toString()));
+        assertNull(result.get("finalAmount"));
+        String batch=String.valueOf(result.get("id"));
+        assertEquals("家庭联系人",db.queryForObject("SELECT contact_name FROM ql_registration_batch WHERE id=?",String.class,batch));
+        assertEquals("13900000000",db.queryForObject("SELECT contact_phone FROM ql_registration_batch WHERE id=?",String.class,batch));
+        assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM ql_customer_identifier i JOIN ql_registration r ON r.customer_id=i.customer_id WHERE r.batch_id=?",Integer.class,batch));
+        for(Map<String,Object> row:rows)status(String.valueOf(row.get("registrationId")),"confirmed");
+        String first=String.valueOf(rows.get(0).get("registrationId"));
+        settle(first,"150");
+        assertThrows(CustomException.class,()->registrations.changePayment(first,payment("paid","200"),9L));
+        registrations.changePayment(first,payment("paid","150"),9L);
+        assertEquals("paid",db.queryForObject("SELECT payment_status FROM ql_registration_batch WHERE id=?",String.class,batch));
+        assertEquals(1,db.queryForObject("SELECT COUNT(*) FROM ql_settlement_log WHERE registration_batch_id=?",Integer.class,batch));
+
+        String duplicateSession=session(2);
+        b.setSessionId(duplicateSession);b.setClientRequestId(UUID.randomUUID().toString());
+        self.setPhone("13700000000");companion.setPhone("13700000000");
+        assertThrows(CustomException.class,()->mini.register("p0-contact",b));
+        assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM ql_registration WHERE session_id=?",Integer.class,duplicateSession));
+        self.setPhone(null);companion.setPhone("13900000000");b.setClientRequestId(UUID.randomUUID().toString());
+        assertThrows(CustomException.class,()->mini.register("p0-contact",b));
+        assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM ql_registration WHERE session_id=?",Integer.class,duplicateSession));
     }
     @Test void wholeBatchCancellationIsAtomicAndIdempotent() {
         String s=session(2),c=customer(),r=add(c,s,"confirmed"),r2=add(customer(),s,"pending"),batch=UUID.randomUUID().toString();
@@ -126,7 +202,7 @@ class RegistrationReadinessIT {
         assertEquals(1,mapper.countCompletedSessions(c));
     }
     @Test void paymentRacingCancellationNeverLeavesPaidCancelledRegistration() throws Exception {
-        String s=session(1),r=add(customer(),s,"confirmed");ExecutorService pool=Executors.newFixedThreadPool(2);CountDownLatch start=new CountDownLatch(1);
+        String s=session(1),r=add(customer(),s,"confirmed");settle(r,"100");ExecutorService pool=Executors.newFixedThreadPool(2);CountDownLatch start=new CountDownLatch(1);
         try {
             Future<?> pay=pool.submit(()->{try{start.await();registrations.changePayment(r,payment("paid","100"),9L);}catch(CustomException expected){}catch(InterruptedException e){Thread.currentThread().interrupt();throw new RuntimeException(e);}});
             Future<?> cancel=pool.submit(()->{try{start.await();staff.cancel(r,access);}catch(CustomException expected){}catch(InterruptedException e){Thread.currentThread().interrupt();throw new RuntimeException(e);}});

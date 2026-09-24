@@ -18,6 +18,7 @@ async function http(route, method = 'GET', data, headers = admin, expected = 200
 }
 async function test(name, run) { await run(); cases.push(name); console.log('PASS ' + name) }
 async function clock(date) { now = date + 'T04:00:00Z'; await http('/__test/clock', 'POST', { now }) }
+async function clockAt(value) { now = value; await http('/__test/clock', 'POST', { now }) }
 const event = (dataset = {}, value) => ({ currentTarget: { dataset }, detail: { value } })
 async function actor(name, minor = false) {
   const identity = (await http('/__test/actors', 'POST', { name, minor })).data
@@ -98,7 +99,7 @@ async function main() {
       p = await enter(a, staffInvite); assert.equal(p.data.activity.id, first.id); assert.equal(p.data.registration.status, 'none')
       p.startRegistration(); await p.submitRegistration(); assert.equal(p.data.registration.status, 'none')
       p.setData({ view: 'detail' }); aReg = await signup(a, p)
-      assert.equal(p.data.registration.status, 'pending'); assert.equal(p.data.registration.paymentStatus, 'unpaid')
+      assert.equal(p.data.registration.status, 'pending'); assert.equal(p.data.registration.settlementStatus, 'pending')
       assert.equal((await overview(a)).registrations.length, 1)
       assert.equal(a.requests.filter(r => r.method === 'POST' && r.url.endsWith('/registrations')).length, 1)
       dReg = await signup(d, await enter(d, staffInvite))
@@ -112,15 +113,16 @@ async function main() {
       assert.equal((await overview(b)).registrations.length, 0)
       await http('/app/qinglife/registrations', 'POST', { ...payload, clientRequestId: 'new-duplicate' }, a.auth, 409)
     })
-    await test('04 待确认不能记录或老带新；工作人员确认后状态回读且不等于付款', async () => {
+    await test('04 待确认不能记录或老带新；工作人员确认后报名与结算状态独立', async () => {
       await http('/app/qinglife/experience-records', 'PUT', { registrationId: aReg, phase: 'before', note: '待确认' }, a.auth, 400)
       await http('/app/qinglife/sessions/' + next.id + '/invitations', 'POST', {}, a.auth, 403)
       await confirm(aReg); await confirm(dReg); await p.refresh()
-      assert.equal(p.data.registration.status, 'confirmed'); assert.equal(p.data.registration.paymentStatus, 'unpaid')
+      assert.equal(p.data.registration.status, 'confirmed'); assert.equal(p.data.registration.settlementStatus, 'pending')
       const home = await a.page('home'), camp = await a.page('camp'), mine = await a.page('mine')
       assert.equal(home.data.view.activityId, first.id); assert.equal(camp.data.currentRegistrations[0].status, 'confirmed'); assert.equal(mine.data.participationTimeline[0].id, first.id)
+      await clockAt('2026-09-07T00:00:00Z'); await p.refresh()
       p.openFeeling(); assert.equal(p.data.energy, null); assert.equal((await overview(a)).experienceRecords.length, 0)
-      p.chooseScale(event({ field:'energy', value:3 })); p.onFeelingInput(event({}, '测试活动前感受')); await p.saveFeeling()
+      p.onFeelingInput(event({}, '测试活动前感受')); await p.saveFeeling()
       assert.equal((await overview(a)).experienceRecords[0].phase, 'before')
     })
     await test('05 三日感受逐日保存、重进可读、跨日不带默认答案、漏签到不阻断', async () => {
@@ -128,14 +130,13 @@ async function main() {
       for (let day=7; day<=9; day++) {
         await clock('2026-09-0' + day); await p.refresh()
         assert.equal(p.data.loadError, '', '邀请过期不应挡住已经打开的本人行程')
-        assert.equal(p.data.feelingPhase, 'during'); assert.equal(p.data.energy, null); assert.equal(p.data.feelingNote, '')
-        p.openFeeling(); p.chooseScale(event({ field:'energy', value:day-4 })); p.chooseScale(event({ field:'relaxation', value:4 })); p.onFeelingInput(event({}, '测试第' + (day-6) + '天私人感受')); await p.saveFeeling()
-        await p.refresh(); assert.equal(p.data.energy, day-4)
+        assert.equal(p.data.feelingPhase, ''); assert.equal(p.data.canRecordFeeling, false)
+        await http('/app/qinglife/experience-records', 'PUT', { registrationId:aReg, phase:'during', sessionDayId:first.id+'-day-'+(day-6), energy:day-4, relaxation:4, note:'兼容第'+(day-6)+'天历史感受' }, a.auth)
       }
       const rows = (await overview(a)).experienceRecords
       assert.equal(rows.length, 4); assert.equal(new Set(rows.filter(r=>r.phase==='during').map(r=>r.nodeKey)).size,3)
       assert.ok(rows.every(r=>r.visibility==='private'))
-      const relaunch = await a.page('camp-flow', { id:first.id, view:'journey' }); assert.equal(relaunch.data.feelingNote, '测试第3天私人感受')
+      const relaunch = await a.page('camp-flow', { id:first.id, view:'journey' }); assert.equal(relaunch.data.feelingNote, '')
       await http('/app/qinglife/experience-records', 'PUT', { registrationId:aReg, phase:'during', sessionDayId:first.id+'-day-1', note:'跨日覆盖' }, a.auth, 400)
       await http('/app/qinglife/experience-records', 'PUT', { registrationId:aReg, phase:'during', sessionDayId:first.id+'-day-3', energy:6 }, a.auth, 400)
       assert.equal((await overview(d)).experienceRecords.length,0)
@@ -152,9 +153,9 @@ async function main() {
       assert.equal((await overview(a)).experienceRecords.length,5)
       await http('/app/qinglife/invitations/' + staffInvite.code,'GET',undefined,{},400)
     })
-    await test('07 受邀新轻友报名闭环，首次及本期推荐人为甲，自动确认仍未付款', async () => {
+    await test('07 受邀新轻友报名闭环，首次及本期推荐人为甲，自动确认仍待结算', async () => {
       const bp=await enter(b,aInvite); bReg=await signup(b,bp)
-      assert.equal(bp.data.registration.status,'confirmed'); assert.equal(bp.data.registration.paymentStatus,'unpaid')
+      assert.equal(bp.data.registration.status,'confirmed'); assert.equal(bp.data.registration.settlementStatus,'pending')
       const customers=(await http('/life/customer/list?pageSize=1000')).rows
       assert.equal(customers.find(c=>c.id===b.customerId).firstReferrerCustomerId,a.customerId)
       const regs=(await http('/life/registration/list?pageSize=1000')).rows
@@ -173,7 +174,7 @@ async function main() {
     })
     await test('09 代报名只见参与状态，不能代写私人感受；未成年不能发起老带新', async () => {
       const parent=await actor('测试家长'), child=await actor('测试未成年',true)
-      const body={sessionId:third.id,clientRequestId:'family',serviceConsent:true,participants:[{self:true,name:parent.name,phone:'19999990001',minor:false},{self:false,name:'测试同行儿童',minor:true,relation:'子女'}]}
+      const body={sessionId:third.id,clientRequestId:'family',serviceConsent:true,contactName:parent.name,contactPhone:'19999990001',participants:[{self:true,name:parent.name,phone:'19999990001',minor:false},{self:false,name:'测试同行儿童',minor:true,relation:'子女'}]}
       const result=(await http('/app/qinglife/registrations','POST',body,parent.auth)).data
       const childReg=result.registrations.find(r=>r.customerId!==parent.customerId)
       assert.equal((await overview(parent)).registrations.length,2)
@@ -189,7 +190,7 @@ async function main() {
       const tinyInvite=(await http('/life/session/'+tiny.id+'/invitation','POST',{})).data
       await signup(a,await enter(a,tinyInvite))
       const full=await enter(d,tinyInvite); assert.equal(full.data.availability.canRegister,false)
-      const body={sessionId:tiny.id,clientRequestId:'full',serviceConsent:true,participants:[{self:true,name:d.name,phone:'19999990003'}]}
+      const body={sessionId:tiny.id,clientRequestId:'full',serviceConsent:true,contactName:d.name,contactPhone:'19999990003',participants:[{self:true,name:d.name,phone:'19999990003'}]}
       await http('/app/qinglife/registrations','POST',body,d.auth,400)
       a.setOffline(true); const offline=await a.page('camp-flow',{id:third.id}); assert.ok(offline.data.loadError); a.setOffline(false)
       assert.equal((await overview(d)).registrations.length,1)

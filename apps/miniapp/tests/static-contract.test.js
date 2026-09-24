@@ -13,6 +13,8 @@ const nativeTags = [
   'input',
   'rich-text',
   'switch',
+  'swiper',
+  'swiper-item',
   'text',
   'textarea',
   'view'
@@ -25,6 +27,10 @@ const contentPage = fs.readFileSync(path.join(root, 'pages/content/index.wxml'),
 const friendsPage = fs.readFileSync(path.join(root, 'pages/friends/index.wxml'), 'utf8')
 const minePage = fs.readFileSync(path.join(root, 'pages/mine/index.wxml'), 'utf8')
 const mineFlowPage = fs.readFileSync(path.join(root, 'pages/mine-flow/index.wxml'), 'utf8')
+const homePage = fs.readFileSync(path.join(root, 'pages/home/index.wxml'), 'utf8')
+const campFlowPage = fs.readFileSync(path.join(root, 'pages/camp-flow/index.wxml'), 'utf8')
+const staffWorkspacePage = fs.readFileSync(path.join(root, 'staff/workspace/index.wxml'), 'utf8')
+const businessApi = fs.readFileSync(path.join(root, 'services/business-api.js'), 'utf8')
 const demoData = require(path.join(root, 'data/demo'))
 assert.ok(contentPage.includes('article-footer') && !contentPage.includes('阅读全文'), '文章卡片整体可点击时不应重复展示阅读入口')
 assert.ok(contentPage.includes('chooseTopic') && !contentPage.includes('content-switch'), '轻读使用主题与统一列表')
@@ -36,6 +42,13 @@ assert.ok(!minePage.includes('timeline-title') && !minePage.includes('timeline-n
 assert.ok(!minePage.includes('我的轻习惯') && !minePage.includes('切换演示阶段'), '我的页面不能展示轻习惯或演示控制')
 assert.deepStrictEqual(demoData.participations.map((item) => item.sessionNumber), [501, 357, 100], '一级参与经历需按明确期次展示')
 assert.ok(mineFlowPage.includes('experience-accordion') && mineFlowPage.includes('toggleExperienceDetail'), '二级经历页需折叠展示当天节点')
+assert.ok(homePage.includes('featured-camp') && homePage.includes('featuredReadings') && homePage.includes('<swiper'), '首页需保持当前活动和可滑动精选轻读')
+assert.ok(campFlowPage.includes('主要联系人') && campFlowPage.includes('手机号（选填）'), '报名需区分可靠联系人和可缺失手机号的参与人')
+assert.ok(campFlowPage.includes('结算状态：待工作人员确认') && campFlowPage.includes('结算结果：已使用') && !campFlowPage.includes('付款状态：'), '轻友端只展示报名状态和已确认的现金或卡次结算结果')
+assert.ok(minePage.includes('当前剩余') && minePage.includes('卡次消耗记录'), '轻友端需展示当前卡次余额和消耗记录')
+assert.ok(minePage.includes('联系轻生活') && minePage.includes('复制微信号'), '我的页面需提供稳定客服入口')
+assert.ok(staffWorkspacePage.includes("view==='settlement'") && staffWorkspacePage.includes('确认结算结果'), '工作人员端需支持人工确认最终结算')
+assert.ok(businessApi.includes("'/readings/featured'") && businessApi.includes("'/contact'"), '首页精选和客服必须读取统一业务配置')
 
 for (const page of ['content', 'friends', 'mine', 'camp-flow', 'friend-flow', 'mine-flow']) {
   const wxml = fs.readFileSync(path.join(root, 'pages', page, 'index.wxml'), 'utf8')

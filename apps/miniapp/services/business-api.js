@@ -48,7 +48,7 @@ function request(path, method = 'GET', data, auth = true) {
       header: { 'content-type': 'application/json', ...(token ? { token } : {}) },
       success(res) {
         if (res.statusCode >= 200 && res.statusCode < 300 && res.data && res.data.code === 200) resolve(res.data.data)
-        else { const error = new Error(res.data && (res.data.msg || res.data.message) || '服务暂时无法访问'); error.code = res.data && res.data.code || res.statusCode; if (error.code === 401) wx.removeStorageSync(tokenKey()); reject(error) }
+        else { const error = new Error(res.data && (res.data.msg || res.data.message) || '服务暂时无法访问'); error.code = res.data && res.data.code || res.statusCode; if (auth && error.code === 401) wx.removeStorageSync(tokenKey()); reject(error) }
       }, fail(error) { reject(new Error(error.errMsg || error.message || '网络暂时无法连接，请重试')) }
     }))
   })
@@ -58,7 +58,7 @@ function activity(raw) {
   const seats = Math.max(0, Number(raw.capacity) - Number(raw.registeredCount || 0))
   return { ...raw, date: String(raw.startDate).slice(0,10) + '—' + String(raw.endDate).slice(0,10), startDate: String(raw.startDate).slice(0,10), endDate: String(raw.endDate).slice(0,10), status: raw.status === 'open' && !seats ? '已满' : statuses[raw.status] || raw.status,
     statusTone: raw.status === 'open' ? seats ? 'open' : 'full' : raw.status === 'cancelled' ? 'cancelled' : 'planned', sourceStatus: raw.status,
-    seatsLeft: seats, fee: raw.standardPrice, returningFee: raw.returningPrice, place: raw.venue || '', leader: raw.leaderName || '',
+    seatsLeft: seats, fee: raw.standardPrice, returningFee: raw.returningPrice, place: raw.venue || '', leader: raw.leaderName || '', theme: raw.theme || raw.name, cover: raw.coverUrl || '',
     suitedFor: [], talkFirst: ['如有身体或饮食方面的顾虑，请先与工作人员沟通。'],
     rules: { change: raw.cancelPolicy || '改期与取消请联系工作人员确认。', body: '出现不适可以暂停，并告知工作人员。', privacy: '个人感受仅自己可见，不会随邀请分享。' },
     days: (raw.days || []).map(day => ({ ...day, label: '第' + day.dayNo + '天', time: [day.startTime,day.endTime].filter(Boolean).join('—') })) }
@@ -78,7 +78,7 @@ async function refreshHabit() { return applyHabit((await request('/me/overview')
   const selected = id ? activity(await request('/sessions/' + encodeURIComponent(id), 'GET', null, false)) : list[0] || null
   if (selected && !list.some(item => item.id === selected.id)) list.push(selected)
   const token = wx.getStorageSync(tokenKey())
-  const overview = token ? await request('/me/overview') : { registrations: [], attendance: [], experienceRecords: [] }
+  const overview = token ? await request('/me/overview') : { registrations: [], attendance: [], experienceRecords: [], passAccounts: [], passLedger: [] }
   const local = store.getState(), profile = overview.profile || {}
   for (const row of overview.registrations || []) {
     if (!list.some(item => item.id === row.sessionId)) list.push(activity(await request('/sessions/' + encodeURIComponent(row.sessionId), 'GET', null, false)))
@@ -88,17 +88,21 @@ async function refreshHabit() { return applyHabit((await request('/me/overview')
     const isSelf = row.isSelf === true || row.isSelf === 1 || row.isSelf === '1'
     const attended = row.participated === true || row.participated === 1 || row.participated === '1'
     const status = row.sessionStatus === 'completed' && row.registrationStatus === 'confirmed' && attended ? 'completed' : row.registrationStatus
-    if (!registrations[row.sessionId]) registrations[row.sessionId] = { activityId: row.sessionId, status, participants: [], serviceConsent: true, paymentStatus: row.paymentStatus, payableAmount: row.payableAmount }
+    if (!registrations[row.sessionId]) { const account=(overview.passAccounts||[]).find(item=>item.id===row.passAccountId);registrations[row.sessionId] = { activityId: row.sessionId, status, participants: [], serviceConsent: true, quotedAmount: row.quotedAmount, finalAmount: row.finalAmount, settlementStatus: row.settlementStatus || 'pending', paymentStatus: row.orderPaymentStatus || row.paymentStatus, settlementType: row.settlementType, passUnits: row.passUnits, passAccountId:row.passAccountId, currentPassBalance:account?account.balance:null, contactName: row.contactName, contactPhone: row.contactPhone } }
     if (isSelf) registrations[row.sessionId].status = status
     registrations[row.sessionId].participants.push({ id: isSelf ? 'person-self' : row.customerId, customerId: row.customerId, registrationId: row.registrationId, name: row.participantName || (isSelf ? profile.name : '') || '参与者', relation: isSelf ? '本人' : row.relation || '同行', selected: true, minor: !!row.minor, status })
   }
   const self = { id: 'person-self', name: profile.name || '本人', relation: '本人', minor: !!profile.minor, phone: profile.phone || '', selected: true }
-  const registration = registrations[id] || Object.values(registrations)[0] || { activityId: id || '', status: 'none', participants: [self], serviceConsent: false }
+  const registration = registrations[id] || Object.values(registrations)[0] || { activityId: id || '', status: 'none', participants: [self], serviceConsent: false, contactName: profile.name || '', contactPhone: profile.phone || '' }
   const backendHabit = normalizeHabit(overview.habit)
-  const state = { ...local, backend: true, returningEligible: !!overview.returningEligible, invitationEligible: !!overview.invitationEligible, phone: profile.phone || '', loggedIn: !!overview.customerId, phoneLinked: !!overview.customerId, profile: { name: profile.name || '轻友', nickname: profile.name || '轻友', minor: !!profile.minor }, registrations, registration, habit: backendHabit, checkedDays: [], dailyRecords: {}, experienceReviews: {}, arrivalConfirmations: {}, stage: overview.habit ? 'habit' : 'journey' }
+  const passAccounts=overview.passAccounts||[],passLedger=overview.passLedger||[];const currentPassBalance=passAccounts.filter(item=>Number(item.usable)).reduce((sum,item)=>sum+Number(item.balance||0),0)
+  const state = { ...local, backend: true, returningEligible: !!overview.returningEligible, invitationEligible: !!overview.invitationEligible, phone: profile.phone || '', loggedIn: !!overview.customerId, phoneLinked: !!overview.customerId, profile: { name: profile.name || '轻友', nickname: profile.name || '轻友', minor: !!profile.minor }, registrations, registration, passAccounts, passLedger, currentPassBalance, habit: backendHabit, checkedDays: [], dailyRecords: {}, experienceReviews: {}, arrivalConfirmations: {}, stage: overview.habit ? 'habit' : 'journey' }
   return { activities: list, activity: selected, overview, state }
 }
 module.exports = { normalizeHabit, applyHabit, refreshHabit, BASE_KEY, baseUrl, enabled, request, activity, sessions, context, login: ensureToken,
+  featuredReadings: () => request('/readings/featured', 'GET', null, false),
+  reading: id => request('/readings/' + encodeURIComponent(id), 'GET', null, false),
+  contact: () => request('/contact', 'GET', null, false),
   resolveInvitation: code => request('/invitations/' + encodeURIComponent(code), 'GET', null, false),
   register: data => request('/registrations', 'POST', data),
   saveExperience: data => request('/experience-records', 'PUT', data),

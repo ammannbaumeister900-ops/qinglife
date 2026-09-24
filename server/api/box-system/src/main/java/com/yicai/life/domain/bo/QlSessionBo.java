@@ -23,6 +23,8 @@ public class QlSessionBo extends BaseEntity {
     private Integer sessionNumber;
     @NotBlank(message = "期次名称不能为空", groups = {AddGroup.class, EditGroup.class})
     private String name;
+    private String theme;
+    private String coverUrl;
     private String intro;
     @NotNull(message = "开始日期不能为空", groups = {AddGroup.class, EditGroup.class})
     @JsonFormat(pattern = "yyyy-MM-dd")

@@ -10,6 +10,8 @@
     <el-table v-loading="loading" :data="sessionList">
       <el-table-column label="期次" prop="sessionNumber" width="120"><template slot-scope="scope">第 {{ scope.row.sessionNumber }} 期</template></el-table-column>
       <el-table-column label="名称" prop="name" min-width="160" />
+      <el-table-column label="当期主题" prop="theme" min-width="180" show-overflow-tooltip />
+      <el-table-column label="封面" width="100"><template slot-scope="scope"><el-image v-if="scope.row.coverUrl" :src="scope.row.coverUrl" fit="cover" style="width:72px;height:44px" /></template></el-table-column>
       <el-table-column label="活动日期" min-width="190"><template slot-scope="scope">{{ scope.row.startDate }} 至 {{ scope.row.endDate }}</template></el-table-column>
       <el-table-column label="城市" prop="city" width="90" />
       <el-table-column label="公开地点" min-width="140" show-overflow-tooltip><template slot-scope="scope">{{ scope.row.publicVenue || scope.row.venue }}</template></el-table-column>

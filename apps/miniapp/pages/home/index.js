@@ -4,23 +4,25 @@ const demo = require('../../data/demo')
 const domain = require('../../utils/domain')
 const discovery = require('../../utils/discovery')
 const navigation = require('../../utils/navigation')
+const readingSamples = require('../../data/reading-samples')
 Page({
-  data: { view: {}, state: {} },
+  data: { view: {}, state: {}, featuredReadings: [] },
   async onShow() {
     const tab = this.getTabBar && this.getTabBar()
     if (tab) tab.setData({ selected: 0 })
     if (business.enabled()) {
       this.setData({ loading: !this.data.ready, refreshing: !!this.data.ready, loadError: '' })
-      try { const { state, activities } = await business.context(); this.setData({ state, ready: true, returning: discovery.returning(state), featured: discovery.activities(activities).find(a => a.canRegister) || null, view: domain.homeTask(state, activities) }) }
+      try { const [{ state, activities }, featuredReadings] = await Promise.all([business.context(), business.featuredReadings().catch(() => [])]); this.setData({ state, featuredReadings: featuredReadings || [], ready: true, returning: discovery.returning(state), featured: discovery.activities(activities).find(a => a.canRegister) || null, view: domain.homeTask(state, activities) }) }
       catch (error) { this.setData({ loadError: error.message, ...(error.code === 401 ? { state: {}, participationTimeline: [], currentRegistrations: [], returning: false } : {}) }) }
       finally { this.setData({ loading: false, refreshing: false }) }
       return
     }
     const state = store.getState()
-    this.setData({ state, ready: true, returning: discovery.returning(state), featured: discovery.activities(demo.activities).find(a => a.canRegister) || null, view: domain.homeTask(state, demo.activities) })
+    this.setData({ state, featuredReadings: readingSamples.slice(0, 4), ready: true, returning: discovery.returning(state), featured: discovery.activities(demo.activities).find(a => a.canRegister) || null, view: domain.homeTask(state, demo.activities) })
   },
   openActivity(event) { navigation.navigateTo({ url: '/pages/camp-flow/index?view=' + (event.currentTarget.dataset.view || 'detail') + '&id=' + encodeURIComponent(this.data.featured.id) }) },
   openReading() { navigation.switchTab({ url: '/pages/content/index' }) },
+  openArticle(event) { const { id, title } = event.currentTarget.dataset; navigation.navigateTo({ url: '/pages/article/index?id=' + encodeURIComponent(id) + '&title=' + encodeURIComponent(title || '') }) },
   openCamp() { navigation.switchTab({ url: '/pages/camp/index' }) },
   openPrimary() {
     const view = this.data.view

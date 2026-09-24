@@ -42,13 +42,14 @@ public interface QlMiniAppMapper {
                          @Param("status") String status, @Param("legacyUserId") Long legacyUserId,
                          @Param("now") Date now);
 
-    @Select("SELECT COALESCE(real_name,nickname) AS name, (birth_date IS NOT NULL AND TIMESTAMPDIFF(YEAR,birth_date,CURRENT_DATE())<18) AS minor FROM ql_customer WHERE id=#{id}")
+    @Select("SELECT COALESCE(c.real_name,c.nickname) AS name, (c.birth_date IS NOT NULL AND TIMESTAMPDIFF(YEAR,c.birth_date,CURRENT_DATE())<18) AS minor, " +
+            "(SELECT i.identifier_value FROM ql_customer_identifier i WHERE i.customer_id=c.id AND i.identifier_type='phone' AND i.valid_to IS NULL ORDER BY i.is_primary DESC,i.created_at LIMIT 1) AS phone FROM ql_customer c WHERE c.id=#{id}")
     Map<String,Object> selectCustomerProfile(@Param("id") String id);
 
     @Select("SELECT id FROM ql_customer WHERE id=#{id} FOR UPDATE")
     String lockCustomer(@Param("id") String id);
 
-    @Select("SELECT s.id, s.session_number AS sessionNumber, s.name, s.intro, s.start_date AS startDate, " +
+    @Select("SELECT s.id, s.session_number AS sessionNumber, s.name, s.theme, s.cover_url AS coverUrl, s.intro, s.start_date AS startDate, " +
             "s.end_date AS endDate, s.capacity, s.standard_price AS standardPrice, s.returning_price AS returningPrice, s.public_venue AS venue, " +
             "s.city, s.status, s.registration_confirm_mode AS confirmMode, s.registration_open_at AS registrationOpenAt, " +
             "s.registration_close_at AS registrationCloseAt, s.leader_name AS leaderName, s.cancel_policy AS cancelPolicy, " +
@@ -64,7 +65,7 @@ public interface QlMiniAppMapper {
     @Select("<script>SELECT id, session_id AS sessionId, day_no AS dayNo, activity_date AS activityDate, " +
             "start_time AS startTime, end_time AS endTime, theme, status FROM ql_session_day " +
             "WHERE status&lt;&gt;'cancelled' AND session_id IN " +
-            "&lt;foreach collection='sessionIds' item='sessionId' open='(' separator=',' close=')'&gt;#{sessionId}&lt;/foreach&gt; " +
+            "<foreach collection='sessionIds' item='sessionId' open='(' separator=',' close=')'>#{sessionId}</foreach> " +
             "ORDER BY session_id, day_no</script>")
     List<Map<String, Object>> selectSessionDaysBySessionIds(@Param("sessionIds") List<String> sessionIds);
 
@@ -81,28 +82,29 @@ public interface QlMiniAppMapper {
     int cancelExtraSessionDays(@Param("sessionId") String sessionId, @Param("dayCount") int dayCount,
                                @Param("operatorId") Long operatorId, @Param("now") Date now);
 
-    @Select("SELECT id, start_date AS startDate, end_date AS endDate, session_number AS sessionNumber, name, standard_price AS standardPrice, returning_price AS returningPrice, " +
+    @Select("SELECT id, start_date AS startDate, end_date AS endDate, session_number AS sessionNumber, name, theme, cover_url AS coverUrl, standard_price AS standardPrice, returning_price AS returningPrice, " +
             "registration_confirm_mode AS confirmMode, registration_open_at AS registrationOpenAt, " +
             "registration_close_at AS registrationCloseAt, status, capacity, " +
             "(SELECT COUNT(*) FROM ql_registration r WHERE r.session_id=ql_session.id AND r.registration_status IN ('pending','confirmed')) AS registeredCount " +
             "FROM ql_session WHERE id=#{id} FOR UPDATE")
     Map<String, Object> selectSessionForRegistration(@Param("id") String id);
 
-    @Select("SELECT id, order_no AS orderNo, payment_status AS paymentStatus, participant_count AS participantCount, payable_amount AS payableAmount, request_fingerprint AS requestFingerprint " +
+    @Select("SELECT id, order_no AS orderNo, payment_status AS paymentStatus, participant_count AS participantCount, quoted_amount AS quotedAmount, final_amount AS finalAmount, settlement_status AS settlementStatus, settlement_type AS settlementType, pass_units AS passUnits, payable_amount AS payableAmount, request_fingerprint AS requestFingerprint " +
             "FROM ql_registration_batch WHERE source='mini_program' AND client_request_id=#{clientRequestId} LIMIT 1")
     Map<String, Object> selectBatchByClientRequestId(@Param("clientRequestId") String clientRequestId);
 
     @Select("SELECT id FROM ql_registration WHERE session_id=#{sessionId} AND registration_status IN ('pending','confirmed') FOR UPDATE")
     List<String> selectOccupiedRegistrations(@Param("sessionId") String sessionId);
 
-    @Insert("INSERT INTO ql_registration_batch(id, order_no, session_id, submitted_by_customer_id, source, " +
-            "client_request_id, participant_count, payable_amount, payment_status, submitted_at, created_at) " +
-            "VALUES(#{id}, #{orderNo}, #{sessionId}, #{buyerId}, 'mini_program', #{clientRequestId}, #{count}, " +
-            "#{amount}, 'unpaid', #{now}, #{now})")
+    @Insert("INSERT INTO ql_registration_batch(id, order_no, session_id, submitted_by_customer_id, contact_name, contact_phone, source, " +
+            "client_request_id, participant_count, quoted_amount, payable_amount, payment_status, settlement_status, submitted_at, created_at) " +
+            "VALUES(#{id}, #{orderNo}, #{sessionId}, #{buyerId}, #{contactName}, #{contactPhone}, 'mini_program', #{clientRequestId}, #{count}, " +
+            "#{quotedAmount}, 0, 'unpaid', 'pending', #{now}, #{now})")
     int insertRegistrationBatch(@Param("id") String id, @Param("orderNo") String orderNo,
                                 @Param("sessionId") String sessionId, @Param("buyerId") String buyerId,
-                                @Param("clientRequestId") String clientRequestId, @Param("count") int count,
-                                @Param("amount") BigDecimal amount, @Param("now") Date now);
+                                 @Param("contactName") String contactName, @Param("contactPhone") String contactPhone,
+                                 @Param("clientRequestId") String clientRequestId, @Param("count") int count,
+                                 @Param("quotedAmount") BigDecimal quotedAmount, @Param("now") Date now);
 
     @Insert("INSERT INTO ql_registration(id, batch_id, customer_id, session_id, registration_status, payment_status, " +
             "registration_source, motivation, relation_snapshot, is_minor_snapshot, registered_at, revision, created_at, updated_at) " +
@@ -134,12 +136,25 @@ public interface QlMiniAppMapper {
                              @Param("policyVersion") String policyVersion, @Param("now") Date now);
 
     @Select("SELECT r.id AS registrationId, r.registration_status AS registrationStatus, r.payment_status AS paymentStatus, " +
-            "r.registered_at AS registeredAt, b.id AS batchId, b.order_no AS orderNo, b.payment_status AS orderPaymentStatus, b.payable_amount AS payableAmount, r.unit_price AS unitPrice, " +
+            "r.registered_at AS registeredAt, b.id AS batchId, b.order_no AS orderNo, b.contact_name AS contactName, b.contact_phone AS contactPhone, b.payment_status AS orderPaymentStatus, b.quoted_amount AS quotedAmount, COALESCE(b.final_amount,r.final_amount) AS finalAmount, COALESCE(b.settlement_status,r.settlement_status) AS settlementStatus, COALESCE(b.settlement_type,r.settlement_type) AS settlementType, COALESCE(b.pass_units,r.pass_units) AS passUnits, COALESCE(b.pass_account_id,r.pass_account_id) AS passAccountId, b.payable_amount AS payableAmount, r.unit_price AS unitPrice, " +
             "r.customer_id AS customerId, c.nickname AS participantName, (r.customer_id=#{customerId}) AS isSelf, r.is_minor_snapshot AS minor, r.relation_snapshot AS relation, s.status AS sessionStatus, s.id AS sessionId, s.session_number AS sessionNumber, s.name AS sessionName, s.start_date AS startDate, s.end_date AS endDate, " +
             "EXISTS(SELECT 1 FROM ql_participation_day pd WHERE pd.registration_id=r.id AND pd.attendance_status IN ('checked_in','late','left_early')) OR EXISTS(SELECT 1 FROM ql_participation p WHERE p.customer_id=r.customer_id AND p.session_id=r.session_id AND p.attendance_status IN ('checked_in','late','left_early','completed') AND NOT EXISTS(SELECT 1 FROM ql_participation_day existing_day JOIN ql_session_day existing_session_day ON existing_session_day.id=existing_day.session_day_id WHERE existing_day.customer_id=r.customer_id AND existing_session_day.session_id=r.session_id)) AS participated " +
             "FROM ql_registration r JOIN ql_customer c ON c.id=r.customer_id JOIN ql_session s ON s.id=r.session_id LEFT JOIN ql_registration_batch b ON b.id=r.batch_id " +
             "WHERE r.customer_id=#{customerId} OR b.submitted_by_customer_id=#{customerId} ORDER BY s.start_date DESC")
     List<Map<String, Object>> selectCustomerRegistrations(@Param("customerId") String customerId);
+
+    @Select("SELECT a.id,a.pass_type AS passType,a.status,DATE_FORMAT(a.valid_until,'%Y-%m-%d') AS validUntil," +
+            "COALESCE(SUM(l.quantity_delta),0) AS balance,CASE WHEN a.status='active' AND (a.valid_from IS NULL OR a.valid_from<=CURRENT_DATE()) AND (a.valid_until IS NULL OR a.valid_until>=CURRENT_DATE()) THEN 1 ELSE 0 END AS usable " +
+            "FROM ql_pass_account a LEFT JOIN ql_pass_ledger l ON l.pass_account_id=a.id WHERE a.customer_id=#{customerId} " +
+            "GROUP BY a.id,a.pass_type,a.status,a.valid_from,a.valid_until ORDER BY a.created_at DESC")
+    List<Map<String,Object>> selectCustomerPassAccounts(@Param("customerId") String customerId);
+
+    @Select("SELECT l.id,l.pass_account_id AS passAccountId,a.pass_type AS passType,l.registration_id AS registrationId," +
+            "l.registration_batch_id AS registrationBatchId,l.entry_type AS entryType,l.quantity_delta AS quantityDelta," +
+            "l.balance_after AS balanceAfter,l.reason,DATE_FORMAT(l.occurred_at,'%Y-%m-%d %H:%i:%s') AS occurredAt," +
+            "s.session_number AS sessionNumber,s.name AS sessionName FROM ql_pass_ledger l JOIN ql_pass_account a ON a.id=l.pass_account_id " +
+            "LEFT JOIN ql_session s ON s.id=l.session_id WHERE a.customer_id=#{customerId} ORDER BY l.occurred_at DESC,l.created_at DESC LIMIT 100")
+    List<Map<String,Object>> selectCustomerPassLedger(@Param("customerId") String customerId);
 
     @Select("SELECT p.id, p.registration_id AS registrationId, p.session_day_id AS sessionDayId, d.day_no AS dayNo, " +
             "d.activity_date AS activityDate, d.theme, p.attendance_status AS attendanceStatus, p.checked_in_at AS checkedInAt " +
@@ -204,7 +219,7 @@ public interface QlMiniAppMapper {
                            @Param("grantedAt") Date grantedAt, @Param("revokedAt") Date revokedAt,
                            @Param("now") Date now);
 
-    @Select("SELECT s.id, s.session_number AS sessionNumber, s.name, s.intro, s.start_date AS startDate, s.end_date AS endDate, s.capacity, s.standard_price AS standardPrice, s.returning_price AS returningPrice, s.public_venue AS venue, s.city, s.status, s.registration_confirm_mode AS confirmMode, s.registration_open_at AS registrationOpenAt, s.registration_close_at AS registrationCloseAt, s.leader_name AS leaderName, s.cancel_policy AS cancelPolicy, (SELECT COUNT(*) FROM ql_registration r WHERE r.session_id=s.id AND r.registration_status IN ('pending','confirmed')) AS registeredCount FROM ql_session s WHERE s.id=#{id} AND s.status<>'draft'")
+    @Select("SELECT s.id, s.session_number AS sessionNumber, s.name, s.theme, s.cover_url AS coverUrl, s.intro, s.start_date AS startDate, s.end_date AS endDate, s.capacity, s.standard_price AS standardPrice, s.returning_price AS returningPrice, s.public_venue AS venue, s.city, s.status, s.registration_confirm_mode AS confirmMode, s.registration_open_at AS registrationOpenAt, s.registration_close_at AS registrationCloseAt, s.leader_name AS leaderName, s.cancel_policy AS cancelPolicy, (SELECT COUNT(*) FROM ql_registration r WHERE r.session_id=s.id AND r.registration_status IN ('pending','confirmed')) AS registeredCount FROM ql_session s WHERE s.id=#{id} AND s.status<>'draft'")
     Map<String, Object> selectSessionDetail(@Param("id") String id);
 
     @Insert("INSERT INTO ql_invitation(code,session_id,owner_customer_id,source,created_at) VALUES(#{code},#{sessionId},#{ownerId},#{source},#{now})")
@@ -222,8 +237,8 @@ public interface QlMiniAppMapper {
     @Update("UPDATE ql_registration SET unit_price=#{price} WHERE id=#{id}")
     int setRegistrationPrice(@Param("id") String id, @Param("price") BigDecimal price);
 
-    @Update("UPDATE ql_registration_batch SET payable_amount=#{amount} WHERE id=#{id}")
-    int setBatchAmount(@Param("id") String id, @Param("amount") BigDecimal amount);
+    @Update("UPDATE ql_registration_batch SET quoted_amount=#{amount} WHERE id=#{id}")
+    int setBatchQuote(@Param("id") String id, @Param("amount") BigDecimal amount);
 
     @Update("UPDATE ql_registration_batch SET request_fingerprint=#{fingerprint} WHERE id=#{id}")
     int setRequestFingerprint(@Param("id") String id, @Param("fingerprint") String fingerprint);
@@ -246,7 +261,10 @@ public interface QlMiniAppMapper {
     @Update("UPDATE ql_registration SET session_referrer_customer_id=#{referrerId},attribution_source='invitation' WHERE id=#{id}")
     int setSessionReferrer(@Param("id") String id, @Param("referrerId") String referrerId);
 
-    @Select("SELECT r.session_id AS sessionId,s.status AS sessionStatus,s.start_date AS startDate,s.end_date AS endDate FROM ql_registration r JOIN ql_session s ON s.id=r.session_id WHERE r.id=#{id} AND r.customer_id=#{customerId} AND r.registration_status='confirmed' AND s.status<>'cancelled'")
+    @Select("SELECT r.session_id AS sessionId,s.status AS sessionStatus,s.start_date AS startDate,s.end_date AS endDate," +
+            "(SELECT d.start_time FROM ql_session_day d WHERE d.session_id=s.id AND d.status<>'cancelled' ORDER BY d.day_no LIMIT 1) AS startTime," +
+            "(SELECT d.end_time FROM ql_session_day d WHERE d.session_id=s.id AND d.status<>'cancelled' ORDER BY d.day_no DESC LIMIT 1) AS endTime " +
+            "FROM ql_registration r JOIN ql_session s ON s.id=r.session_id WHERE r.id=#{id} AND r.customer_id=#{customerId} AND r.registration_status='confirmed' AND s.status<>'cancelled'")
     Map<String,Object> selectExperienceOwner(@Param("id") String id, @Param("customerId") String customerId);
 
     @Insert("INSERT INTO ql_experience_record(id,registration_id,customer_id,session_id,phase,node_key,energy,relaxation,note,visibility_scope,created_at,updated_at) VALUES(#{id},#{registrationId},#{customerId},#{sessionId},#{phase},#{nodeKey},#{energy},#{relaxation},#{note},'private',#{now},#{now}) ON DUPLICATE KEY UPDATE energy=VALUES(energy),relaxation=VALUES(relaxation),note=VALUES(note),updated_at=VALUES(updated_at)")
@@ -254,4 +272,17 @@ public interface QlMiniAppMapper {
 
     @Select("SELECT id,registration_id AS registrationId,session_id AS sessionId,phase,node_key AS nodeKey,energy,relaxation,note,visibility_scope AS visibility,updated_at AS updatedAt FROM ql_experience_record WHERE customer_id=#{customerId} ORDER BY updated_at DESC")
     List<Map<String,Object>> selectExperienceRecords(@Param("customerId") String customerId);
+
+    @Select("SELECT e.id,e.title,e.Introduction AS summary,e.title_url AS cover,e.insert_time AS publishedAt," +
+            "COALESCE(u.nick_name,'轻生活') AS author,COALESCE((SELECT GROUP_CONCAT(l.name ORDER BY el.id SEPARATOR ' · ') FROM essay_label el JOIN label l ON l.id=el.label WHERE el.essay=e.id),'轻生活') AS category " +
+            "FROM essay e LEFT JOIN sys_user u ON u.user_id=e.author WHERE e.status=1 AND e.home_featured=1 ORDER BY e.order_num,e.id LIMIT 8")
+    List<Map<String,Object>> selectFeaturedReadings();
+
+    @Select("SELECT e.id,e.title,e.Introduction AS summary,e.title_url AS cover,e.content,e.insert_time AS publishedAt," +
+            "COALESCE(u.nick_name,'轻生活') AS author,COALESCE((SELECT GROUP_CONCAT(l.name ORDER BY el.id SEPARATOR ' · ') FROM essay_label el JOIN label l ON l.id=el.label WHERE el.essay=e.id),'轻生活') AS category " +
+            "FROM essay e LEFT JOIN sys_user u ON u.user_id=e.author WHERE e.id=#{id} AND e.status=1")
+    Map<String,Object> selectPublicReading(@Param("id") Long id);
+
+    @Select("SELECT config_key AS configKey,config_value AS configValue FROM sys_config WHERE config_key IN ('qinglife.contact.name','qinglife.contact.wechat')")
+    List<Map<String,Object>> selectContactConfig();
 }

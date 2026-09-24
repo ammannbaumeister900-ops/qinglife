@@ -16,6 +16,14 @@ public class QlRegistration implements Serializable {
     @TableId(value = "id", type = IdType.INPUT)
     private String id;
     private java.math.BigDecimal unitPrice;
+    private java.math.BigDecimal finalAmount;
+    private String settlementStatus;
+    private String settlementType;
+    private Integer passUnits;
+    private String passAccountId;
+    private String settlementNote;
+    private Long settlementConfirmedBy;
+    private Date settlementConfirmedAt;
     private String batchId;
     private String customerId;
     private String sessionId;

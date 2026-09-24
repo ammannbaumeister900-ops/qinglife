@@ -10,6 +10,7 @@ import org.apache.ibatis.annotations.Param;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.math.BigDecimal;
 
 public interface QlRegistrationMapper extends BaseMapperPlus<QlRegistration> {
     Page<QlRegistrationVo> selectPageList(@Param("page") Page<QlRegistrationVo> page,
@@ -31,4 +32,21 @@ public interface QlRegistrationMapper extends BaseMapperPlus<QlRegistration> {
                                  @Param("updatedAt") Date updatedAt);
     int updateRegistrationPaymentByBatch(@Param("batchId") String batchId, @Param("toStatus") String toStatus,
                                          @Param("operatorId") Long operatorId, @Param("updatedAt") Date updatedAt);
+    int confirmBatchSettlement(@Param("batchId") String batchId, @Param("finalAmount") BigDecimal finalAmount,
+                               @Param("settlementType") String settlementType, @Param("passUnits") Integer passUnits,
+                               @Param("passAccountId") String passAccountId,
+                               @Param("note") String note, @Param("operatorId") Long operatorId,
+                               @Param("confirmedAt") Date confirmedAt);
+    int confirmRegistrationSettlement(@Param("id") String id, @Param("finalAmount") BigDecimal finalAmount,
+                                      @Param("settlementType") String settlementType, @Param("passUnits") Integer passUnits,
+                                      @Param("passAccountId") String passAccountId,
+                                      @Param("note") String note, @Param("operatorId") Long operatorId,
+                                      @Param("confirmedAt") Date confirmedAt);
+    @org.apache.ibatis.annotations.Insert("INSERT INTO ql_settlement_log(id,registration_id,registration_batch_id,quoted_amount,final_amount,settlement_type,pass_units,pass_account_id,pass_balance_after,note,operator_id,confirmed_at) VALUES(#{id},#{registrationId},#{batchId},#{quotedAmount},#{finalAmount},#{settlementType},#{passUnits},#{passAccountId},#{passBalanceAfter},#{note},#{operatorId},#{confirmedAt})")
+    int insertSettlementLog(@Param("id") String id, @Param("registrationId") String registrationId,
+                            @Param("batchId") String batchId, @Param("quotedAmount") BigDecimal quotedAmount,
+                            @Param("finalAmount") BigDecimal finalAmount, @Param("settlementType") String settlementType,
+                            @Param("passUnits") Integer passUnits, @Param("passAccountId") String passAccountId,
+                            @Param("passBalanceAfter") Integer passBalanceAfter, @Param("note") String note,
+                            @Param("operatorId") Long operatorId, @Param("confirmedAt") Date confirmedAt);
 }
