@@ -24,6 +24,7 @@ public class QlRegistrationVo {
     private Integer passUnits;
     private String passAccountId;
     private String settlementNote;
+    private String currentSettlementId;
     private String batchPaymentStatus;
     private String customerId;
     private String customerNo;

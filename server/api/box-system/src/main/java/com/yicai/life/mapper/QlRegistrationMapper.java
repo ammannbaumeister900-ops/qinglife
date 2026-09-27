@@ -26,18 +26,46 @@ public interface QlRegistrationMapper extends BaseMapperPlus<QlRegistration> {
     @org.apache.ibatis.annotations.Select("SELECT session_id FROM ql_registration_batch WHERE id=#{batchId}")
     String selectBatchSessionId(@Param("batchId") String batchId);
     Map<String, Object> selectBatchForPayment(@Param("batchId") String batchId);
+    Map<String, Object> selectSettlementLogForUpdate(@Param("settlementId") String settlementId);
+    Map<String, Object> selectSettlementReversalForUpdate(@Param("settlementId") String settlementId);
+    int countPaidTransactionsByBatch(@Param("batchId") String batchId);
+    int countPaidTransactionsByRegistration(@Param("registrationId") String registrationId);
+    int countPassLedgerEntriesBySettlement(@Param("settlementId") String settlementId);
+    int updateBatchSettlementToPending(@Param("batchId") String batchId,
+                                       @Param("settlementId") String settlementId);
+    int updateRegistrationSettlementToPending(@Param("registrationId") String registrationId,
+                                              @Param("settlementId") String settlementId,
+                                              @Param("operatorId") Long operatorId,
+                                              @Param("updatedAt") Date updatedAt);
+    int insertSettlementReversal(@Param("settlementId") String settlementId,
+                                 @Param("registrationId") String registrationId,
+                                 @Param("batchId") String batchId,
+                                 @Param("finalAmount") BigDecimal finalAmount,
+                                 @Param("settlementType") String settlementType,
+                                 @Param("passAccountId") String passAccountId,
+                                 @Param("passUnits") Integer passUnits,
+                                 @Param("originalPassLedgerId") String originalPassLedgerId,
+                                 @Param("passBalanceAfter") Integer passBalanceAfter,
+                                 @Param("reason") String reason,
+                                 @Param("operatorId") Long operatorId,
+                                 @Param("reversedAt") Date reversedAt);
+
+    int updateSettlementLogBalance(@Param("settlementId") String settlementId,
+                                   @Param("passBalanceAfter") Integer passBalanceAfter);
     List<String> selectRegistrationIdsByBatch(@Param("batchId") String batchId);
     int updateBatchPaymentStatus(@Param("batchId") String batchId, @Param("fromStatus") String fromStatus,
                                  @Param("toStatus") String toStatus, @Param("operatorId") Long operatorId,
                                  @Param("updatedAt") Date updatedAt);
     int updateRegistrationPaymentByBatch(@Param("batchId") String batchId, @Param("toStatus") String toStatus,
                                          @Param("operatorId") Long operatorId, @Param("updatedAt") Date updatedAt);
-    int confirmBatchSettlement(@Param("batchId") String batchId, @Param("finalAmount") BigDecimal finalAmount,
+    int confirmBatchSettlement(@Param("batchId") String batchId, @Param("settlementId") String settlementId,
+                               @Param("finalAmount") BigDecimal finalAmount,
                                @Param("settlementType") String settlementType, @Param("passUnits") Integer passUnits,
                                @Param("passAccountId") String passAccountId,
                                @Param("note") String note, @Param("operatorId") Long operatorId,
                                @Param("confirmedAt") Date confirmedAt);
-    int confirmRegistrationSettlement(@Param("id") String id, @Param("finalAmount") BigDecimal finalAmount,
+    int confirmRegistrationSettlement(@Param("id") String id, @Param("settlementId") String settlementId,
+                                      @Param("finalAmount") BigDecimal finalAmount,
                                       @Param("settlementType") String settlementType, @Param("passUnits") Integer passUnits,
                                       @Param("passAccountId") String passAccountId,
                                       @Param("note") String note, @Param("operatorId") Long operatorId,

@@ -5,12 +5,13 @@
         r.id, r.batch_id, b.order_no, b.submitted_by_customer_id AS buyer_customer_id,
         buyer.nickname AS buyer_nickname, b.contact_name, b.contact_phone, b.participant_count,
         b.quoted_amount, b.payable_amount,
-        COALESCE(b.final_amount,r.final_amount) AS final_amount,
-        COALESCE(b.settlement_status,r.settlement_status) AS settlement_status,
-        COALESCE(b.settlement_type,r.settlement_type) AS settlement_type,
-        COALESCE(b.pass_units,r.pass_units) AS pass_units,
-        COALESCE(b.pass_account_id,r.pass_account_id) AS pass_account_id,
-        COALESCE(b.settlement_note,r.settlement_note) AS settlement_note,
+        CASE WHEN b.id IS NOT NULL THEN b.final_amount ELSE r.final_amount END AS final_amount,
+        CASE WHEN b.id IS NOT NULL THEN b.settlement_status ELSE r.settlement_status END AS settlement_status,
+        CASE WHEN b.id IS NOT NULL THEN b.settlement_type ELSE r.settlement_type END AS settlement_type,
+        CASE WHEN b.id IS NOT NULL THEN b.pass_units ELSE r.pass_units END AS pass_units,
+        CASE WHEN b.id IS NOT NULL THEN b.pass_account_id ELSE r.pass_account_id END AS pass_account_id,
+        CASE WHEN b.id IS NOT NULL THEN b.settlement_note ELSE r.settlement_note END AS settlement_note,
+        CASE WHEN b.id IS NOT NULL THEN b.current_settlement_id ELSE r.current_settlement_id END AS current_settlement_id,
         b.payment_status AS batch_payment_status,
         r.customer_id, c.customer_no, c.nickname, c.real_name,
         r.session_id, s.session_number, s.name AS session_name, COALESCE(r.unit_price,s.standard_price) AS standard_price,
@@ -70,10 +71,74 @@
                b.payment_status AS paymentStatus, b.quoted_amount AS quotedAmount,
                b.payable_amount AS payableAmount, b.final_amount AS finalAmount,
                b.settlement_status AS settlementStatus, b.settlement_type AS settlementType,
-               b.pass_account_id AS passAccountId
+               b.pass_units AS passUnits, b.pass_account_id AS passAccountId,
+               b.current_settlement_id AS currentSettlementId
         FROM ql_registration_batch b
         WHERE b.id = #{batchId} FOR UPDATE
     </select>
+
+    <select id="selectSettlementLogForUpdate" resultType="java.util.HashMap">
+        SELECT id, registration_id AS registrationId, registration_batch_id AS batchId,
+               quoted_amount AS quotedAmount, final_amount AS finalAmount,
+               settlement_type AS settlementType, pass_units AS passUnits,
+               pass_account_id AS passAccountId, pass_balance_after AS passBalanceAfter,
+               note, operator_id AS operatorId, confirmed_at AS confirmedAt
+        FROM ql_settlement_log WHERE id=#{settlementId} FOR UPDATE
+    </select>
+
+    <select id="selectSettlementReversalForUpdate" resultType="java.util.HashMap">
+        SELECT settlement_id AS settlementId, registration_id AS registrationId,
+               registration_batch_id AS batchId
+        FROM ql_settlement_reversal WHERE settlement_id=#{settlementId} FOR UPDATE
+    </select>
+
+    <select id="countPaidTransactionsByBatch" resultType="int">
+        SELECT COUNT(*) FROM ql_transaction
+        WHERE registration_batch_id=#{batchId} AND transaction_type='session' AND status='paid'
+    </select>
+
+    <select id="countPaidTransactionsByRegistration" resultType="int">
+        SELECT COUNT(*) FROM ql_transaction
+        WHERE registration_id=#{registrationId} AND transaction_type='session' AND status='paid'
+    </select>
+
+    <select id="countPassLedgerEntriesBySettlement" resultType="int">
+        SELECT COUNT(*) FROM ql_pass_ledger WHERE settlement_id=#{settlementId}
+    </select>
+
+    <update id="updateBatchSettlementToPending">
+        UPDATE ql_registration_batch
+        SET final_amount=NULL, payable_amount=quoted_amount, settlement_status='pending',
+            settlement_type=NULL, pass_units=NULL, pass_account_id=NULL, settlement_note=NULL,
+            settlement_confirmed_by=NULL, settlement_confirmed_at=NULL, current_settlement_id=NULL
+        WHERE id=#{batchId} AND settlement_status='confirmed' AND current_settlement_id=#{settlementId}
+    </update>
+
+    <update id="updateRegistrationSettlementToPending">
+        UPDATE ql_registration
+        SET final_amount=NULL, settlement_status='pending', settlement_type=NULL,
+            pass_units=NULL, pass_account_id=NULL, settlement_note=NULL,
+            settlement_confirmed_by=NULL, settlement_confirmed_at=NULL, current_settlement_id=NULL,
+            updated_by=#{operatorId}, updated_at=#{updatedAt}, revision=revision+1
+        WHERE id=#{registrationId} AND settlement_status='confirmed' AND current_settlement_id=#{settlementId}
+    </update>
+
+    <insert id="insertSettlementReversal">
+        INSERT INTO ql_settlement_reversal
+          (settlement_id,registration_id,registration_batch_id,original_final_amount,
+           original_settlement_type,original_pass_account_id,original_pass_ledger_id,
+           original_pass_units,pass_balance_after,reason,operator_id,reversed_at)
+        VALUES
+          (#{settlementId},#{registrationId},#{batchId},#{finalAmount},
+           #{settlementType},#{passAccountId},#{originalPassLedgerId},
+           #{passUnits},#{passBalanceAfter},#{reason},#{operatorId},#{reversedAt})
+    </insert>
+
+
+    <update id="updateSettlementLogBalance">
+        UPDATE ql_settlement_log SET pass_balance_after=#{passBalanceAfter}
+        WHERE id=#{settlementId}
+    </update>
 
     <select id="selectRegistrationIdsByBatch" resultType="java.lang.String">
         SELECT id FROM ql_registration WHERE batch_id = #{batchId}
@@ -96,7 +161,8 @@
         UPDATE ql_registration_batch
         SET final_amount=#{finalAmount}, payable_amount=#{finalAmount}, settlement_status='confirmed',
             settlement_type=#{settlementType}, pass_units=#{passUnits}, pass_account_id=#{passAccountId}, settlement_note=#{note},
-            settlement_confirmed_by=#{operatorId}, settlement_confirmed_at=#{confirmedAt}
+            settlement_confirmed_by=#{operatorId}, settlement_confirmed_at=#{confirmedAt},
+            current_settlement_id=#{settlementId}
         WHERE id=#{batchId} AND payment_status='unpaid' AND settlement_status='pending'
     </update>
 
@@ -104,7 +170,8 @@
         UPDATE ql_registration
         SET final_amount=#{finalAmount}, settlement_status='confirmed', settlement_type=#{settlementType},
             pass_units=#{passUnits}, pass_account_id=#{passAccountId}, settlement_note=#{note}, settlement_confirmed_by=#{operatorId},
-            settlement_confirmed_at=#{confirmedAt}, updated_by=#{operatorId}, updated_at=#{confirmedAt}, revision=revision+1
+            settlement_confirmed_at=#{confirmedAt}, current_settlement_id=#{settlementId},
+            updated_by=#{operatorId}, updated_at=#{confirmedAt}, revision=revision+1
         WHERE id=#{id} AND payment_status='unpaid' AND settlement_status='pending'
     </update>
 </mapper>

@@ -24,6 +24,7 @@ public class QlRegistration implements Serializable {
     private String settlementNote;
     private Long settlementConfirmedBy;
     private Date settlementConfirmedAt;
+    private String currentSettlementId;
     private String batchId;
     private String customerId;
     private String sessionId;

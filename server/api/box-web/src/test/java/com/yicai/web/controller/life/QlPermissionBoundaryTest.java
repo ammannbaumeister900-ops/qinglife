@@ -7,6 +7,7 @@ import com.yicai.framework.web.service.TokenService;
 import com.yicai.life.domain.bo.QlPassAccountBo;
 import com.yicai.life.domain.bo.QlPassAdjustmentBo;
 import com.yicai.life.domain.bo.QlSettlementBo;
+import com.yicai.life.domain.bo.QlSettlementReversalBo;
 import com.yicai.life.service.IQlRegistrationService;
 import com.yicai.life.service.QlPassService;
 import org.junit.jupiter.api.AfterEach;
@@ -27,7 +28,7 @@ import javax.servlet.http.HttpServletRequest;
 import java.util.Collections;
 import java.util.HashSet;
 
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -74,6 +75,8 @@ class QlPermissionBoundaryTest {
         assertThrows(AccessDeniedException.class, () -> passController.adjust("pass-1", new QlPassAdjustmentBo()));
         assertThrows(AccessDeniedException.class,
                 () -> registrationController.confirmSettlement("registration-1", new QlSettlementBo()));
+        assertThrows(AccessDeniedException.class, () -> registrationController.revokeSettlement(
+                "registration-1", "settlement-1", new QlSettlementReversalBo()));
         verifyNoInteractions(passes, registrations);
     }
 
@@ -88,6 +91,32 @@ class QlPermissionBoundaryTest {
         verifyNoMoreInteractions(passes);
     }
 
+    @Test
+    void paymentPermissionDoesNotGrantSettlementRevocation() {
+        LoginUser user = (LoginUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        user.getPermissions().add("life:registration:payment");
+        assertThrows(AccessDeniedException.class, () -> registrationController.revokeSettlement(
+                "registration-1", "settlement-1", new QlSettlementReversalBo()));
+        verifyNoInteractions(passes, registrations);
+    }
+
+    @Test
+    void miniAppAndMobileWorkspaceExposeNoSettlementRevocationRoute() {
+        assertFalse(hasSettlementRevocationRoute(QlMiniAppController.class));
+        assertFalse(hasSettlementRevocationRoute(QlStaffWorkspaceController.class));
+    }
+
+    private boolean hasSettlementRevocationRoute(Class<?> controller) {
+        for (java.lang.reflect.Method method : controller.getDeclaredMethods()) {
+            org.springframework.web.bind.annotation.PutMapping mapping =
+                    method.getAnnotation(org.springframework.web.bind.annotation.PutMapping.class);
+            if (mapping == null) continue;
+            for (String path : mapping.value()) {
+                if (path.contains("/settlement/") && path.endsWith("/revoke")) return true;
+            }
+        }
+        return false;
+    }
     @Configuration
     @EnableGlobalMethodSecurity(prePostEnabled = true)
     static class MethodSecurityConfig {

@@ -13,7 +13,7 @@
       <el-table-column label="实际参与人" min-width="130"><template slot-scope="scope"><div>{{ scope.row.nickname }}</div><div class="muted">{{ scope.row.customerNo }}</div></template></el-table-column>
       <el-table-column label="期次" min-width="170"><template slot-scope="scope"><div>第 {{ scope.row.sessionNumber }} 期</div><div class="muted">{{ scope.row.sessionName }}</div></template></el-table-column>
       <el-table-column label="报名状态" width="100"><template slot-scope="scope"><el-tag size="mini" :type="registrationStatusType(scope.row.registrationStatus)">{{ registrationStatusText(scope.row.registrationStatus) }}</el-tag></template></el-table-column>
-      <el-table-column label="最终结算" width="150"><template slot-scope="scope"><el-button v-if="hasPaymentPermission && scope.row.settlementStatus !== 'confirmed'" size="mini" type="warning" @click="handleSettlement(scope.row)">待确认</el-button><el-tag v-else size="mini" :type="scope.row.settlementStatus === 'confirmed' ? 'success' : 'warning'">{{ scope.row.settlementStatus === 'confirmed' ? '已确认' : '待确认' }}</el-tag><div class="muted">{{ settlementSummary(scope.row) }}</div></template></el-table-column>
+      <el-table-column label="最终结算" width="180"><template slot-scope="scope"><el-button v-if="hasPaymentPermission && scope.row.settlementStatus !== 'confirmed'" size="mini" type="warning" @click="handleSettlement(scope.row)">待确认</el-button><el-tag v-else size="mini" :type="scope.row.settlementStatus === 'confirmed' ? 'success' : 'warning'">{{ scope.row.settlementStatus === 'confirmed' ? '已确认' : '待确认' }}</el-tag><div class="muted">{{ settlementSummary(scope.row) }}</div><el-button v-if="hasSettlementRevokePermission && scope.row.settlementStatus === 'confirmed'" size="mini" type="text" class="revoke-settlement" :disabled="!scope.row.currentSettlementId" @click="handleRevokeSettlement(scope.row)">撤销结算</el-button><span v-if="hasSettlementRevokePermission && scope.row.settlementStatus === 'confirmed' && !scope.row.currentSettlementId" class="muted">历史记录缺少轮次关联，无法安全撤销</span></template></el-table-column>
       <el-table-column label="人工付款" width="116"><template slot-scope="scope"><el-button size="mini" :type="paymentStatus(scope.row) === 'paid' ? 'success' : 'warning'" class="payment-status-button" @click="handlePaymentClick(scope.row)" v-hasPermi="['life:registration:payment']">{{ paymentStatusText(scope.row) }}</el-button><span v-if="!hasPaymentPermission" :class="paymentStatus(scope.row) === 'paid' ? 'paid-text' : 'unpaid-text'">{{ paymentStatusText(scope.row) }}</span></template></el-table-column>
       <el-table-column label="参考/最终金额" width="130"><template slot-scope="scope"><div class="muted">参考 ¥{{ Number(scope.row.quotedAmount == null ? scope.row.standardPrice : scope.row.quotedAmount).toFixed(2) }}</div><div>{{ scope.row.settlementStatus === 'confirmed' ? '最终 ¥' + Number(scope.row.finalAmount || 0).toFixed(2) : '最终待确认' }}</div></template></el-table-column>
       <el-table-column label="报名来源" prop="registrationSource" width="110" />
@@ -47,6 +47,19 @@
       <div slot="footer" class="dialog-footer"><el-button type="primary" :loading="submitting" @click="submitSettlement">确认结算结果</el-button><el-button @click="settlementOpen=false">取消</el-button></div>
     </el-dialog>
 
+    <el-dialog title="撤销最终结算" :visible.sync="revokeOpen" width="520px" append-to-body :close-on-click-modal="!revokeSubmitting">
+      <el-alert v-if="revokeBlockedByPayment()" title="请先通过现有入口撤销收款登记，再撤销结算。" description="撤销收款登记不代表已向轻友实际退款。请先关闭此窗口，在人工付款栏撤销收款登记，再重新打开撤销结算。" type="warning" :closable="false" show-icon class="mb20" />
+      <el-alert v-else title="此操作只撤销当前结算及其卡次消耗，不取消报名、不改变参与者、期次、报价或到场记录。" type="info" :closable="false" show-icon class="mb20" />
+      <el-form ref="revokeForm" :model="revokeForm" :rules="revokeRules" label-width="104px">
+        <el-form-item label="操作对象"><span>{{ revokeRow.batchId ? (revokeRow.orderNo || '报名订单') + ' · 整单' + (revokeRow.participantCount || 1) + '人' : (revokeRow.nickname || '单人报名') }}</span></el-form-item>
+        <el-form-item label="期次"><span>第 {{ revokeRow.sessionNumber }} 期 · {{ revokeRow.sessionName }}</span></el-form-item>
+        <el-form-item label="当前结算"><span>{{ revokeRow.settlementType === 'pass' ? '卡次结算' : '现金结算' }} · ¥{{ Number(revokeRow.finalAmount || 0).toFixed(2) }}</span></el-form-item>
+        <el-form-item v-if="revokeRow.settlementType === 'pass'" label="将退回"><span>{{ revokeRow.passUnits }} 次至原账户 {{ revokePassAccountLabel }}</span></el-form-item>
+        <el-form-item label="撤销原因" prop="reason"><el-input v-model="revokeForm.reason" type="textarea" :rows="3" maxlength="500" placeholder="必填，最多500字" :disabled="revokeBlockedByPayment()" /></el-form-item>
+      </el-form>
+      <div slot="footer" class="dialog-footer"><el-button type="danger" :loading="revokeSubmitting" :disabled="revokeBlockedByPayment()" @click="submitRevokeSettlement">确认撤销结算</el-button><el-button @click="revokeOpen=false">关闭</el-button></div>
+    </el-dialog>
+
     <el-dialog title="确认线下付款" :visible.sync="paymentOpen" width="480px" append-to-body>
       <el-alert title="这里只登记线下收款结果，不发起线上支付。" type="warning" :closable="false" show-icon class="mb20" />
       <el-form ref="paymentForm" :model="paymentForm" :rules="paymentRules" label-width="90px">
@@ -61,7 +74,7 @@
 </template>
 
 <script>
-import { listRegistration, getRegistration, addRegistration, updateRegistration, confirmSettlement, changePayment, changeBatchPayment, cancelBatchRegistration } from '@/api/life/registration'
+import { listRegistration, getRegistration, addRegistration, updateRegistration, confirmSettlement, revokeSettlement, changePayment, changeBatchPayment, cancelBatchRegistration } from '@/api/life/registration'
 import { listCustomer } from '@/api/life/customer'
 import { listSession } from '@/api/life/session'
 import { checkPermi } from '@/utils/permission'
@@ -71,18 +84,20 @@ export default {
   name: 'QlRegistration',
   data() {
     return {
-      loading: false, submitting: false, showSearch: true, total: 0, registrationList: [], open: false, settlementOpen: false, paymentOpen: false, title: '', customerOptions: [], sessionOptions: [], passAccounts: [], settlementRow: {}, paymentRow: {},
+      loading: false, submitting: false, revokeSubmitting: false, showSearch: true, total: 0, registrationList: [], open: false, settlementOpen: false, paymentOpen: false, revokeOpen: false, title: '', customerOptions: [], sessionOptions: [], passAccounts: [], settlementRow: {}, paymentRow: {}, revokeRow: {}, revokeForm: {}, revokePassAccountLabel: '',
       registrationStatusOptions: [{ label: '待确认', value: 'pending' }, { label: '已确认', value: 'confirmed' }, { label: '候补', value: 'waitlisted' }, { label: '已取消', value: 'cancelled' }],
       queryParams: { pageNum: 1, pageSize: 10, nickname: undefined, sessionNumber: undefined, registrationStatus: undefined, paymentStatus: undefined },
       form: {}, settlementForm: {}, paymentForm: {},
       rules: { customerId: [{ required: true, message: '请选择轻友', trigger: 'change' }], sessionId: [{ required: true, message: '请选择期次', trigger: 'change' }] },
       settlementRules: { settlementType: [{ required: true, message: '请选择结算方式', trigger: 'change' }], finalAmount: [{ required: true, message: '请输入最终金额，可填写0', trigger: 'change' }], passAccountId:[{required:true,message:'请选择卡次账户',trigger:'change'}], passUnits:[{required:true,message:'请填写使用卡次',trigger:'change'}] },
-      paymentRules: { amount: [{ required: true, message: '请输入实付金额', trigger: 'change' }], paymentMethod: [{ required: true, message: '请选择付款方式', trigger: 'change' }] }
+      paymentRules: { amount: [{ required: true, message: '请输入实付金额', trigger: 'change' }], paymentMethod: [{ required: true, message: '请选择付款方式', trigger: 'change' }] },
+      revokeRules: { reason: [{ required: true, message: '请填写撤销原因', trigger: 'blur' }, { max: 500, message: '撤销原因最多500字', trigger: 'blur' }] }
     }
   },
   created() { this.applyRoute(); this.getList(); this.loadOptions() },
   computed: {
-    hasPaymentPermission() { return checkPermi(['life:registration:payment']) }
+    hasPaymentPermission() { return checkPermi(['life:registration:payment']) },
+    hasSettlementRevokePermission() { return checkPermi(['life:registration:settlement:revoke']) }
   },
   watch: { '$route.query': { handler() { if(this.$route.path === '/activityOperations/registration') { this.applyRoute(); this.getList() } } } },
   methods: {
@@ -113,7 +128,46 @@ export default {
     paymentStatus(row) { return row.batchPaymentStatus || row.paymentStatus },
     paymentStatusText(row) { return this.paymentStatus(row) === 'paid' ? '已付款' : row.settlementStatus === 'confirmed' && Number(row.finalAmount) === 0 ? '无需现金付款' : '未付款' },
     settlementSummary(row) { const type = ({money:'现金',pass:'卡次'})[row.settlementType] || ''; return row.settlementStatus === 'confirmed' ? type + (row.passUnits ? ' · ' + row.passUnits + '次' : '') : '参考价不等于最终价' },
-    handleSettlement(row) { if (row.settlementStatus === 'confirmed') return this.msgError('已确认的结算结果不可覆盖，请通过受控调整保留原记录'); if (this.paymentStatus(row) === 'paid') return this.msgError('已付款记录不能修改结算结果'); this.settlementRow = row; this.passAccounts = []; this.settlementForm = { finalAmount: Number(row.quotedAmount == null ? row.standardPrice || 0 : row.quotedAmount), settlementType: 'money', passUnits: undefined, passAccountId:'', note: '' }; const ownerId=row.batchId?row.buyerCustomerId:row.customerId;listPass({customerId:ownerId}).then(res=>{this.passAccounts=res.data||[]});this.settlementOpen = true; this.$nextTick(() => this.resetForm('settlementForm')) },
+    handleSettlement(row) { if (row.settlementStatus === 'confirmed') return this.msgError('当前结算已确认；请先撤销本轮结算后再重新确认'); if (this.paymentStatus(row) === 'paid') return this.msgError('已付款记录不能修改结算结果'); this.settlementRow = row; this.passAccounts = []; this.settlementForm = { finalAmount: Number(row.quotedAmount == null ? row.standardPrice || 0 : row.quotedAmount), settlementType: 'money', passUnits: undefined, passAccountId:'', note: '' }; const ownerId=row.batchId?row.buyerCustomerId:row.customerId;listPass({customerId:ownerId}).then(res=>{this.passAccounts=res.data||[]});this.settlementOpen = true; this.$nextTick(() => this.resetForm('settlementForm')) },
+    revokeBlockedByPayment() { return !!this.revokeRow && this.paymentStatus(this.revokeRow) === 'paid' },
+    handleRevokeSettlement(row) {
+      if (!row.currentSettlementId) return this.msgError('本轮结算历史缺少可靠关联，无法安全撤销')
+      this.revokeRow = Object.assign({}, row)
+      this.revokeForm = { reason: '' }
+      this.revokePassAccountLabel = row.passAccountId ? ('原账户ID：' + row.passAccountId) : '原卡次账户'
+      this.revokeOpen = true
+      if (row.settlementType === 'pass' && row.passAccountId) {
+        const ownerId = row.batchId ? row.buyerCustomerId : row.customerId
+        listPass({ customerId: ownerId }).then(res => {
+          const account = (res.data || []).find(item => item.id === row.passAccountId)
+          if (account) this.revokePassAccountLabel = account.passType + '（原账户ID：' + account.id + (account.status === 'active' ? '' : '，已停用') + '）'
+        }).catch(() => {})
+      }
+      this.$nextTick(() => this.resetForm('revokeForm'))
+    },
+    submitRevokeSettlement() {
+      if (this.revokeBlockedByPayment() || this.revokeSubmitting) return
+      this.$refs.revokeForm.validate(valid => {
+        if (!valid) return
+        this.revokeSubmitting = true
+        revokeSettlement(this.revokeRow.id, this.revokeRow.currentSettlementId, { reason: this.revokeForm.reason.trim() })
+          .then(() => {
+            this.msgSuccess('结算已撤销，当前状态为待结算')
+            this.revokeOpen = false
+            this.getList()
+            if (this.open && this.form.id === this.revokeRow.id) {
+              getRegistration(this.revokeRow.id).then(res => { this.form = res.data })
+            }
+          })
+          .catch(() => {
+            this.getList()
+            if (this.open && this.form.id === this.revokeRow.id) {
+              getRegistration(this.revokeRow.id).then(res => { this.form = res.data })
+            }
+          })
+          .finally(() => { this.revokeSubmitting = false })
+      })
+    },
     handleSettlementTypeChange(type) { if (type === 'pass') this.settlementForm.finalAmount = 0; if (type === 'money') { this.settlementForm.passUnits = undefined; this.settlementForm.passAccountId='' } },
     submitSettlement() { this.$refs.settlementForm.validate(valid => { if (!valid) return; const pass=this.settlementForm.settlementType==='pass';const payload = { ...this.settlementForm, passUnits:pass?this.settlementForm.passUnits:null,passAccountId:pass?this.settlementForm.passAccountId:null }; this.submitting = true; confirmSettlement(this.settlementRow.id, payload).then(() => { this.msgSuccess('最终结算结果已确认'); this.settlementOpen = false; this.getList() }).finally(() => { this.submitting = false }) }) },
     paymentRequest(row, data) { return row.batchId ? changeBatchPayment(row.batchId, data) : changePayment(row.id, data) },
@@ -128,6 +182,7 @@ export default {
 <style scoped>
 .muted { color: #909399; font-size: 12px; margin-top: 3px; }
 .payment-status-button { min-width: 72px; }
+.revoke-settlement { padding-top: 2px; }
 .paid-text { color: #67c23a; }
 .unpaid-text { color: #e6a23c; }
 </style>

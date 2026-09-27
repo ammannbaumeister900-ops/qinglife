@@ -1,6 +1,7 @@
 package com.yicai.web.integration;
 
 import com.yicai.web.tools.DatabaseMigration;
+import com.yicai.life.domain.QlRegistration;
 import com.yicai.life.service.*;
 import com.yicai.life.service.impl.*;
 import com.yicai.life.mapper.*;
@@ -81,7 +82,11 @@ class RegistrationReadinessIT {
     void status(String id,String status){QlRegistrationBo b=new QlRegistrationBo();b.setId(id);b.setRegistrationStatus(status);registrations.updateByBo(b,9L);}
     QlPaymentBo payment(String state,String amount){QlPaymentBo b=new QlPaymentBo();b.setPaymentStatus(state);b.setAmount(new BigDecimal(amount));b.setPaymentMethod("cash");b.setChangeReason("Synthetic correction");return b;}
     void settle(String id,String amount){QlSettlementBo b=new QlSettlementBo();b.setFinalAmount(new BigDecimal(amount));b.setSettlementType("money");b.setNote("Synthetic settlement");registrations.confirmSettlement(id,b,9L);}
-    String pass(String customer,int units){QlPassAccountBo b=new QlPassAccountBo();b.setCustomerId(customer);b.setPassType("Synthetic card");b.setInitialUnits(units);b.setReason("Synthetic verified opening");return passes.open(b,9L);}
+    String pass(String customer,int units){QlPassAccountBo b=new QlPassAccountBo();b.setCustomerId(customer);b.setPassType("Synthetic card");b.setInitialUnits(units);b.setReason("Synthetic verified opening");return passes.open(b,9L);}    void settlePass(String id,String accountId,int units){QlSettlementBo b=new QlSettlementBo();b.setFinalAmount(BigDecimal.ZERO);b.setSettlementType("pass");b.setPassAccountId(accountId);b.setPassUnits(units);b.setNote("Synthetic pass settlement");registrations.confirmSettlement(id,b,9L);}
+    String currentSettlementId(String registrationId){QlRegistration current=registrations.getById(registrationId);if(current==null)throw new AssertionError("Registration disappeared");if(current.getBatchId()!=null)return db.queryForObject("SELECT current_settlement_id FROM ql_registration_batch WHERE id=?",String.class,current.getBatchId());return current.getCurrentSettlementId();}
+    String batch(String buyer,String sessionId,String... registrationIds){String id=UUID.randomUUID().toString();db.update("INSERT INTO ql_registration_batch(id,order_no,session_id,submitted_by_customer_id,source,participant_count,submitted_at,quoted_amount,payable_amount,payment_status) VALUES(?,?,?,?,'mini_program',?,NOW(),200,200,'unpaid')",id,"T"+id.replace("-","").substring(0,20),sessionId,buyer,registrationIds.length);for(String registrationId:registrationIds)db.update("UPDATE ql_registration SET batch_id=? WHERE id=?",id,registrationId);return id;}
+    void revoke(String registrationId,String settlementId){registrations.revokeSettlement(registrationId,settlementId,"Synthetic settlement correction",9L);}
+    @SuppressWarnings("unchecked") Map<String,Object> miniRegistration(String token,String registrationId){List<Map<String,Object>> rows=(List<Map<String,Object>>)mini.overview(token).get("registrations");return rows.stream().filter(row->registrationId.equals(row.get("registrationId"))).findFirst().orElseThrow(()->new AssertionError("Miniapp registration missing"));}
     @Test @SuppressWarnings("unchecked") void publicSessionsIncludeScheduledDays() {
         String sessionId=session(2);
         db.update("INSERT INTO ql_session_day(id,session_id,day_no,activity_date,status) VALUES(?,?,1,CURRENT_DATE(),'scheduled')",UUID.randomUUID().toString(),sessionId);
@@ -97,6 +102,39 @@ class RegistrationReadinessIT {
             String name="V1_3_11__wechat_login_identity.sql";String hash=db.queryForObject("SELECT sha256 FROM ql_migration_run WHERE name=?",String.class,name);
             db.update("UPDATE ql_migration_run SET sha256=? WHERE name=?",String.join("",Collections.nCopies(64,"0")),name);
             try{assertThrows(IllegalStateException.class,()->DatabaseMigration.run(c,server));}finally{db.update("UPDATE ql_migration_run SET sha256=? WHERE name=?",hash,name);}
+        }
+    }
+    @Test void settlementReversalMenuIsIsolatedAndAttendanceMenusRemainUnchanged() {
+        Map<String,Object> attendance=db.queryForMap("SELECT menu_name AS menuName,menu_type AS menuType,path,component,perms FROM sys_menu WHERE menu_id=2214");
+        assertEquals("活动签到",attendance.get("menuName"));
+        assertEquals("C",attendance.get("menuType"));
+        assertEquals("attendance",attendance.get("path"));
+        assertEquals("life/attendance/index",attendance.get("component"));
+        assertEquals("life:attendance:list",attendance.get("perms"));
+        assertEquals(Arrays.asList(2215L,2216L),db.queryForList("SELECT menu_id FROM sys_menu WHERE parent_id=2214 ORDER BY menu_id",Long.class));
+        assertEquals(1,db.queryForObject("SELECT COUNT(*) FROM sys_menu WHERE menu_id=2215 AND menu_name='签到查询' AND menu_type='F' AND parent_id=2214 AND perms='life:attendance:list'",Integer.class));
+        assertEquals(1,db.queryForObject("SELECT COUNT(*) FROM sys_menu WHERE menu_id=2216 AND menu_name='签到修改' AND menu_type='F' AND parent_id=2214 AND perms='life:attendance:edit'",Integer.class));
+
+        Map<String,Object> revoke=db.queryForMap("SELECT menu_name AS menuName,parent_id AS parentId,menu_type AS menuType,perms FROM sys_menu WHERE menu_id=2400");
+        assertEquals("撤销结算",revoke.get("menuName"));
+        assertEquals(2209,((Number)revoke.get("parentId")).intValue());
+        assertEquals("F",revoke.get("menuType"));
+        assertEquals("life:registration:settlement:revoke",revoke.get("perms"));
+        assertEquals(1,db.queryForObject("SELECT COUNT(*) FROM sys_menu WHERE perms='life:registration:settlement:revoke'",Integer.class));
+        assertEquals(Collections.singletonList("ql_admin"),db.queryForList(
+                "SELECT r.role_key FROM sys_role r JOIN sys_role_menu rm ON rm.role_id=r.role_id WHERE rm.menu_id=2400 ORDER BY r.role_key",String.class));
+        for(String roleKey:Arrays.asList("ql_operator","ql_leader","ql_finance")) {
+            assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM sys_role r JOIN sys_role_menu rm ON rm.role_id=r.role_id WHERE r.role_key=? AND rm.menu_id=2400",Integer.class,roleKey));
+        }
+
+        Map<String,List<Long>> expectedAttendance=new LinkedHashMap<>();
+        expectedAttendance.put("ql_admin",Arrays.asList(2214L,2215L,2216L));
+        expectedAttendance.put("ql_operator",Arrays.asList(2214L,2215L,2216L));
+        expectedAttendance.put("ql_leader",Arrays.asList(2214L,2215L));
+        expectedAttendance.put("ql_finance",Arrays.asList(2214L,2215L));
+        for(Map.Entry<String,List<Long>> expected:expectedAttendance.entrySet()) {
+            List<Long> actual=db.queryForList("SELECT rm.menu_id FROM sys_role r JOIN sys_role_menu rm ON rm.role_id=r.role_id WHERE r.role_key=? AND rm.menu_id BETWEEN 2214 AND 2216 ORDER BY rm.menu_id",Long.class,expected.getKey());
+            assertEquals(expected.getValue(),actual,"attendance role-menu grants for "+expected.getKey());
         }
     }
     @Test void pendingSeatCanConfirmWhenFullButWaitlistCannot(){String s=session(1),r=add(customer(),s,"pending"),w=add(customer(),s,"waitlisted");staff.confirm(r,access);assertThrows(CustomException.class,()->status(w,"confirmed"));assertThrows(CustomException.class,()->add(customer(),s,"pending"));}
@@ -298,4 +336,185 @@ class RegistrationReadinessIT {
             assertTrue(error.getMessage().contains("V1_3_12"));
         } finally { db.execute("RENAME TABLE ql_habit_pause_probe TO ql_habit_pause"); }
         new com.yicai.web.config.ProductionHabitSchemaGuard(db).afterPropertiesSet();
-    }}
+    }    @Test @SuppressWarnings("unchecked") void cashSettlementRevokesAndReconfirmsWithoutChangingRegistrationOrAttendance() {
+        String c=customer(),s=session(2),r=add(c,s,"confirmed"),attendance=UUID.randomUUID().toString();
+        db.update("INSERT INTO ql_participation(id,customer_id,session_id,registration_id,attendance_status) VALUES(?,?,?,?,'completed')",attendance,c,s,r);
+        BigDecimal quote=db.queryForObject("SELECT unit_price FROM ql_registration WHERE id=?",BigDecimal.class,r);
+        settle(r,"75.00");String roundA=currentSettlementId(r);assertNotNull(roundA);
+        assertThrows(CustomException.class,()->settle(r,"99.00"));
+        int attendanceBefore=db.queryForObject("SELECT COUNT(*) FROM ql_participation WHERE registration_id=?",Integer.class,r);
+        revoke(r,roundA);
+        QlRegistration pending=registrations.getById(r);
+        assertEquals("pending",pending.getSettlementStatus());assertNull(pending.getFinalAmount());assertNull(pending.getSettlementType());assertNull(pending.getCurrentSettlementId());
+        assertEquals("confirmed",pending.getRegistrationStatus());assertEquals("unpaid",pending.getPaymentStatus());assertEquals(s,pending.getSessionId());assertEquals(0,quote.compareTo(pending.getUnitPrice()));
+        assertEquals(attendanceBefore,db.queryForObject("SELECT COUNT(*) FROM ql_participation WHERE registration_id=?",Integer.class,r));
+        assertEquals("completed",db.queryForObject("SELECT attendance_status FROM ql_participation WHERE id=?",String.class,attendance));
+        Map<String,Object> staffRow=staff.registrations(s,null).stream().filter(row->r.equals(row.get("id"))).findFirst().orElseThrow(AssertionError::new);
+        assertEquals("pending",staffRow.get("settlementStatus"));assertNull(staffRow.get("finalAmount"));
+        when(context.getBean(RedisCache.class).getCacheObject("appToken:settlement-round-ui")).thenReturn(93L);
+        when(context.getBean(QlCustomerIdentityService.class).resolve(93L)).thenReturn(c);
+        Map<String,Object> miniRow=miniRegistration("settlement-round-ui",r);
+        assertEquals("pending",miniRow.get("settlementStatus"));assertNull(miniRow.get("finalAmount"));
+
+        settle(r,"88.50");String roundB=currentSettlementId(r);assertNotNull(roundB);assertNotEquals(roundA,roundB);
+        assertEquals("confirmed",miniRegistration("settlement-round-ui",r).get("settlementStatus"));
+        assertEquals(0,new BigDecimal("88.50").compareTo(new BigDecimal(miniRegistration("settlement-round-ui",r).get("finalAmount").toString())));
+        revoke(r,roundA); // Delayed retry for A is idempotent and cannot touch B.
+        assertEquals(roundB,currentSettlementId(r));assertEquals(0,new BigDecimal("88.50").compareTo(registrations.getById(r).getFinalAmount()));
+        revoke(r,roundB);
+        assertEquals("pending",registrations.getById(r).getSettlementStatus());assertEquals(2,db.queryForObject("SELECT COUNT(*) FROM ql_settlement_reversal WHERE registration_id=?",Integer.class,r));
+        assertEquals(2,db.queryForObject("SELECT COUNT(*) FROM ql_settlement_log WHERE registration_id=?",Integer.class,r));
+        assertEquals(attendanceBefore,db.queryForObject("SELECT COUNT(*) FROM ql_participation WHERE registration_id=?",Integer.class,r));
+    }
+
+    @Test void paidCashSettlementRequiresExistingPaymentReversalFirst() {
+        String r=add(customer(),session(1),"confirmed");settle(r,"90.00");String round=currentSettlementId(r);
+        registrations.changePayment(r,payment("paid","90.00"),9L);
+        CustomException blocked=assertThrows(CustomException.class,()->revoke(r,round));
+        assertTrue(blocked.getMessage().contains("请先通过现有入口撤销收款登记，再撤销结算。"));
+        assertEquals("confirmed",registrations.getById(r).getSettlementStatus());
+        assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM ql_settlement_reversal WHERE settlement_id=?",Integer.class,round));
+        registrations.changePayment(r,payment("unpaid","0"),9L);
+        assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM ql_transaction WHERE registration_id=? AND transaction_type='session' AND status='paid'",Integer.class,r));
+        revoke(r,round);
+        assertEquals("pending",registrations.getById(r).getSettlementStatus());
+        assertEquals(1,db.queryForObject("SELECT COUNT(*) FROM ql_settlement_reversal WHERE settlement_id=?",Integer.class,round));
+    }
+
+    @Test void singlePassReversalReturnsExactUnitsToOriginalExpiredAccountAndKeepsDebit() {
+        String c=customer(),r=add(c,session(1),"confirmed"),original=pass(c,5),other=pass(c,7);
+        settlePass(r,original,2);String round=currentSettlementId(r);
+        String debitId=db.queryForObject("SELECT id FROM ql_pass_ledger WHERE settlement_id=? AND entry_type='consume'",String.class,round);
+        db.update("UPDATE ql_pass_account SET valid_until=DATE_SUB(CURRENT_DATE(),INTERVAL 1 DAY) WHERE id=?",original);
+        int expiredBalanceBefore=5;
+        revoke(r,round);
+        assertEquals(expiredBalanceBefore,db.queryForObject("SELECT SUM(quantity_delta) FROM ql_pass_ledger WHERE pass_account_id=?",Integer.class,original));
+        assertEquals(7,db.queryForObject("SELECT SUM(quantity_delta) FROM ql_pass_ledger WHERE pass_account_id=?",Integer.class,other));
+        assertEquals("active",db.queryForObject("SELECT status FROM ql_pass_account WHERE id=?",String.class,original));
+        assertEquals(-1,db.queryForObject("SELECT DATEDIFF(valid_until,CURRENT_DATE()) FROM ql_pass_account WHERE id=?",Integer.class,original));
+        assertEquals(1,db.queryForObject("SELECT COUNT(*) FROM ql_pass_ledger WHERE id=? AND settlement_id=? AND entry_type='consume' AND quantity_delta=-2",Integer.class,debitId,round));
+        assertEquals(1,db.queryForObject("SELECT COUNT(*) FROM ql_pass_ledger WHERE settlement_id=? AND entry_type='void' AND pass_account_id=? AND quantity_delta=2 AND registration_id=?",Integer.class,round,original,r));
+        assertEquals(debitId,db.queryForObject("SELECT original_pass_ledger_id FROM ql_settlement_reversal WHERE settlement_id=?",String.class,round));
+        assertEquals("pending",registrations.getById(r).getSettlementStatus());
+    }
+
+    @Test void voidPassAccountReceivesReturnWithoutReactivation() {
+        String c=customer(),r=add(c,session(1),"confirmed"),account=pass(c,4);
+        settlePass(r,account,1);String round=currentSettlementId(r);
+        db.update("UPDATE ql_pass_account SET status='void' WHERE id=?",account);
+        revoke(r,round);
+        assertEquals(4,db.queryForObject("SELECT SUM(quantity_delta) FROM ql_pass_ledger WHERE pass_account_id=?",Integer.class,account));
+        assertEquals("void",db.queryForObject("SELECT status FROM ql_pass_account WHERE id=?",String.class,account));
+        assertEquals(1,db.queryForObject("SELECT COUNT(*) FROM ql_pass_ledger WHERE settlement_id=? AND entry_type='void' AND quantity_delta=1",Integer.class,round));
+    }
+
+    @Test void batchPassReversalFromAnyParticipantIsAtomicAndRepeatableAcrossRounds() throws Exception {
+        String buyer=customer(),companion=customer(),s=session(2),r1=add(buyer,s,"confirmed"),r2=add(companion,s,"confirmed");
+        String batchId=batch(buyer,s,r1,r2),buyerAccount=pass(buyer,5),companionAccount=pass(companion,9);
+        settlePass(r1,buyerAccount,3);String roundA=currentSettlementId(r1);
+        assertEquals(2,db.queryForObject("SELECT SUM(quantity_delta) FROM ql_pass_ledger WHERE pass_account_id=?",Integer.class,buyerAccount));
+        ExecutorService pool=Executors.newFixedThreadPool(2);CountDownLatch start=new CountDownLatch(1);
+        try {
+            Future<?> first=pool.submit(()->{try{start.await();revoke(r1,roundA);}catch(InterruptedException e){Thread.currentThread().interrupt();throw new RuntimeException(e);}});
+            Future<?> second=pool.submit(()->{try{start.await();revoke(r2,roundA);}catch(InterruptedException e){Thread.currentThread().interrupt();throw new RuntimeException(e);}});
+            start.countDown();first.get(30,TimeUnit.SECONDS);second.get(30,TimeUnit.SECONDS);
+        } finally {pool.shutdownNow();}
+        assertEquals(5,db.queryForObject("SELECT SUM(quantity_delta) FROM ql_pass_ledger WHERE pass_account_id=?",Integer.class,buyerAccount));
+        assertEquals(9,db.queryForObject("SELECT SUM(quantity_delta) FROM ql_pass_ledger WHERE pass_account_id=?",Integer.class,companionAccount));
+        assertEquals(1,db.queryForObject("SELECT COUNT(*) FROM ql_pass_ledger WHERE settlement_id=? AND entry_type='consume'",Integer.class,roundA));
+        assertEquals(1,db.queryForObject("SELECT COUNT(*) FROM ql_pass_ledger WHERE settlement_id=? AND entry_type='void'",Integer.class,roundA));
+        assertEquals(1,db.queryForObject("SELECT COUNT(*) FROM ql_settlement_reversal WHERE settlement_id=? AND registration_batch_id=?",Integer.class,roundA,batchId));
+        assertEquals("confirmed",registrations.getById(r1).getRegistrationStatus());assertEquals("confirmed",registrations.getById(r2).getRegistrationStatus());
+        assertEquals("pending",staff.registrations(s,null).stream().filter(row->r1.equals(row.get("id"))).findFirst().orElseThrow(AssertionError::new).get("settlementStatus"));
+
+        settlePass(r2,buyerAccount,2);String roundB=currentSettlementId(r2);assertNotEquals(roundA,roundB);
+        revoke(r1,roundA);assertEquals(roundB,currentSettlementId(r1));
+        assertEquals(3,db.queryForObject("SELECT SUM(quantity_delta) FROM ql_pass_ledger WHERE pass_account_id=?",Integer.class,buyerAccount));
+        revoke(r2,roundB);
+        assertEquals(5,db.queryForObject("SELECT SUM(quantity_delta) FROM ql_pass_ledger WHERE pass_account_id=?",Integer.class,buyerAccount));
+        assertEquals(2,db.queryForObject("SELECT COUNT(*) FROM ql_pass_ledger WHERE registration_batch_id=? AND entry_type='consume'",Integer.class,batchId));
+        assertEquals(2,db.queryForObject("SELECT COUNT(*) FROM ql_pass_ledger WHERE registration_batch_id=? AND entry_type='void'",Integer.class,batchId));
+        assertEquals(2,db.queryForObject("SELECT COUNT(*) FROM ql_settlement_reversal WHERE registration_batch_id=?",Integer.class,batchId));
+        assertEquals("confirmed",registrations.getById(r1).getRegistrationStatus());assertEquals("confirmed",registrations.getById(r2).getRegistrationStatus());
+    }
+
+    @Test void settlementReversalRollsBackStateAndBalanceWhenLedgerOrAuditWriteFails() {
+        String owner=customer(),r=add(owner,session(1),"confirmed"),account=pass(owner,4);
+        settlePass(r,account,2);String round=currentSettlementId(r);
+        int balanceBefore=2;
+        db.execute("CREATE TRIGGER ql_it_fail_reversal_audit BEFORE INSERT ON ql_settlement_reversal FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='injected reversal audit failure'");
+        try {
+            assertThrows(RuntimeException.class,()->revoke(r,round));
+        } finally {db.execute("DROP TRIGGER IF EXISTS ql_it_fail_reversal_audit");}
+        assertEquals("confirmed",registrations.getById(r).getSettlementStatus());assertEquals(round,currentSettlementId(r));
+        assertEquals(balanceBefore,db.queryForObject("SELECT SUM(quantity_delta) FROM ql_pass_ledger WHERE pass_account_id=?",Integer.class,account));
+        assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM ql_pass_ledger WHERE settlement_id=? AND entry_type='void'",Integer.class,round));
+        assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM ql_settlement_reversal WHERE settlement_id=?",Integer.class,round));
+
+        db.execute("CREATE TRIGGER ql_it_fail_pass_void BEFORE INSERT ON ql_pass_ledger FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='injected pass void failure'");
+        try {
+            assertThrows(RuntimeException.class,()->revoke(r,round));
+        } finally {db.execute("DROP TRIGGER IF EXISTS ql_it_fail_pass_void");}
+        assertEquals("confirmed",registrations.getById(r).getSettlementStatus());assertEquals(round,currentSettlementId(r));
+        assertEquals(balanceBefore,db.queryForObject("SELECT SUM(quantity_delta) FROM ql_pass_ledger WHERE pass_account_id=?",Integer.class,account));
+        assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM ql_settlement_reversal WHERE settlement_id=?",Integer.class,round));
+        revoke(r,round);
+        assertEquals(4,db.queryForObject("SELECT SUM(quantity_delta) FROM ql_pass_ledger WHERE pass_account_id=?",Integer.class,account));
+    }
+
+    @Test void unlinkedOrMissingHistoricalPassDebitIsNeverGuessedOrRecreated() {
+        String c=customer(),r=add(c,session(1),"confirmed"),account=pass(c,4);
+        settlePass(r,account,2);String round=currentSettlementId(r);
+        db.update("UPDATE ql_registration SET current_settlement_id=NULL WHERE id=?",r);
+        CustomException unlinked=assertThrows(CustomException.class,()->revoke(r,round));
+        assertTrue(unlinked.getMessage().contains("缺少可靠关联"));
+        assertEquals(2,db.queryForObject("SELECT SUM(quantity_delta) FROM ql_pass_ledger WHERE pass_account_id=?",Integer.class,account));
+        assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM ql_pass_ledger WHERE settlement_id=? AND entry_type='void'",Integer.class,round));
+        db.update("UPDATE ql_registration SET current_settlement_id=? WHERE id=?",round,r);
+        String debitId=db.queryForObject("SELECT id FROM ql_pass_ledger WHERE settlement_id=? AND entry_type='consume'",String.class,round);
+        db.update("DELETE FROM ql_pass_ledger WHERE id=?",debitId); // Inject an incomplete legacy record in this isolated fixture.
+        CustomException missing=assertThrows(CustomException.class,()->revoke(r,round));
+        assertTrue(missing.getMessage().contains("扣卡流水缺失"));
+        assertEquals("confirmed",registrations.getById(r).getSettlementStatus());
+        assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM ql_pass_ledger WHERE settlement_id=? AND entry_type='void'",Integer.class,round));
+        assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM ql_settlement_reversal WHERE settlement_id=?",Integer.class,round));
+    }
+
+    private String chineseReason(int length) {
+        char[] chars=new char[length];Arrays.fill(chars,'撤');return new String(chars);
+    }
+
+    private void assertPassReversalAcceptsReasonLength(int length) {
+        String owner=customer(),r=add(owner,session(1),"confirmed"),account=pass(owner,5);
+        settlePass(r,account,2);String round=currentSettlementId(r);
+        String input="  \t"+chineseReason(length)+" \n ";String expected=input.trim();
+        assertEquals(length,expected.length());
+        registrations.revokeSettlement(r,round,input,9L);
+        assertEquals("pending",registrations.getById(r).getSettlementStatus());
+        assertEquals(5,db.queryForObject("SELECT SUM(quantity_delta) FROM ql_pass_ledger WHERE pass_account_id=?",Integer.class,account));
+        assertEquals(1,db.queryForObject("SELECT COUNT(*) FROM ql_pass_ledger WHERE settlement_id=? AND entry_type='void' AND pass_account_id=?",Integer.class,round,account));
+        assertEquals(1,db.queryForObject("SELECT COUNT(*) FROM ql_pass_ledger WHERE settlement_id=? AND entry_type='consume' AND quantity_delta=-2",Integer.class,round));
+        assertEquals(3,db.queryForObject("SELECT COUNT(*) FROM ql_pass_ledger WHERE pass_account_id=?",Integer.class,account));
+        assertEquals(expected,db.queryForObject("SELECT reason FROM ql_pass_ledger WHERE settlement_id=? AND entry_type='void'",String.class,round));
+        assertEquals(expected,db.queryForObject("SELECT reason FROM ql_settlement_reversal WHERE settlement_id=?",String.class,round));
+    }
+
+    private void assertPassReversalRejectsReasonWithoutChanges(String input) {
+        String owner=customer(),r=add(owner,session(1),"confirmed"),account=pass(owner,5);
+        settlePass(r,account,2);String round=currentSettlementId(r);
+        assertThrows(CustomException.class,()->registrations.revokeSettlement(r,round,input,9L));
+        assertEquals("confirmed",registrations.getById(r).getSettlementStatus());
+        assertEquals(round,currentSettlementId(r));
+        assertEquals(3,db.queryForObject("SELECT SUM(quantity_delta) FROM ql_pass_ledger WHERE pass_account_id=?",Integer.class,account));
+        assertEquals(2,db.queryForObject("SELECT COUNT(*) FROM ql_pass_ledger WHERE pass_account_id=?",Integer.class,account));
+        assertEquals(1,db.queryForObject("SELECT COUNT(*) FROM ql_pass_ledger WHERE settlement_id=? AND entry_type='consume'",Integer.class,round));
+        assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM ql_pass_ledger WHERE settlement_id=? AND entry_type='void'",Integer.class,round));
+        assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM ql_settlement_reversal WHERE settlement_id=?",Integer.class,round));
+    }
+
+    @Test void passReversalAccepts495ChineseCharacterReason() { assertPassReversalAcceptsReasonLength(495); }
+    @Test void passReversalAccepts496ChineseCharacterReason() { assertPassReversalAcceptsReasonLength(496); }
+    @Test void passReversalAccepts500ChineseCharacterReason() { assertPassReversalAcceptsReasonLength(500); }
+    @Test void passReversalRejects501ChineseCharactersWithoutChanges() { assertPassReversalRejectsReasonWithoutChanges(chineseReason(501)); }
+    @Test void passReversalRejectsWhitespaceReasonWithoutChanges() { assertPassReversalRejectsReasonWithoutChanges(" \t \r\n "); }
+}

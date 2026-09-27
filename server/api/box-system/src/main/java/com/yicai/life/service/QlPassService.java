@@ -51,7 +51,7 @@ public class QlPassService {
         java.util.Date now = new java.util.Date();
         db.update("INSERT INTO ql_pass_account(id,customer_id,pass_type,valid_from,valid_until,status,created_by,created_at,updated_at) VALUES(?,?,?,?,?,'active',?,?,?)",
                 id, bo.getCustomerId(), bo.getPassType().trim(), sqlDate(bo.getValidFrom()), sqlDate(bo.getValidUntil()), operatorId, now, now);
-        insertLedger(id, null, null, null, "grant", bo.getInitialUnits(), bo.getInitialUnits(), bo.getReason().trim(), operatorId, now);
+        insertLedger(id, null, null, null, null, "grant", bo.getInitialUnits(), bo.getInitialUnits(), bo.getReason().trim(), operatorId, now);
         return id;
     }
 
@@ -63,14 +63,16 @@ public class QlPassService {
         long calculated = (long) current + bo.getQuantityDelta();
         if (calculated < 0 || calculated > Integer.MAX_VALUE) throw new CustomException("调整后的卡次余额无效", 400);
         int after = (int) calculated;
-        insertLedger(accountId, null, null, null, "adjust", bo.getQuantityDelta(), after, bo.getReason().trim(), operatorId, new java.util.Date());
+        insertLedger(accountId, null, null, null, null, "adjust", bo.getQuantityDelta(), after, bo.getReason().trim(), operatorId, new java.util.Date());
         return after;
     }
 
-    /** Consumes one account exactly once for a registration or registration batch. Caller owns the transaction. */
+    /** Consumes one account for an exact settlement round. Caller owns the transaction. */
     public int consume(String accountId, String expectedCustomerId, String sessionId, String registrationId,
-                       String batchId, int units, String reason, Long operatorId, java.util.Date now) {
+                       String batchId, String settlementId, int units, String reason, Long operatorId,
+                       java.util.Date now) {
         if (accountId == null || accountId.trim().isEmpty()) throw new CustomException("请选择要使用的卡次账户", 400);
+        if (settlementId == null || settlementId.trim().isEmpty()) throw new CustomException("结算轮次缺失，无法关联扣卡流水", 400);
         if (units < 1) throw new CustomException("使用卡次至少为1次", 400);
         Map<String,Object> account = lock(accountId);
         if (!expectedCustomerId.equals(String.valueOf(account.get("customerId")))) throw new CustomException("卡次账户不属于本次报名发起人或单人报名参与者", 400);
@@ -78,9 +80,71 @@ public class QlPassService {
         int current = number(account.get("balance"));
         if (current < units) throw new CustomException("卡次余额不足，当前剩余" + current + "次", 400);
         int after = current - units;
-        insertLedger(accountId, sessionId, registrationId, batchId, "consume", -units, after,
+        insertLedger(accountId, sessionId, registrationId, batchId, settlementId, "consume", -units, after,
                 reason == null || reason.trim().isEmpty() ? "报名结算使用" : reason.trim(), operatorId, now);
         return after;
+    }
+
+    /**
+     * Appends a reversal debit only from the immutable consume row for this settlement round.
+     * Inactive and expired accounts are intentionally accepted: the original account is restored
+     * without changing its status or validity dates.
+     */
+    public PassReversal reverseConsumption(String settlementId, String expectedCustomerId, String sessionId,
+                                           String registrationId, String batchId, String accountId, Integer units,
+                                           String reason, Long operatorId, java.util.Date now) {
+        if (settlementId == null || settlementId.trim().isEmpty()
+                || accountId == null || accountId.trim().isEmpty() || units == null || units < 1) {
+            throw new CustomException("原结算卡次信息不完整，无法安全撤销", 409);
+        }
+        Map<String,Object> account = lock(accountId);
+        if (!expectedCustomerId.equals(String.valueOf(account.get("customerId")))) {
+            throw new CustomException("原结算卡次账户归属与报名人不一致，无法安全退回", 409);
+        }
+        List<Map<String,Object>> rows = db.queryForList(
+                "SELECT id,pass_account_id AS passAccountId,session_id AS sessionId," +
+                        "registration_id AS registrationId,registration_batch_id AS registrationBatchId," +
+                        "quantity_delta AS quantityDelta FROM ql_pass_ledger " +
+                        "WHERE settlement_id=? AND entry_type='consume' FOR UPDATE", settlementId);
+        if (rows.size() != 1) {
+            throw new CustomException("原结算扣卡流水缺失或不唯一，无法确认已扣次数，已阻止撤销", 409);
+        }
+        Map<String,Object> debit = rows.get(0);
+        int delta = number(debit.get("quantityDelta"));
+        if (!accountId.equals(String.valueOf(debit.get("passAccountId")))
+                || !Objects.equals(sessionId, debit.get("sessionId"))
+                || !Objects.equals(registrationId, debit.get("registrationId"))
+                || !Objects.equals(batchId, debit.get("registrationBatchId"))
+                || delta >= 0 || delta == Integer.MIN_VALUE || -delta != units) {
+            throw new CustomException("原结算与扣卡流水的账户、归属或次数不一致，已阻止撤销", 409);
+        }
+        Integer previousReversal = db.queryForObject(
+                "SELECT COUNT(*) FROM ql_pass_ledger WHERE settlement_id=? AND entry_type='void'",
+                Integer.class, settlementId);
+        if (previousReversal != null && previousReversal != 0) {
+            throw new CustomException("原结算已有退卡流水但撤销记录缺失，已阻止重复处理", 409);
+        }
+        int current = number(account.get("balance"));
+        long calculated = (long) current + units;
+        if (calculated > Integer.MAX_VALUE) throw new CustomException("原账户退回后余额超出可处理范围", 409);
+        int after = (int) calculated;
+        String ledgerReason = reason.trim();
+        insertLedger(accountId, sessionId, registrationId, batchId, settlementId, "void", units, after,
+                ledgerReason, operatorId, now);
+        return new PassReversal(String.valueOf(debit.get("id")), after);
+    }
+
+    public static final class PassReversal {
+        private final String originalLedgerId;
+        private final int balanceAfter;
+
+        public PassReversal(String originalLedgerId, int balanceAfter) {
+            this.originalLedgerId = originalLedgerId;
+            this.balanceAfter = balanceAfter;
+        }
+
+        public String getOriginalLedgerId() { return originalLedgerId; }
+        public int getBalanceAfter() { return balanceAfter; }
     }
 
     private Map<String,Object> lock(String accountId) {
@@ -102,9 +166,11 @@ public class QlPassService {
     }
 
     private void insertLedger(String accountId, String sessionId, String registrationId, String batchId,
-                              String type, int delta, int after, String reason, Long operatorId, java.util.Date now) {
-        db.update("INSERT INTO ql_pass_ledger(id,pass_account_id,session_id,registration_id,registration_batch_id,entry_type,quantity_delta,balance_after,reason,occurred_at,operator_id,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
-                UUID.randomUUID().toString(), accountId, sessionId, registrationId, batchId, type, delta, after, reason, now, operatorId, now);
+                              String settlementId, String type, int delta, int after, String reason,
+                              Long operatorId, java.util.Date now) {
+        db.update("INSERT INTO ql_pass_ledger(id,pass_account_id,session_id,registration_id,registration_batch_id,settlement_id,entry_type,quantity_delta,balance_after,reason,occurred_at,operator_id,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                UUID.randomUUID().toString(), accountId, sessionId, registrationId, batchId, settlementId,
+                type, delta, after, reason, now, operatorId, now);
     }
 
     private int number(Object value) { return value == null ? 0 : ((Number)value).intValue(); }
