@@ -4,6 +4,7 @@ import com.yicai.common.annotation.RepeatSubmit;
 import com.yicai.common.core.domain.AjaxResult;
 import com.yicai.life.domain.bo.*;
 import com.yicai.life.service.IQlMiniAppService;
+import com.yicai.life.service.QlFriendAssessmentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
@@ -19,6 +20,7 @@ import java.util.Map;
 @RequestMapping("/app/qinglife")
 public class QlMiniAppController {
     private final IQlMiniAppService miniAppService;
+    private final QlFriendAssessmentService friendAssessments;
 
     @GetMapping("/sessions")
     public AjaxResult<List<Map<String, Object>>> sessions() {
@@ -55,6 +57,23 @@ public class QlMiniAppController {
     @GetMapping("/me/overview")
     public AjaxResult<Map<String, Object>> overview(@RequestHeader(value = "token", required = false) String token) {
         return AjaxResult.success(miniAppService.overview(token));
+    }
+
+    @GetMapping("/friend/profile")
+    public AjaxResult<Map<String,Object>> friendProfile(@RequestHeader(value="token",required=false) String token) {
+        return AjaxResult.success(friendAssessments.myProfile(token));
+    }
+
+    @GetMapping("/friend/assessments")
+    public AjaxResult<List<Map<String,Object>>> friendAssessments(@RequestHeader(value="token",required=false) String token) {
+        return AjaxResult.success(friendAssessments.mine(token));
+    }
+
+    @RepeatSubmit
+    @PostMapping("/friend/assessments")
+    public AjaxResult<Map<String,Object>> submitFriendAssessment(@RequestHeader(value="token",required=false) String token,
+                                                                 @Valid @RequestBody QlFriendAssessmentBo bo) {
+        return AjaxResult.success(friendAssessments.submit(token,bo));
     }
 
     @PostMapping("/registrations")

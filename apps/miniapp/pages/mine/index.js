@@ -100,5 +100,10 @@ Page({
 
   openFriends() {
     navigation.switchTab({ url: '/pages/friends/index' })
+  },
+
+  openFriendRegistration() {
+    if (!business.enabled()) return wx.showToast({ title: '登记服务尚未配置', icon: 'none' })
+    navigation.navigateTo({ url: '/pages/friend-registration/index' })
   }
 })

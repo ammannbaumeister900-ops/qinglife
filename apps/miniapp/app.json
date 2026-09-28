@@ -9,7 +9,8 @@
     "pages/article/index",
     "pages/friend-flow/index",
     "pages/mine-flow/index",
-    "pages/personal/index"
+    "pages/personal/index",
+    "pages/friend-registration/index"
   ],
   "window": {
     "navigationBarBackgroundColor": "#F6F1E8",

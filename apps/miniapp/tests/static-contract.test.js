@@ -11,6 +11,7 @@ const nativeTags = [
   'cover-view',
   'image',
   'input',
+  'picker',
   'rich-text',
   'switch',
   'swiper',

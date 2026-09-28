@@ -2,11 +2,16 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.yicai.life.mapper.QlCustomerMapper">
     <sql id="customerColumns">
-        c.id, c.customer_no, c.nickname, c.real_name, c.birth_date, c.gender, c.city,
+        c.id, c.customer_no, c.nickname, c.real_name, c.birth_date, c.gender, c.city, c.height_cm,
         c.first_source, c.data_source, c.data_confidence, c.status, c.revision,
         c.created_at, c.updated_at, a.nick_name AS wechat_nickname, a.head AS wechat_avatar,
         CASE WHEN a.id IS NULL THEN 'unbound' WHEN a.status=1 THEN 'enabled' ELSE 'disabled' END AS account_status,
-        a.last_login_time, ids.phone_hint, ids.id_card_hint
+        a.last_login_time, ids.phone_hint, ids.id_card_hint,
+        TIMESTAMPDIFF(YEAR,c.birth_date,CURRENT_DATE()) AS age,
+        assessment.latest_weight_kg, assessment.assessment_count,
+        DATE_FORMAT(assessment.first_assessment_at,'%Y-%m-%d %H:%i:%s') AS first_assessment_at,
+        DATE_FORMAT(assessment.latest_assessment_at,'%Y-%m-%d %H:%i:%s') AS latest_assessment_at,
+        latest.clean_body_goals AS latest_clean_body_goals
     </sql>
 
     <sql id="customerJoins">
@@ -19,6 +24,14 @@
             GROUP BY customer_id
         ) ids ON ids.customer_id=c.id
         LEFT JOIN app_user_info a ON a.id=ids.legacy_app_user_id
+        LEFT JOIN (
+            SELECT customer_id,COUNT(*) AS assessment_count,MIN(submitted_at) AS first_assessment_at,
+                   MAX(submitted_at) AS latest_assessment_at,
+                   SUBSTRING_INDEX(GROUP_CONCAT(weight_kg ORDER BY submitted_at DESC,id DESC),',',1) AS latest_weight_kg,
+                   SUBSTRING_INDEX(GROUP_CONCAT(id ORDER BY submitted_at DESC,id DESC),',',1) AS latest_id
+            FROM ql_friend_assessment GROUP BY customer_id
+        ) assessment ON assessment.customer_id=c.id
+        LEFT JOIN ql_friend_assessment latest ON latest.id=assessment.latest_id
     </sql>
 
     <select id="selectPageList" resultType="com.yicai.life.domain.vo.QlCustomerVo">
@@ -31,7 +44,10 @@
                 AND (c.nickname LIKE CONCAT('%',#{bo.nickname},'%')
                      OR c.real_name LIKE CONCAT('%',#{bo.nickname},'%')
                      OR CONVERT(c.customer_no USING utf8mb4) LIKE CONCAT('%',#{bo.nickname},'%')
-                     OR a.nick_name LIKE CONCAT('%',#{bo.nickname},'%'))
+                     OR a.nick_name LIKE CONCAT('%',#{bo.nickname},'%')
+                     OR EXISTS (SELECT 1 FROM ql_customer_identifier keyword_phone
+                                WHERE keyword_phone.customer_id=c.id AND keyword_phone.identifier_type='phone'
+                                  AND keyword_phone.valid_to IS NULL AND keyword_phone.normalized_hash=SHA2(#{bo.nickname},256)))
             </if>
             <if test="bo.status != null and bo.status != ''">AND c.status=#{bo.status}</if>
             <if test="bo.phone != null and bo.phone != ''">
@@ -44,8 +60,30 @@
                 )
             </if>
             <if test="bo.city != null and bo.city != ''">AND c.city=#{bo.city}</if>
+            <if test="bo.assessmentStart != null and bo.assessmentStart != ''">
+                AND EXISTS (SELECT 1 FROM ql_friend_assessment f WHERE f.customer_id=c.id AND f.submitted_at&gt;=CONCAT(#{bo.assessmentStart},' 00:00:00')
+                <if test="bo.assessmentEnd != null and bo.assessmentEnd != ''">AND f.submitted_at&lt;DATE_ADD(#{bo.assessmentEnd},INTERVAL 1 DAY)</if>
+                <if test="bo.cleanBodyGoal != null and bo.cleanBodyGoal != ''">AND JSON_CONTAINS(f.clean_body_goals,JSON_QUOTE(#{bo.cleanBodyGoal}))</if>
+                <if test="bo.dietPreference != null and bo.dietPreference != ''">AND f.diet_preference=#{bo.dietPreference}</if>
+                <if test="bo.energyStatus != null and bo.energyStatus != ''">AND f.energy_status=#{bo.energyStatus}</if>
+                <if test="bo.exerciseStatus != null and bo.exerciseStatus != ''">AND f.exercise_status=#{bo.exerciseStatus}</if>
+                <if test="bo.hasHealthCondition != null and bo.hasHealthCondition">AND NOT (JSON_LENGTH(f.health_conditions)=1 AND JSON_CONTAINS(f.health_conditions,JSON_QUOTE('无')))</if>
+                <if test="bo.hasHealthCondition != null and !bo.hasHealthCondition">AND JSON_LENGTH(f.health_conditions)=1 AND JSON_CONTAINS(f.health_conditions,JSON_QUOTE('无'))</if>
+                )
+            </if>
+            <if test="(bo.assessmentStart == null or bo.assessmentStart == '') and (bo.assessmentEnd != null and bo.assessmentEnd != '' or bo.cleanBodyGoal != null and bo.cleanBodyGoal != '' or bo.dietPreference != null and bo.dietPreference != '' or bo.energyStatus != null and bo.energyStatus != '' or bo.exerciseStatus != null and bo.exerciseStatus != '' or bo.hasHealthCondition != null)">
+                AND EXISTS (SELECT 1 FROM ql_friend_assessment f WHERE f.customer_id=c.id
+                <if test="bo.assessmentEnd != null and bo.assessmentEnd != ''">AND f.submitted_at&lt;DATE_ADD(#{bo.assessmentEnd},INTERVAL 1 DAY)</if>
+                <if test="bo.cleanBodyGoal != null and bo.cleanBodyGoal != ''">AND JSON_CONTAINS(f.clean_body_goals,JSON_QUOTE(#{bo.cleanBodyGoal}))</if>
+                <if test="bo.dietPreference != null and bo.dietPreference != ''">AND f.diet_preference=#{bo.dietPreference}</if>
+                <if test="bo.energyStatus != null and bo.energyStatus != ''">AND f.energy_status=#{bo.energyStatus}</if>
+                <if test="bo.exerciseStatus != null and bo.exerciseStatus != ''">AND f.exercise_status=#{bo.exerciseStatus}</if>
+                <if test="bo.hasHealthCondition != null and bo.hasHealthCondition">AND NOT (JSON_LENGTH(f.health_conditions)=1 AND JSON_CONTAINS(f.health_conditions,JSON_QUOTE('无')))</if>
+                <if test="bo.hasHealthCondition != null and !bo.hasHealthCondition">AND JSON_LENGTH(f.health_conditions)=1 AND JSON_CONTAINS(f.health_conditions,JSON_QUOTE('无'))</if>
+                )
+            </if>
         </where>
-        ORDER BY c.updated_at DESC
+        ORDER BY assessment.latest_assessment_at DESC,c.updated_at DESC
     </select>
 
     <select id="selectVoById" resultType="com.yicai.life.domain.vo.QlCustomerVo">

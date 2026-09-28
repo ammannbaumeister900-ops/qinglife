@@ -1,8 +1,8 @@
 <template>
   <div class="app-container">
     <el-form ref="queryForm" :model="queryParams" :inline="true" v-show="showSearch" label-width="68px">
-      <el-form-item label="轻友" prop="nickname">
-        <el-input v-model="queryParams.nickname" placeholder="称呼/姓名/编号/微信昵称" clearable size="small" @keyup.enter.native="handleQuery" />
+      <el-form-item label="关键词" prop="nickname">
+        <el-input v-model="queryParams.nickname" placeholder="姓名/小名/手机号/编号" clearable size="small" @keyup.enter.native="handleQuery" />
       </el-form-item>
       <el-form-item label="状态" prop="status">
         <el-select v-model="queryParams.status" placeholder="全部" clearable size="small">
@@ -13,6 +13,13 @@
       <el-form-item label="手机号" prop="phone">
         <el-input v-model.trim="queryParams.phone" inputmode="numeric" maxlength="11" placeholder="11位手机号精准搜索" clearable size="small" @keyup.enter.native="handleQuery" />
       </el-form-item>
+      <el-form-item label="登记时间"><el-date-picker v-model="assessmentRange" type="daterange" value-format="yyyy-MM-dd" range-separator="至" start-placeholder="开始" end-placeholder="结束" size="small" /></el-form-item>
+      <el-form-item label="城市" prop="city"><el-input v-model="queryParams.city" clearable size="small" placeholder="全部城市" /></el-form-item>
+      <el-form-item label="清体目的" prop="cleanBodyGoal"><el-select v-model="queryParams.cleanBodyGoal" clearable size="small"><el-option v-for="item in goals" :key="item" :label="item" :value="item" /></el-select></el-form-item>
+      <el-form-item label="饮食偏好" prop="dietPreference"><el-select v-model="queryParams.dietPreference" clearable size="small"><el-option v-for="item in diets" :key="item" :label="item" :value="item" /></el-select></el-form-item>
+      <el-form-item label="精力" prop="energyStatus"><el-select v-model="queryParams.energyStatus" clearable size="small"><el-option v-for="item in energies" :key="item" :label="item" :value="item" /></el-select></el-form-item>
+      <el-form-item label="运动" prop="exerciseStatus"><el-select v-model="queryParams.exerciseStatus" clearable size="small"><el-option v-for="item in exercises" :key="item" :label="item" :value="item" /></el-select></el-form-item>
+      <el-form-item label="健康情况" prop="hasHealthCondition"><el-select v-model="queryParams.hasHealthCondition" clearable size="small"><el-option label="存在健康情况" :value="true" /><el-option label="仅选择无" :value="false" /></el-select></el-form-item>
       <el-form-item>
         <el-button type="primary" icon="el-icon-search" size="mini" @click="handleQuery">搜索</el-button>
         <el-button icon="el-icon-refresh" size="mini" @click="resetQuery">重置</el-button>
@@ -23,6 +30,7 @@
       <el-col :span="1.5">
         <el-button type="primary" plain icon="el-icon-plus" size="mini" @click="handleAdd" v-hasPermi="['life:customer:add']">新增轻友</el-button>
       </el-col>
+      <el-col :span="1.5"><el-button type="warning" plain icon="el-icon-download" size="mini" :loading="exporting" @click="handleExport" v-hasPermi="['life:assessment:export']">导出当前筛选</el-button></el-col>
       <right-toolbar :showSearch.sync="showSearch" @queryTable="getList" />
     </el-row>
 
@@ -49,10 +57,15 @@
       <el-table-column label="手机号" prop="phoneHint" width="120"><template slot-scope="scope">{{ scope.row.phoneHint || '-' }}</template></el-table-column>
       <el-table-column label="身份证" prop="idCardHint" width="140"><template slot-scope="scope">{{ scope.row.idCardHint || '-' }}</template></el-table-column>
       <el-table-column label="真实姓名" prop="realName" min-width="100" />
+      <el-table-column label="年龄" prop="age" width="70"><template slot-scope="scope">{{ scope.row.age == null ? '-' : scope.row.age }}</template></el-table-column>
       <el-table-column label="性别" min-width="70">
         <template slot-scope="scope">{{ genderText(scope.row.gender) }}</template>
       </el-table-column>
       <el-table-column label="城市" prop="city" min-width="100" />
+      <el-table-column label="最新体重" prop="latestWeightKg" width="95"><template slot-scope="scope">{{ scope.row.latestWeightKg == null ? '-' : scope.row.latestWeightKg + ' kg' }}</template></el-table-column>
+      <el-table-column label="登记次数" prop="assessmentCount" width="90"><template slot-scope="scope">{{ scope.row.assessmentCount || 0 }}</template></el-table-column>
+      <el-table-column label="最近登记" prop="latestAssessmentAt" width="160"><template slot-scope="scope">{{ scope.row.latestAssessmentAt || '-' }}</template></el-table-column>
+      <el-table-column label="清体目的" min-width="130"><template slot-scope="scope">{{ jsonList(scope.row.latestCleanBodyGoals).join('、') || '-' }}</template></el-table-column>
       <el-table-column label="首次来源" prop="firstSource" min-width="110" />
       <el-table-column label="可信度" min-width="90">
         <template slot-scope="scope">
@@ -102,16 +115,17 @@
 
 <script>
 import CustomerDossier from './Dossier.vue'
-import { listCustomer, getCustomer, getCustomerTimeline, addCustomer, updateCustomer } from '@/api/life/customer'
+import { listCustomer, getCustomer, addCustomer, updateCustomer, exportCustomerAssessments } from '@/api/life/customer'
 
 export default {
   name: 'QlCustomer',
   components: { CustomerDossier },
   data() {
     return {
-      loading: false, submitting: false, showSearch: true, total: 0, customerList: [], open: false, title: '',
+      loading: false, submitting: false, exporting: false, showSearch: true, total: 0, customerList: [], open: false, title: '',
       timelineOpen: false, timelineLoading: false, timelineCustomer: {}, timelineRows: [],
-      queryParams: { pageNum: 1, pageSize: 10, nickname: undefined, phone: undefined, status: undefined },
+      assessmentRange: [], goals: ['排毒','减重','减压','调理'], diets: ['全素','以素为主','以荤为主','荤素各半'], energies: ['很好','一般','差'], exercises: ['不运动','偶尔运动','经常运动'],
+      queryParams: { pageNum: 1, pageSize: 10, nickname: undefined, phone: undefined, status: undefined, city: undefined, cleanBodyGoal: undefined, dietPreference: undefined, energyStatus: undefined, exerciseStatus: undefined, hasHealthCondition: undefined, assessmentStart: undefined, assessmentEnd: undefined },
       form: {}, rules: { nickname: [{ required: true, message: '请输入称呼', trigger: 'blur' }] }
     }
   },
@@ -128,18 +142,22 @@ export default {
     handleQuery() {
       const phone = (this.queryParams.phone || '').trim()
       if (phone && !/^1[3-9]\d{9}$/.test(phone)) return this.$message.warning('请输入完整的11位手机号进行精准搜索')
+      this.queryParams.assessmentStart = this.assessmentRange && this.assessmentRange[0]
+      this.queryParams.assessmentEnd = this.assessmentRange && this.assessmentRange[1]
       this.queryParams.pageNum = 1; this.getList()
     },
-    resetQuery() { this.resetForm('queryForm'); this.handleQuery() },
+    resetQuery() { this.assessmentRange=[];this.resetForm('queryForm'); this.handleQuery() },
     reset() { this.form = { id: undefined, nickname: '', realName: '', birthDate: undefined, gender: 'unknown', city: '', firstSource: 'unknown', dataSource: 'manual_entry', dataConfidence: 'unknown', status: 'active', wechatNickname: null, wechatAvatar: null, accountStatus: 'unbound', lastLoginTime: null }; this.resetForm('form') },
     handleAdd() { this.reset(); this.title = '新增轻友'; this.open = true },
     handleUpdate(row) { this.reset(); getCustomer(row.id).then(res => { this.form = res.data; this.title = '编辑轻友档案'; this.open = true }) },
     handleTimeline(row) { this.$refs.dossier.open(row.id) },
+    handleExport() { this.$confirm('导出文件包含手机号与健康敏感信息，是否继续？','敏感数据导出',{type:'warning'}).then(()=>{this.exporting=true;return exportCustomerAssessments(this.queryParams)}).then(res=>{this.download(res.msg)}).finally(()=>{this.exporting=false}) },
     submitForm() { this.$refs.form.validate(valid => { if (!valid) return; this.submitting = true; const request = this.form.id ? updateCustomer(this.form) : addCustomer(this.form); request.then(() => { this.msgSuccess(this.form.id ? '修改成功' : '建档成功'); this.open = false; this.getList(); if (this.$refs.dossier.visible) this.$refs.dossier.load() }).finally(() => { this.submitting = false }) }) },
     genderText(value) { return ({ female: '女', male: '男', other: '其他', unknown: '未知' })[value] || '未知' },
     confidenceText(value) { return ({ verified: '已核实', probable: '较可信', unknown: '待核实' })[value] || '待核实' },
     accountStatusText(value) { return ({ enabled: '启用', disabled: '停用', unbound: '未绑定' })[value] || '未绑定' },
     accountStatusType(value) { return ({ enabled: 'success', disabled: 'danger', unbound: 'info' })[value] || 'info' },
+    jsonList(value) { if(Array.isArray(value))return value;if(!value)return [];try{return JSON.parse(value)}catch(e){return []} },
     timelineColor(value) { return ({ payment_confirmed: '#67c23a', attendance: '#409eff', staff_interview: '#e6a23c', session_completed: '#909399' })[value] || '#b78369' },
     sourceText(value) { return ({ mini_program: '小程序', web_admin: '电脑后台', mobile_h5: '移动工作台', mobile_workspace: '移动工作台', operator_entry: '人工登记', system: '系统', legacy_app: '微信登录建档' })[value] || value || '未知' }
   }
