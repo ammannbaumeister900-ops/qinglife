@@ -12,6 +12,18 @@ export function getCustomerTimeline(id) {
   return request({ url: '/life/customer/' + id + '/timeline', method: 'get' })
 }
 
+export function getCustomerAssessments(id) {
+  return request({ url: '/life/customer/' + id + '/assessments', method: 'get' })
+}
+
+export function getCustomerStatistics(query) {
+  return request({ url: '/life/customer/statistics', method: 'get', params: query })
+}
+
+export function exportCustomerAssessments(query) {
+  return request({ url: '/life/customer/export', method: 'get', params: query })
+}
+
 export function addCustomer(data) {
   return request({ url: '/life/customer', method: 'post', data })
 }

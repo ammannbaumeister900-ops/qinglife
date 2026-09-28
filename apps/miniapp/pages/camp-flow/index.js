@@ -4,6 +4,15 @@ const store = require('../../utils/store')
 const domain = require('../../utils/domain')
 const navigation = require('../../utils/navigation')
 
+function currentFeelingPhase(activity, status) {
+  const now = new Date(), today = domain.localDate(now)
+  const time = [now.getHours(), now.getMinutes(), now.getSeconds()].map(value => String(value).padStart(2, '0')).join(':')
+  const days = activity.days || [], first = days[0] || {}, last = days[days.length - 1] || {}
+  if (today === activity.startDate && (!first.startTime || time < first.startTime)) return 'before'
+  if (status === 'completed' || today > activity.endDate || today === activity.endDate && last.endTime && time >= last.endTime) return 'after'
+  return ''
+}
+
 Page({
   data: {
     view: 'detail', loading: false, loadError: '', submitting: false, feelingSaving: false, invitationCode: '', routeActivityId: '', sharePath: '', requestId: '', scales: [1,2,3,4,5], feelingPhase: '', feelingDayId: '', energy: null, relaxation: null, feelingNote: '', feelingSaved: false, inviteActivities: [],
@@ -62,18 +71,18 @@ Page({
         const self = registration.participants.find(person => person.id === 'person-self')
         const today = domain.localDate()
         const todayDay = activity.days.find(day => String(day.activityDate).slice(0,10) === today) || null
-        const phase = registration.status === 'completed' || today > activity.endDate ? 'after' : today < activity.startDate ? 'before' : todayDay ? 'during' : ''
-        const record = (overview.experienceRecords || []).find(record => self && record.registrationId === self.registrationId && record.phase === phase && (record.nodeKey || '') === (phase === 'during' ? todayDay.id : ''))
+        const phase = currentFeelingPhase(activity, registration.status)
+        const record = (overview.experienceRecords || []).find(record => self && record.registrationId === self.registrationId && record.phase === phase && !(record.nodeKey || ''))
         const identityChanged = this.data.loadedCustomerId !== overview.customerId
         if (identityChanged) this.setData({ draft: null, sharePath: '', shareTitle: '', requestId: '', loadedCustomerId: overview.customerId })
-        const draft = this.data.draft || { serviceConsent: false, participants: [{ id: 'person-self', name: state.profile.name, relation: '本人', minor: state.profile.minor, phone: state.phone || '', selected: true }] }
+        const draft = this.data.draft || { serviceConsent: false, contactName: state.profile.name || '', contactPhone: state.phone || '', participants: [{ id: 'person-self', name: state.profile.name, relation: '本人', minor: state.profile.minor, phone: state.phone || '', selected: true }] }
         const experienceTimeline = (overview.experienceRecords || []).filter(row => self && row.registrationId === self.registrationId).map(row => ({ ...row, label: row.phase === 'before' ? '活动前' : row.phase === 'after' ? '活动后' : ((activity.days.find(day => day.id === row.nodeKey) || {}).label || '活动期间') })).reverse()
         this.setData({ activity, state, registration, draft, overview, experienceTimeline, loading: false, routeActivityId: activity.id,
           selectedCount: (this.data.view === 'register' ? draft : registration).participants.filter(person => person.selected).length,
           isRegistered: registration.status !== 'none', availability: domain.activityState(activity), todayDay,
           dayViews: activity.days.map(day => ({ ...day, date: String(day.activityDate).slice(0,10), today: day.id === (todayDay && todayDay.id), checked: (overview.attendance || []).some(row => row.sessionDayId === day.id && ['checked_in','late'].includes(row.attendanceStatus)) })),
           canReview: !!self && ['confirmed','completed'].includes(registration.status) && phase === 'after', canWriteReview: !!self, canRecordFeeling: !!self && ['confirmed','completed'].includes(registration.status) && !!phase,
-          feelingRegistrationId: self ? self.registrationId : '', feelingPhase: phase, feelingDayId: todayDay ? todayDay.id : '',
+          feelingRegistrationId: self ? self.registrationId : '', feelingPhase: phase, feelingDayId: '',
           energy: record ? record.energy : null, relaxation: record ? record.relaxation : null, feelingNote: record ? record.note : '', feelingSaved: !!record,
           reviewNote: record && phase === 'after' ? record.note : '', reviewSaved: !!record && phase === 'after',
           inviteActivities: context.activities.filter(item => item.id !== activity.id && domain.activityState(item).canRegister) })
@@ -142,9 +151,9 @@ Page({
     if (this.data.step === 1 && this.data.selectedCount < 1) {
       return wx.showToast({ title: '请至少选择一位参与者', icon: 'none' })
     }
-    const state = this.data.state
-    const missingPhone = this.data.draft.participants.some(person => person.selected && !person.minor && !/^1\d{10}$/.test(person.phone || (person.relation === '本人' ? state.phone : '')))
-    if (missingPhone) return wx.showToast({ title: '请补充成年参与者本人手机号', icon: 'none' })
+    if (!this.data.draft.contactName || !/^1\d{10}$/.test(this.data.draft.contactPhone || '')) return wx.showToast({ title: '请填写可靠的主要联系人和手机号', icon: 'none' })
+    const invalidPhone = this.data.draft.participants.some(person => person.selected && person.phone && !/^1\d{10}$/.test(person.phone))
+    if (invalidPhone) return wx.showToast({ title: '请检查选填的参与人手机号', icon: 'none' })
     this.setData({ step: Math.min(2, this.data.step + 1) })
   },
 
@@ -157,11 +166,15 @@ Page({
     if (business.enabled()) {
       const participants = this.data.draft.participants.filter(person => person.selected)
       if (!this.data.draft.serviceConsent || !participants.length) return wx.showToast({ title: '请确认参与人和必要授权', icon: 'none' })
-      if (participants.some(person => !person.minor && !/^1\d{10}$/.test(person.phone || (person.id === 'person-self' ? this.data.state.phone : '')))) return wx.showToast({ title: '请填写成年参与者本人手机号', icon: 'none' })
+      if (!this.data.draft.contactName || !/^1\d{10}$/.test(this.data.draft.contactPhone || '')) return wx.showToast({ title: '请填写主要联系人和手机号', icon: 'none' })
+      const phones = participants.map(person => String(person.phone || '').trim()).filter(Boolean)
+      if (phones.some(phone => !/^1\d{10}$/.test(phone))) return wx.showToast({ title: '请检查选填的参与人手机号', icon: 'none' })
+      if (new Set(phones).size !== phones.length) return wx.showToast({ title: '不能把同一手机号填给多名参与者', icon: 'none' })
+      if (participants.some(person => person.id !== 'person-self' && String(person.phone || '').trim() === this.data.draft.contactPhone.trim())) return wx.showToast({ title: '同行参与者没有本人号码可留空', icon: 'none' })
       if (!this.data.requestId) this.setData({ requestId: 'registration-' + Date.now() + '-' + Math.random().toString(36).slice(2) })
       this.setData({ submitting: true })
       try {
-        await business.register({ sessionId: this.data.activity.id, clientRequestId: this.data.requestId, invitationCode: this.data.invitationCode || null, serviceConsent: true, motivation: this.data.draft.motivation || null,
+        await business.register({ sessionId: this.data.activity.id, clientRequestId: this.data.requestId, invitationCode: this.data.invitationCode || null, serviceConsent: true, motivation: this.data.draft.motivation || null, contactName: this.data.draft.contactName.trim(), contactPhone: this.data.draft.contactPhone.trim(),
           participants: participants.map(person => ({ self: person.id === 'person-self', customerId: person.id === 'person-self' ? null : person.customerId || null, name: person.name, relation: person.relation, minor: !!person.minor, phone: person.phone || (person.id === 'person-self' ? this.data.state.phone : '') })) })
         this.setData({ view: 'journey' })
         await this.refresh()
@@ -216,17 +229,19 @@ Page({
     wx.showToast({ title: '感受已保存', icon: 'none' })
   },
   showAddPerson() { this.setData({ addingPerson: !this.data.addingPerson }) },
-  onSelfPhone(event) { const draft = JSON.parse(JSON.stringify(this.data.draft)); const self = draft.participants.find(p => p.id === 'person-self'); if (self) self.phone = event.detail.value; this.setData({ draft }) },
-  onSelfName(event) { const draft = JSON.parse(JSON.stringify(this.data.draft)); const self = draft.participants.find(p => p.id === 'person-self'); if (self) self.name = event.detail.value; this.setData({ draft }) },
+  onSelfPhone(event) { const draft = JSON.parse(JSON.stringify(this.data.draft)); const self = draft.participants.find(p => p.id === 'person-self'); if (self) self.phone = event.detail.value; if (!draft.contactPhone) draft.contactPhone = event.detail.value; this.setData({ draft }) },
+  onSelfName(event) { const draft = JSON.parse(JSON.stringify(this.data.draft)); const self = draft.participants.find(p => p.id === 'person-self'); if (self) self.name = event.detail.value; if (!draft.contactName) draft.contactName = event.detail.value; this.setData({ draft }) },
+  onContactName(event) { this.setData({ draft: { ...this.data.draft, contactName: event.detail.value } }) },
+  onContactPhone(event) { this.setData({ draft: { ...this.data.draft, contactPhone: event.detail.value } }) },
   onPersonName(event) { this.setData({ personName: event.detail.value }) },
   onPersonPhone(event) { this.setData({ personPhone: event.detail.value }) },
   onPersonRelation(event) { this.setData({ personRelation: event.detail.value }) },
   toggleMinor() { this.setData({ personMinor: !this.data.personMinor }) },
   addPerson() {
     const name = this.data.personName.trim(), phone = this.data.personPhone.trim(), relation = this.data.personRelation.trim()
-    if (!name || !relation || !this.data.personMinor && !/^1\d{10}$/.test(phone)) return wx.showToast({ title: '请补充姓名、关系及成人本人手机号', icon: 'none' })
+    if (!name || !relation || phone && !/^1\d{10}$/.test(phone)) return wx.showToast({ title: '请填写姓名和关系，并检查选填手机号', icon: 'none' })
     const draft = JSON.parse(JSON.stringify(this.data.draft))
-    draft.participants.push({ id: 'person-' + Date.now(), name, phone: this.data.personMinor ? '' : phone, relation, minor: this.data.personMinor, selected: true })
+    draft.participants.push({ id: 'person-' + Date.now(), name, phone, relation, minor: this.data.personMinor, selected: true })
     this.setData({ draft })
     this.setData({ addingPerson: false, personName: '', personPhone: '', personRelation: '', personMinor: false })
     this.refresh()
@@ -238,7 +253,7 @@ Page({
     if (this.data.feelingSaving || !this.data.canRecordFeeling) return
     this.setData({ feelingSaving: true })
     try {
-      await business.saveExperience({ registrationId: this.data.feelingRegistrationId, phase: this.data.feelingPhase, sessionDayId: this.data.feelingPhase === 'during' ? this.data.feelingDayId : null, energy: this.data.energy, relaxation: this.data.relaxation, note: this.data.feelingNote })
+      await business.saveExperience({ registrationId: this.data.feelingRegistrationId, phase: this.data.feelingPhase, sessionDayId: null, energy: null, relaxation: null, note: this.data.feelingNote })
       this.setData({ feelingSaved: true, reviewSaved: this.data.feelingPhase === 'after' })
       wx.showToast({ title: '感受已保存，仅自己可见', icon: 'none' })
     } catch (error) { wx.showToast({ title: error.message, icon: 'none' }) }

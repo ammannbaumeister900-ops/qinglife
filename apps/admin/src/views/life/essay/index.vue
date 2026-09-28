@@ -116,6 +116,7 @@
           </el-switch>
         </template>
       </el-table-column>
+      <el-table-column label="首页精选" align="center" width="90"><template slot-scope="scope"><el-tag size="mini" :type="Number(scope.row.homeFeatured) === 1 ? 'success' : 'info'">{{ Number(scope.row.homeFeatured) === 1 ? '精选' : '普通' }}</el-tag></template></el-table-column>
       <el-table-column label="作者" align="center" prop="authorNickName" />
       <el-table-column label="标签" align="center" prop="label" />
       <el-table-column
@@ -193,6 +194,7 @@
         <el-form-item label="封面" prop="titleUrl">
           <imageLocalUpload v-model="form.titleUrl" :limit=1 />
         </el-form-item>
+        <el-form-item label="首页精选"><el-switch v-model="form.homeFeatured" :active-value="1" :inactive-value="0" /><div class="featured-hint">只有启用且标记为精选的文章会进入小程序首页轮播。</div></el-form-item>
         <el-form-item label="标签" prop="label">
           <el-checkbox-group v-model="form.labels">
             <el-checkbox v-for="item in labelList" :label="item.id" :key="item.id">{{item.name}}</el-checkbox>
@@ -259,6 +261,7 @@ export default {
         titleUrl: undefined,
         updateUser: undefined,
         isVideo: undefined,
+        homeFeatured: undefined,
       },
       // 表单参数
       form: {},
@@ -320,6 +323,7 @@ export default {
         updateTime: undefined,
         updateUser: undefined,
         isVideo: undefined,
+        homeFeatured: 0,
         labels: [],
         updateNotRead: false,
       };

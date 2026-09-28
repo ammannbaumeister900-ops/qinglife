@@ -22,11 +22,13 @@ class MiniAppAuthenticationTokenFilterTest {
     @AfterEach void clear() { SecurityContextHolder.clearContext(); }
 
     @Test void publicDiscoverySkipsAuthentication() throws Exception {
-        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/app/qinglife/sessions");
-        request.setServletPath("/app/qinglife/sessions");
-        FilterChain chain = mock(FilterChain.class);
-        filter.doFilter(request, new MockHttpServletResponse(), chain);
-        verify(chain).doFilter(any(), any());
+        for (String path : new String[]{"/app/qinglife/sessions", "/app/qinglife/readings/featured", "/app/qinglife/readings/12", "/app/qinglife/contact"}) {
+            MockHttpServletRequest request = new MockHttpServletRequest("GET", path);
+            request.setServletPath(path);
+            FilterChain chain = mock(FilterChain.class);
+            filter.doFilter(request, new MockHttpServletResponse(), chain);
+            verify(chain).doFilter(any(), any());
+        }
         verifyNoInteractions(redis, users);
     }
 

@@ -8,6 +8,7 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 import javax.validation.constraints.NotBlank;
+import java.math.BigDecimal;
 import java.util.Date;
 
 @Data
@@ -23,10 +24,18 @@ public class QlCustomerBo extends BaseEntity {
     private Date birthDate;
     private String gender;
     private String city;
+    private BigDecimal heightCm;
     private String firstSource;
     private String dataSource;
     private String dataConfidence;
     /** Exact current mobile number lookup; it is not persisted on the customer row. */
     private String phone;
     private String status;
+    private String assessmentStart;
+    private String assessmentEnd;
+    private String cleanBodyGoal;
+    private String dietPreference;
+    private String energyStatus;
+    private String exerciseStatus;
+    private Boolean hasHealthCondition;
 }

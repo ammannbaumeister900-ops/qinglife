@@ -108,6 +108,8 @@ public class QlSessionServiceImpl extends ServicePlusImpl<QlSessionMapper, QlSes
     }
 
     private void validateSettings(QlSessionBo bo) {
+        if (StrUtil.isBlank(bo.getTheme()) || bo.getTheme().length() > 200) throw new CustomException("请填写200字以内的本期主题");
+        if (StrUtil.isBlank(bo.getCoverUrl()) || bo.getCoverUrl().length() > 500) throw new CustomException("请配置有效的本期封面");
         if (bo.getStandardPrice() != null && (bo.getStandardPrice().signum() < 0 || bo.getStandardPrice().compareTo(new BigDecimal("99999999.99")) > 0)
                 || bo.getReturningPrice() != null && (bo.getReturningPrice().signum() < 0 || bo.getReturningPrice().compareTo(new BigDecimal("99999999.99")) > 0)) {
             throw new CustomException("价格必须在0至99999999.99元之间");

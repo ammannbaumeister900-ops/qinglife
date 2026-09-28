@@ -60,7 +60,7 @@ function normalizeArticle(item) {
     author: item.author || '轻生活',
     category: item.labelName || item.category || '轻生活',
     date: item.insertTime || item.publishTime || '',
-    cover: item.head || item.cover || '',
+    cover: item.titleUrl || item.title_url || item.head || item.cover || '',
     content: item.content || ''
   }
 }

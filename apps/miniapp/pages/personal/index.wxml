@@ -8,7 +8,7 @@
   <block wx:else>
     <view wx:if="{{demo}}" class="sample-note">本地演示模式 · 不代表正式参与档案</view>
     <block wx:if="{{view !== 'records'}}">
-      <view wx:for="{{rows}}" wx:key="id" class="card"><view class="pill">{{item.status}} {{item.payment}}</view><view class="card-title">{{item.name}}</view><view class="card-copy">{{item.date}}</view><view class="card-copy">参与人：{{item.participants}}</view><button class="secondary" data-id="{{item.id}}" bindtap="openSession">查看本次安排</button></view>
+      <view wx:for="{{rows}}" wx:key="id" class="card"><view class="pill">{{item.status}} · {{item.settlement}}</view><view class="card-title">{{item.name}}</view><view class="card-copy">{{item.date}}</view><view class="card-copy">参与人：{{item.participants}}</view><button class="secondary" data-id="{{item.id}}" bindtap="openSession">查看本次安排</button></view>
       <view wx:if="{{!rows.length}}" class="card"><view class="card-title">还没有参与经历</view><view class="card-copy">报名后，可以在这里查看每一期的状态。</view><button class="secondary" bindtap="openCamp">看看轻体营</button></view>
     </block>
     <block wx:if="{{view !== 'experiences'}}">

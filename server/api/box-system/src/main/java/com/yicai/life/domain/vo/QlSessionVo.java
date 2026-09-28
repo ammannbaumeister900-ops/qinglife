@@ -11,6 +11,8 @@ public class QlSessionVo {
     private String id;
     private Integer sessionNumber;
     private String name;
+    private String theme;
+    private String coverUrl;
     private String intro;
     @JsonFormat(pattern = "yyyy-MM-dd")
     private Date startDate;

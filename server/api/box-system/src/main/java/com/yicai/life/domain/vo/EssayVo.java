@@ -52,6 +52,8 @@ public class EssayVo {
 	@Excel(name = "1使用")
 	private Integer status;
 
+	private Integer homeFeatured;
+
     /**
      * 排序，正序
      */

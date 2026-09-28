@@ -12,11 +12,13 @@ import com.yicai.life.domain.QlRegistrationStatusLog;
 import com.yicai.life.domain.QlTransaction;
 import com.yicai.life.domain.bo.QlPaymentBo;
 import com.yicai.life.domain.bo.QlRegistrationBo;
+import com.yicai.life.domain.bo.QlSettlementBo;
 import com.yicai.life.domain.vo.QlRegistrationVo;
 import com.yicai.life.mapper.QlRegistrationMapper;
 import com.yicai.life.mapper.QlRegistrationStatusLogMapper;
 import com.yicai.life.mapper.QlTransactionMapper;
 import com.yicai.life.service.IQlRegistrationService;
+import com.yicai.life.service.QlPassService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -27,6 +29,7 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 @Service
@@ -37,6 +40,7 @@ public class QlRegistrationServiceImpl
 
     private static final java.util.List<String> PAYMENT_STATUSES = Arrays.asList("unpaid", "paid");
     private static final java.util.List<String> REGISTRATION_STATUSES = Arrays.asList("pending", "confirmed", "waitlisted", "cancelled");
+    private static final java.util.List<String> SETTLEMENT_TYPES = Arrays.asList("money", "pass");
 
     @Autowired private com.yicai.life.service.QlRegistrationPolicy policy;
     private final QlRegistrationMapper registrationMapper;
@@ -44,6 +48,7 @@ public class QlRegistrationServiceImpl
     private final com.yicai.life.service.QlSessionPricing pricing;
     private final QlRegistrationStatusLogMapper statusLogMapper;
     private final QlTransactionMapper transactionMapper;
+    private final com.yicai.life.service.QlPassService passService;
 
     @Override
     public TableDataInfo<QlRegistrationVo> queryPageList(QlRegistrationBo bo) {
@@ -130,6 +135,232 @@ public class QlRegistrationServiceImpl
 
     @Override
     @Transactional
+    public boolean confirmSettlement(String id, QlSettlementBo bo, Long operatorId) {
+        validateSettlement(bo);
+        QlRegistration snapshot = getById(id);
+        if (snapshot == null) throw new CustomException("报名记录不存在", 404);
+        policy.lockSession(snapshot.getSessionId());
+        Date now = new Date();
+        String settlementId = UUID.randomUUID().toString();
+        if (StrUtil.isNotBlank(snapshot.getBatchId())) {
+            Map<String,Object> batch = registrationMapper.selectBatchForPayment(snapshot.getBatchId());
+            if (batch == null) throw new CustomException("报名订单不存在", 404);
+            if (!"unpaid".equals(String.valueOf(batch.get("paymentStatus")))) throw new CustomException("已付款订单不能改动最终结算", 400);
+            if ("confirmed".equals(String.valueOf(batch.get("settlementStatus")))) throw new CustomException("结算结果已确认；请先撤销本轮结算后再重新确认", 400);
+            List<QlRegistration> participants = registrationMapper.selectBatchRegistrationsForUpdate(snapshot.getBatchId());
+            if (participants.isEmpty()) throw new CustomException("报名订单没有参与人", 400);
+            for (QlRegistration participant : participants) if (!"confirmed".equals(participant.getRegistrationStatus())) throw new CustomException("请先确认订单内全部报名", 400);
+            if (registrationMapper.insertSettlementLog(settlementId, null, snapshot.getBatchId(),
+                    decimal(batch.get("quotedAmount")), bo.getFinalAmount(), bo.getSettlementType(), bo.getPassUnits(),
+                    bo.getPassAccountId(), null, bo.getNote(), operatorId, now) != 1) {
+                throw new CustomException("结算历史写入失败", 500);
+            }
+            Integer balanceAfter = null;
+            if ("pass".equals(bo.getSettlementType())) {
+                balanceAfter = passService.consume(bo.getPassAccountId(), String.valueOf(batch.get("buyerCustomerId")),
+                        snapshot.getSessionId(), null, snapshot.getBatchId(), settlementId,
+                        bo.getPassUnits(), bo.getNote(), operatorId, now);
+            }
+            if (registrationMapper.confirmBatchSettlement(snapshot.getBatchId(), settlementId, bo.getFinalAmount(),
+                    bo.getSettlementType(), bo.getPassUnits(), bo.getPassAccountId(), bo.getNote(), operatorId, now) != 1) {
+                throw new CustomException("结算状态已变化，请刷新后重试", 409);
+            }
+            if (balanceAfter != null && registrationMapper.updateSettlementLogBalance(settlementId, balanceAfter) != 1) {
+                throw new CustomException("结算卡次余额快照写入失败", 500);
+            }
+            return true;
+        }
+        QlRegistration current = registrationMapper.selectForUpdate(id);
+        if (current == null) throw new CustomException("报名记录不存在", 404);
+        if (!"confirmed".equals(current.getRegistrationStatus())) throw new CustomException("请先确认报名", 400);
+        if (!"unpaid".equals(current.getPaymentStatus())) throw new CustomException("已付款报名不能改动最终结算", 400);
+        if ("confirmed".equals(current.getSettlementStatus())) throw new CustomException("结算结果已确认；请先撤销本轮结算后再重新确认", 400);
+        if (registrationMapper.insertSettlementLog(settlementId, id, null, current.getUnitPrice(),
+                bo.getFinalAmount(), bo.getSettlementType(), bo.getPassUnits(), bo.getPassAccountId(),
+                null, bo.getNote(), operatorId, now) != 1) {
+            throw new CustomException("结算历史写入失败", 500);
+        }
+        Integer balanceAfter = null;
+        if ("pass".equals(bo.getSettlementType())) {
+            balanceAfter = passService.consume(bo.getPassAccountId(), current.getCustomerId(), current.getSessionId(),
+                    id, null, settlementId, bo.getPassUnits(), bo.getNote(), operatorId, now);
+        }
+        if (registrationMapper.confirmRegistrationSettlement(id, settlementId, bo.getFinalAmount(),
+                bo.getSettlementType(), bo.getPassUnits(), bo.getPassAccountId(), bo.getNote(), operatorId, now) != 1) {
+            throw new CustomException("结算状态已变化，请刷新后重试", 409);
+        }
+        if (balanceAfter != null && registrationMapper.updateSettlementLogBalance(settlementId, balanceAfter) != 1) {
+            throw new CustomException("结算卡次余额快照写入失败", 500);
+        }
+        return true;
+    }
+
+    @Override
+    @Transactional
+    public boolean revokeSettlement(String id, String settlementId, String reason, Long operatorId) {
+        if (StrUtil.isBlank(reason) || reason.trim().length() > 500) {
+            throw new CustomException("撤销结算必须填写原因（最多500字）", 400);
+        }
+        if (StrUtil.isBlank(settlementId)) throw new CustomException("结算轮次标识缺失，请刷新后重试", 400);
+        QlRegistration snapshot = getById(id);
+        if (snapshot == null) throw new CustomException("报名记录不存在", 404);
+        policy.lockSession(snapshot.getSessionId());
+        if (StrUtil.isNotBlank(snapshot.getBatchId())) {
+            return revokeBatchSettlement(snapshot, settlementId, reason.trim(), operatorId);
+        }
+        return revokeRegistrationSettlement(snapshot, settlementId, reason.trim(), operatorId);
+    }
+
+    private boolean revokeBatchSettlement(QlRegistration snapshot, String settlementId, String reason, Long operatorId) {
+        String batchId = snapshot.getBatchId();
+        Map<String,Object> batch = registrationMapper.selectBatchForPayment(batchId);
+        if (batch == null) throw new CustomException("报名订单不存在", 404);
+        List<QlRegistration> participants = registrationMapper.selectBatchRegistrationsForUpdate(batchId);
+        if (participants.isEmpty()) throw new CustomException("报名订单没有参与人，无法安全撤销", 409);
+
+        Map<String,Object> priorReversal = registrationMapper.selectSettlementReversalForUpdate(settlementId);
+        if (priorReversal != null) {
+            if (priorReversal.get("registrationId") != null
+                    || !batchId.equals(String.valueOf(priorReversal.get("batchId")))) {
+                throw new CustomException("该撤销记录不属于此报名订单", 409);
+            }
+            return true;
+        }
+
+        String currentSettlementId = stringValue(batch.get("currentSettlementId"));
+        if (!"confirmed".equals(String.valueOf(batch.get("settlementStatus")))) {
+            throw new CustomException("当前订单已不是已确认结算状态，请刷新后重试", 409);
+        }
+        if (StrUtil.isBlank(currentSettlementId)) {
+            throw new CustomException("本轮结算历史缺少可靠关联，无法安全撤销；已阻止操作", 409);
+        }
+        if (!settlementId.equals(currentSettlementId)) {
+            throw new CustomException("结算数据已变化，请刷新后重试", 409);
+        }
+
+        Map<String,Object> history = registrationMapper.selectSettlementLogForUpdate(settlementId);
+        assertSettlementHistory(history, null, batchId, batch.get("finalAmount"), batch.get("settlementType"),
+                batch.get("passUnits"), batch.get("passAccountId"));
+        ensureSettlementCanBeRevoked(String.valueOf(batch.get("paymentStatus")),
+                registrationMapper.countPaidTransactionsByBatch(batchId), history.get("settlementType"),
+                registrationMapper.countPassLedgerEntriesBySettlement(settlementId));
+
+        Date now = new Date();
+        if (registrationMapper.updateBatchSettlementToPending(batchId, settlementId) != 1) {
+            throw new CustomException("结算状态已变化，请刷新后重试", 409);
+        }
+        QlPassService.PassReversal passReversal = null;
+        if ("pass".equals(String.valueOf(history.get("settlementType")))) {
+            passReversal = passService.reverseConsumption(settlementId, String.valueOf(batch.get("buyerCustomerId")),
+                    snapshot.getSessionId(), null, batchId, stringValue(history.get("passAccountId")),
+                    integerValue(history.get("passUnits")), reason, operatorId, now);
+        }
+        insertReversalAudit(settlementId, null, batchId, history, passReversal, reason, operatorId, now);
+        return true;
+    }
+
+    private boolean revokeRegistrationSettlement(QlRegistration snapshot, String settlementId,
+                                                   String reason, Long operatorId) {
+        QlRegistration current = registrationMapper.selectForUpdate(snapshot.getId());
+        if (current == null) throw new CustomException("报名记录不存在", 404);
+        Map<String,Object> priorReversal = registrationMapper.selectSettlementReversalForUpdate(settlementId);
+        if (priorReversal != null) {
+            if (priorReversal.get("batchId") != null
+                    || !current.getId().equals(String.valueOf(priorReversal.get("registrationId")))) {
+                throw new CustomException("该撤销记录不属于此报名", 409);
+            }
+            return true;
+        }
+
+        if (!"confirmed".equals(current.getSettlementStatus())) {
+            throw new CustomException("当前报名已不是已确认结算状态，请刷新后重试", 409);
+        }
+        if (StrUtil.isBlank(current.getCurrentSettlementId())) {
+            throw new CustomException("本轮结算历史缺少可靠关联，无法安全撤销；已阻止操作", 409);
+        }
+        if (!settlementId.equals(current.getCurrentSettlementId())) {
+            throw new CustomException("结算数据已变化，请刷新后重试", 409);
+        }
+
+        Map<String,Object> history = registrationMapper.selectSettlementLogForUpdate(settlementId);
+        assertSettlementHistory(history, current.getId(), null, current.getFinalAmount(), current.getSettlementType(),
+                current.getPassUnits(), current.getPassAccountId());
+        ensureSettlementCanBeRevoked(current.getPaymentStatus(),
+                registrationMapper.countPaidTransactionsByRegistration(current.getId()), history.get("settlementType"),
+                registrationMapper.countPassLedgerEntriesBySettlement(settlementId));
+
+        Date now = new Date();
+        if (registrationMapper.updateRegistrationSettlementToPending(current.getId(), settlementId, operatorId, now) != 1) {
+            throw new CustomException("结算状态已变化，请刷新后重试", 409);
+        }
+        QlPassService.PassReversal passReversal = null;
+        if ("pass".equals(String.valueOf(history.get("settlementType")))) {
+            passReversal = passService.reverseConsumption(settlementId, current.getCustomerId(),
+                    current.getSessionId(), current.getId(), null, stringValue(history.get("passAccountId")),
+                    integerValue(history.get("passUnits")), reason, operatorId, now);
+        }
+        insertReversalAudit(settlementId, current.getId(), null, history, passReversal, reason, operatorId, now);
+        return true;
+    }
+
+    private void assertSettlementHistory(Map<String,Object> history, String registrationId, String batchId,
+                                         Object currentAmount, Object currentType, Object currentUnits,
+                                         Object currentAccountId) {
+        if (history == null) throw new CustomException("本轮结算历史不存在，无法安全撤销", 409);
+        if (!Objects.equals(registrationId, history.get("registrationId"))
+                || !Objects.equals(batchId, history.get("batchId"))
+                || !sameAmount(history.get("finalAmount"), currentAmount)
+                || !Objects.equals(String.valueOf(history.get("settlementType")), String.valueOf(currentType))
+                || !Objects.equals(integerValue(history.get("passUnits")), integerValue(currentUnits))
+                || !Objects.equals(stringValue(history.get("passAccountId")), stringValue(currentAccountId))) {
+            throw new CustomException("本轮结算历史与当前数据不一致，已阻止撤销", 409);
+        }
+    }
+
+    private void ensureSettlementCanBeRevoked(String paymentStatus, int paidTransactions,
+                                              Object settlementType, int passLedgerEntries) {
+        if ("paid".equals(paymentStatus) || paidTransactions > 0) {
+            if ("money".equals(String.valueOf(settlementType))) {
+                throw new CustomException("请先通过现有入口撤销收款登记，再撤销结算。", 409);
+            }
+            throw new CustomException("当前结算存在收款记录，需先通过现有入口撤销收款登记", 409);
+        }
+        if (!Arrays.asList("money", "pass").contains(String.valueOf(settlementType))) {
+            throw new CustomException("当前结算方式不支持安全撤销，已阻止操作", 409);
+        }
+        if ("money".equals(String.valueOf(settlementType)) && passLedgerEntries != 0) {
+            throw new CustomException("现金结算关联到卡次流水，数据不一致，已阻止撤销", 409);
+        }
+    }
+
+    private void insertReversalAudit(String settlementId, String registrationId, String batchId,
+                                     Map<String,Object> history, QlPassService.PassReversal passReversal,
+                                     String reason, Long operatorId, Date now) {
+        Integer after = passReversal == null ? null : passReversal.getBalanceAfter();
+        String originalLedgerId = passReversal == null ? null : passReversal.getOriginalLedgerId();
+        if (registrationMapper.insertSettlementReversal(settlementId, registrationId, batchId,
+                decimal(history.get("finalAmount")), String.valueOf(history.get("settlementType")),
+                stringValue(history.get("passAccountId")), integerValue(history.get("passUnits")),
+                originalLedgerId, after, reason, operatorId, now) != 1) {
+            throw new CustomException("结算撤销日志写入失败", 500);
+        }
+    }
+
+    private boolean sameAmount(Object left, Object right) {
+        BigDecimal first = decimal(left), second = decimal(right);
+        return first != null && second != null && first.compareTo(second) == 0;
+    }
+
+    private Integer integerValue(Object value) {
+        return value == null ? null : ((Number)value).intValue();
+    }
+
+    private String stringValue(Object value) {
+        return value == null ? null : String.valueOf(value);
+    }
+
+    @Override
+    @Transactional
     public boolean changePayment(String id, QlPaymentBo bo, Long operatorId) {
         if (!PAYMENT_STATUSES.contains(bo.getPaymentStatus())) {
             throw new CustomException("当前版本仅支持未付款或已付款", 400);
@@ -152,7 +383,9 @@ public class QlRegistrationServiceImpl
                 throw new CustomException("请先确认报名", 400);
             }
             QlRegistrationVo quote = registrationMapper.selectVoById(id);
-            validateFullPayment(bo, quote == null ? null : quote.getStandardPrice());
+            if (quote == null || !"confirmed".equals(quote.getSettlementStatus())) throw new CustomException("请先确认最终结算结果", 400);
+            if (!"money".equals(quote.getSettlementType())) throw new CustomException("卡次结算不能登记现金收款", 400);
+            validateFullPayment(bo, quote.getFinalAmount());
         } else if (StrUtil.isBlank(bo.getChangeReason())) {
             throw new CustomException("撤销已付款必须填写原因", 400);
         }
@@ -215,7 +448,9 @@ public class QlRegistrationServiceImpl
                     throw new CustomException("请先确认订单内全部报名", 400);
                 }
             }
-            Object amount = batch.get("payableAmount");
+            if (!"confirmed".equals(String.valueOf(batch.get("settlementStatus")))) throw new CustomException("请先确认最终结算结果", 400);
+            if (!"money".equals(String.valueOf(batch.get("settlementType")))) throw new CustomException("卡次结算不能登记现金收款", 400);
+            Object amount = batch.get("finalAmount");
             validateFullPayment(bo, amount == null ? null : new BigDecimal(amount.toString()));
         } else if (StrUtil.isBlank(bo.getChangeReason())) {
             throw new CustomException("撤销已付款必须填写原因", 400);
@@ -292,6 +527,21 @@ public class QlRegistrationServiceImpl
         if (!Arrays.asList("wechat_scan","alipay_scan","transfer","cash","other").contains(bo.getPaymentMethod())) {
             throw new CustomException("确认付款时必须填写付款方式", 400);
         }
+    }
+
+    private void validateSettlement(QlSettlementBo bo) {
+        if (bo == null || bo.getFinalAmount() == null || bo.getFinalAmount().signum() < 0) throw new CustomException("最终金额不能小于0", 400);
+        if (!SETTLEMENT_TYPES.contains(bo.getSettlementType())) throw new CustomException("结算方式无效", 400);
+        int units = bo.getPassUnits() == null ? 0 : bo.getPassUnits();
+        if ("pass".equals(bo.getSettlementType()) && units < 1) throw new CustomException("使用卡次结算时请填写卡次", 400);
+        if ("money".equals(bo.getSettlementType()) && units > 0) throw new CustomException("现金结算不能填写卡次", 400);
+        if ("pass".equals(bo.getSettlementType()) && bo.getFinalAmount().signum() != 0) throw new CustomException("卡次结算的现金金额应为0", 400);
+        if ("pass".equals(bo.getSettlementType()) && StrUtil.isBlank(bo.getPassAccountId())) throw new CustomException("请选择要使用的卡次账户", 400);
+        if ("money".equals(bo.getSettlementType()) && StrUtil.isNotBlank(bo.getPassAccountId())) throw new CustomException("现金结算不能选择卡次账户", 400);
+    }
+
+    private BigDecimal decimal(Object value) {
+        return value == null ? null : new BigDecimal(value.toString());
     }
 
     private void validateRegistrationStatus(String status) {

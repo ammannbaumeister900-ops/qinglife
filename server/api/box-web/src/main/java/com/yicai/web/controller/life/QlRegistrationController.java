@@ -11,6 +11,8 @@ import com.yicai.common.enums.BusinessType;
 import com.yicai.common.utils.SecurityUtils;
 import com.yicai.life.domain.bo.QlPaymentBo;
 import com.yicai.life.domain.bo.QlRegistrationBo;
+import com.yicai.life.domain.bo.QlSettlementBo;
+import com.yicai.life.domain.bo.QlSettlementReversalBo;
 import com.yicai.life.domain.vo.QlRegistrationVo;
 import com.yicai.life.service.IQlRegistrationService;
 import lombok.RequiredArgsConstructor;
@@ -60,6 +62,21 @@ public class QlRegistrationController extends BaseController {
     @PutMapping("/{id}/payment")
     public AjaxResult<Void> changePayment(@PathVariable String id, @Valid @RequestBody QlPaymentBo bo) {
         return toAjax(registrationService.changePayment(id, bo, currentUserId()));
+    }
+
+    @PreAuthorize("@ss.hasPermi('life:registration:payment')")
+    @Log(title = "最终结算确认", businessType = BusinessType.UPDATE)
+    @PutMapping("/{id}/settlement")
+    public AjaxResult<Void> confirmSettlement(@PathVariable String id, @Valid @RequestBody QlSettlementBo bo) {
+        return toAjax(registrationService.confirmSettlement(id, bo, currentUserId()));
+    }
+
+    @PreAuthorize("@ss.hasPermi('life:registration:settlement:revoke')")
+    @Log(title = "撤销最终结算", businessType = BusinessType.UPDATE)
+    @PutMapping("/{id}/settlement/{settlementId}/revoke")
+    public AjaxResult<Void> revokeSettlement(@PathVariable String id, @PathVariable String settlementId,
+                                              @Valid @RequestBody QlSettlementReversalBo bo) {
+        return toAjax(registrationService.revokeSettlement(id, settlementId, bo.getReason(), currentUserId()));
     }
 
     @PreAuthorize("@ss.hasPermi('life:registration:payment')")

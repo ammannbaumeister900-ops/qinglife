@@ -20,7 +20,7 @@ Page({
       if (!backend && state.registration.status !== 'none') registrations[state.registration.activityId] = state.registration
       const rows = state.loggedIn ? Object.values(registrations).filter(r => !this.data.sessionId || r.activityId === this.data.sessionId).map(r => {
         const a = activities.find(a => a.id === r.activityId) || {}
-        return { id: r.activityId, name: a.name || '往期活动', participants: (r.participants || []).map(p => p.name || p.relation || '参与者').join('、'), date: a.date || '', status: labels[r.status] || r.status, payment: r.paymentStatus === 'paid' ? '已付款' : r.paymentStatus === 'unpaid' ? '待付款' : '', endDate: a.endDate || '' }
+        return { id: r.activityId, name: a.name || '往期活动', participants: (r.participants || []).map(p => p.name || p.relation || '参与者').join('、'), date: a.date || '', status: labels[r.status] || r.status, settlement: r.settlementStatus !== 'confirmed' ? '结算待确认' : r.settlementType === 'pass' ? '卡次已使用' : r.paymentStatus === 'paid' ? '现金已收款' : Number(r.finalAmount) === 0 ? '无需现金收款' : '现金金额已确认，待线下收款', endDate: a.endDate || '' }
       }).sort((a, b) => b.endDate.localeCompare(a.endDate)) : []
       const selfRows = (overview.registrations || []).filter(r => r.isSelf === true || r.isSelf === 1 || r.isSelf === '1')
       const records = !state.loggedIn ? [] : backend ? (overview.experienceRecords || []).filter(r => selfRows.some(s => s.registrationId === r.registrationId && (!this.data.sessionId || s.sessionId === this.data.sessionId))).map(r => {

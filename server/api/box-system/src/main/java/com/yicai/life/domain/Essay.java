@@ -52,6 +52,9 @@ public class Essay implements Serializable {
      */
     private Integer status;
 
+    /** 首页精选 */
+    private Integer homeFeatured;
+
     /**
      * 排序，正序
      */

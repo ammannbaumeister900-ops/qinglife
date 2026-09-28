@@ -7,6 +7,9 @@ import java.util.Map;
 
 public interface IQlMiniAppService {
     List<Map<String, Object>> listSessions();
+    List<Map<String, Object>> listFeaturedReadings();
+    Map<String, Object> readingDetail(Long id);
+    Map<String, Object> contact();
     Map<String, Object> sessionDetail(String sessionId);
     Map<String, Object> createInvitation(String token, String sessionId, boolean staff);
     Map<String, Object> resolveInvitation(String code);

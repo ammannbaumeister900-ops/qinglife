@@ -99,6 +99,7 @@ public class EssayServiceImpl extends ServicePlusImpl<EssayMapper, Essay, EssayV
         lqw.eq(StrUtil.isNotBlank(bo.getContent()), Essay::getContent, bo.getContent());
         lqw.eq(StrUtil.isNotBlank(bo.getIntroduction()), Essay::getIntroduction, bo.getIntroduction());
         lqw.eq(bo.getStatus() != null, Essay::getStatus, bo.getStatus());
+        lqw.eq(bo.getHomeFeatured() != null, Essay::getHomeFeatured, bo.getHomeFeatured());
         lqw.eq(bo.getOrderNum() != null, Essay::getOrderNum, bo.getOrderNum());
         lqw.eq(bo.getInsertTime() != null, Essay::getInsertTime, bo.getInsertTime());
         lqw.eq(StrUtil.isNotBlank(bo.getTitleUrl()), Essay::getTitleUrl, bo.getTitleUrl());

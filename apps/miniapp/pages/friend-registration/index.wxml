@@ -1,0 +1,41 @@
+<view class="registration-page">
+  <view wx:if="{{loading}}" class="loading">正在读取轻友档案…</view>
+  <view wx:elif="{{submitted}}" class="success-card">
+    <view class="success-mark">✓</view><view class="success-title">登记已保存</view>
+    <view class="success-copy">这是你的第 {{assessmentCount}} 次登记。历史记录已完整保留。</view>
+    <button class="primary" bindtap="backMine">返回我的</button><button class="text-button" bindtap="registerAgain">再登记一次</button>
+  </view>
+  <block wx:else>
+    <view class="head"><view class="progress"><view class="progress-fill" style="width: {{step * 25}}%"></view></view><view class="step-note">{{step}} / 4</view><view class="title">{{step===1?'基本信息':step===2?'生活习惯':step===3?'近期状态':'参加信息'}}</view><view class="subtitle">每次登记都会单独保存，不会覆盖过去的记录。</view></view>
+    <view wx:if="{{step===1}}" class="section">
+      <view class="field"><text>姓名 *</text><input value="{{form.name}}" data-field="name" bindinput="field" maxlength="30" placeholder="请输入真实姓名" /></view>
+      <view class="field"><text>（老轻友填写）您的轻生活小名是：</text><input value="{{form.nickname}}" data-field="nickname" bindinput="field" maxlength="50" placeholder="选填" /></view>
+      <view class="field"><text>出生年月日 *</text><picker mode="date" end="{{today}}" value="{{form.birthDate}}" bindchange="pickDate"><view class="picker">{{form.birthDate || '请选择日期'}}</view></picker></view>
+      <view class="field"><text>联系电话 *</text><input value="{{form.phone}}" data-field="phone" bindinput="field" maxlength="24" placeholder="用于服务联系" /></view>
+      <view class="two"><view class="field"><text>身高（cm）*</text><input type="digit" value="{{form.heightCm}}" data-field="heightCm" bindinput="field" placeholder="80–250" /></view><view class="field"><text>体重（kg）*</text><input type="digit" value="{{form.weightKg}}" data-field="weightKg" bindinput="field" placeholder="如 55.5" /></view></view>
+      <view class="field"><text>来自哪个城市？*</text><input value="{{form.city}}" data-field="city" bindinput="field" maxlength="100" placeholder="例如：上海" /></view>
+    </view>
+    <view wx:if="{{step===2}}" class="section">
+      <view class="question"><view class="question-title">清体目的 *</view><view class="tags"><button wx:for="{{goals}}" wx:key="*this" class="tag {{cleanBodyGoalSelected[item]?'active':''}}" data-field="cleanBodyGoals" data-value="{{item}}" bindtap="multi">{{item}}</button></view></view>
+      <view class="question"><view class="question-title">日常饮食偏好 *</view><view class="cards"><button wx:for="{{diets}}" wx:key="*this" class="option {{form.dietPreference===item?'active':''}}" data-field="dietPreference" data-value="{{item}}" bindtap="choose">{{item}}</button></view></view>
+      <view class="field"><text>白开水，一天多少毫升？*</text><input type="number" value="{{form.waterIntakeMl}}" data-field="waterIntakeMl" bindinput="field" placeholder="例如：1500" /></view>
+      <view class="two"><view class="field"><text>起床时间 *</text><picker mode="time" value="{{form.wakeTime}}" data-field="wakeTime" bindchange="pickTime"><view class="picker">{{form.wakeTime||'请选择'}}</view></picker></view><view class="field"><text>睡觉时间 *</text><picker mode="time" value="{{form.sleepTime}}" data-field="sleepTime" bindchange="pickTime"><view class="picker">{{form.sleepTime||'请选择'}}</view></picker></view></view>
+      <view class="question"><view class="question-title">排便情况 *</view><view class="cards"><button wx:for="{{bowels}}" wx:key="*this" class="option {{form.bowelStatus===item?'active':''}}" data-field="bowelStatus" data-value="{{item}}" bindtap="choose">{{item}}</button></view></view>
+      <view class="question"><view class="question-title">精力状态 *</view><view class="cards"><button wx:for="{{energies}}" wx:key="*this" class="option {{form.energyStatus===item?'active':''}}" data-field="energyStatus" data-value="{{item}}" bindtap="choose">{{item}}</button></view></view>
+      <view class="question"><view class="question-title">运动情况 *</view><view class="cards"><button wx:for="{{exercises}}" wx:key="*this" class="option {{form.exerciseStatus===item?'active':''}}" data-field="exerciseStatus" data-value="{{item}}" bindtap="choose">{{item}}</button></view></view>
+    </view>
+    <view wx:if="{{step===3}}" class="section">
+      <view class="question"><view class="question-title">近期情绪状态 *</view><view class="tags"><button wx:for="{{emotions}}" wx:key="*this" class="tag {{emotionSelected[item]?'active':''}}" data-field="emotionalStatus" data-value="{{item}}" bindtap="multi">{{item}}</button></view></view>
+      <view class="question"><view class="question-title">近半年身体情况 *</view><view wx:for="{{healthGroups}}" wx:key="title" class="health-group"><view class="group-title">{{item.title}}</view><view class="tags"><button wx:for="{{item.values}}" wx:for-item="health" wx:key="*this" class="tag {{healthSelected[health]?'active':''}}" data-field="healthConditions" data-value="{{health}}" bindtap="multi">{{health}}</button></view></view></view>
+      <view wx:if="{{healthSelected['其他']}}" class="field"><text>其他身体情况 *</text><input value="{{form.otherHealthCondition}}" data-field="otherHealthCondition" bindinput="field" maxlength="500" placeholder="请补充说明" /></view>
+      <view class="field"><text>正在服用的保健品或药物</text><textarea value="{{form.medications}}" data-field="medications" bindinput="field" maxlength="2000" placeholder="如没有可不填写"></textarea></view>
+      <view class="question"><view class="question-title">是否孕期（女生请填写）</view><view class="cards"><button wx:for="{{pregnancyOptions}}" wx:key="*this" class="option {{form.pregnancyStatus===item?'active':''}}" data-field="pregnancyStatus" data-value="{{item}}" bindtap="choose">{{item}}</button></view></view>
+    </view>
+    <view wx:if="{{step===4}}" class="section">
+      <view class="field"><text>您了解轻生活的途径是：（朋友姓名）*</text><input value="{{form.referralSource}}" data-field="referralSource" bindinput="field" maxlength="200" placeholder="请填写朋友姓名或实际途径" /></view>
+      <view class="field"><text>若您是第二次或多次参加，您愿意再次来复训的主要因素是：</text><textarea value="{{form.retrainingReason}}" data-field="retrainingReason" bindinput="field" maxlength="2000" placeholder="请注明……"></textarea></view>
+      <view class="consent-card"><view class="consent-title">敏感个人信息授权</view><view class="consent-copy">为了建立您的轻友档案，并帮助工作人员了解您参加轻生活期间的基础身体与生活状态，我们需要收集您主动填写的身体情况、健康状态、用药及相关信息。</view><view class="consent-copy">这些信息仅用于轻生活服务、用户档案管理及相关数据分析，并按照权限进行访问和保护。</view><view class="consent-check" bindtap="toggleConsent"><view class="box {{form.sensitiveConsent?'checked':''}}">{{form.sensitiveConsent?'✓':''}}</view><text>我已阅读并同意上述敏感个人信息的收集与使用</text></view></view>
+    </view>
+    <view class="actionbar"><button wx:if="{{step>1}}" class="secondary" bindtap="previous">上一步</button><view wx:else class="spacer"></view><button wx:if="{{step<4}}" class="primary" bindtap="next">下一步</button><button wx:else class="primary" loading="{{submitting}}" disabled="{{submitting}}" bindtap="submit">确认提交</button></view>
+  </block>
+</view>

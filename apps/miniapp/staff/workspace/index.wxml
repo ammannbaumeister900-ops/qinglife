@@ -96,7 +96,7 @@
         <view class="sub">{{item.status}}</view>
       </view>
       <view wx:if="{{!profile.passes.length}}" class="empty">暂无卡次账户</view>
-      <view class="notice">卡次消耗规则待确认，暂不开放移动扣次。</view>
+      <view class="notice">卡次开户、增次和更正请在电脑后台处理；报名结算时可选择已核验的可用账户。</view>
     </block>
     <block wx:if="{{tab==='attachments'}}">
       <view wx:for="{{attachments}}" wx:key="id" class="card">
@@ -177,26 +177,36 @@
     </block>
   </block>
 
-  <block wx:if="{{view==='registration'||view==='payment'}}">
+  <block wx:if="{{view==='registration'||view==='payment'||view==='settlement'}}">
     <view class="heading">报名与收款</view>
     <view class="card">
       <view class="row between"><view class="title">{{registration.nickname}}</view><text class="tag {{registration.registrationStatus==='pending'?'warm':''}}">{{registration.statusText}}</text></view>
       <view class="kv"><text class="kv-k">报名状态</text><text class="kv-v">{{registration.statusText}}</text></view>
       <view class="kv"><text class="kv-k">收款状态</text><text class="kv-v">{{registration.paymentText}}</text></view>
+      <view wx:if="{{registration.contactName}}" class="kv"><text class="kv-k">主要联系人</text><text class="kv-v">{{registration.contactName}} · {{registration.contactPhone}}</text></view>
+      <view class="kv"><text class="kv-k">最终结算</text><text class="kv-v">{{registration.settlementStatus==='confirmed' ? '已确认 ¥' + registration.finalAmount : '待工作人员确认'}}</text></view>
       <view class="kv"><text class="kv-k">到场状态</text><text class="kv-v">{{attendanceText}}</text></view>
-      <view wx:if="{{registration.batchId}}" class="kv"><text class="kv-k">多人订单</text><text class="kv-v">本次收款登记整单，参与人数 {{registration.participantCount}}，整单应收 {{registration.payableAmount}}</text></view>
-      <view wx:if="{{canOperate||canPayment}}" class="kv"><text class="kv-k">本次价格</text><text class="kv-v">¥{{registration.standardPrice}}</text></view>
+      <view wx:if="{{registration.batchId}}" class="kv"><text class="kv-k">多人订单</text><text class="kv-v">本次操作覆盖整单，参与人数 {{registration.participantCount}}</text></view>
+      <view wx:if="{{canOperate||canPayment}}" class="kv"><text class="kv-k">参考价格</text><text class="kv-v">¥{{registration.quotedAmount == null ? registration.standardPrice : registration.quotedAmount}}</text></view>
     </view>
     <view class="notice">报名确认、收款和到场分别记录。</view>
     <block wx:if="{{view==='registration'}}">
       <button wx:if="{{canOperate&&registration.registrationStatus==='pending'}}" class="primary" bindtap="confirm">确认报名</button>
-      <button wx:if="{{canPayment&&registration.registrationStatus==='confirmed'&&registration.paymentStatus!=='paid'}}" class="primary" data-view="payment" data-id="{{id}}" bindtap="go">登记线下收款</button>
+      <button wx:if="{{canPayment&&registration.registrationStatus==='confirmed'&&registration.paymentStatus!=='paid'}}" class="secondary" data-view="settlement" data-id="{{id}}" bindtap="go">{{registration.settlementStatus==='confirmed'?'调整最终结算':'确认最终结算'}}</button>
+      <button wx:if="{{canPayment&&registration.registrationStatus==='confirmed'&&registration.settlementStatus==='confirmed'&&registration.paymentStatus!=='paid'&&registration.finalAmount>0}}" class="primary" data-view="payment" data-id="{{id}}" bindtap="go">登记线下收款</button>
       <view wx:for="{{attendance}}" wx:key="dayId" class="card">
         <view class="row between"><view>第{{item.dayNo}}天 · {{item.activityDate}}</view><text class="tag {{item.attendanceStatus==='checked_in'?'':'gray'}}">{{item.attendanceStatus==='checked_in'?'已到场':item.attendanceStatus==='not_arrived'?'未到场':item.attendanceStatus}}</text></view>
         <button wx:if="{{item.isToday&&item.attendanceStatus==='not_arrived'&&registration.registrationStatus==='confirmed'}}" class="secondary small" data-id="{{item.dayId}}" bindtap="arrive">登记当天到场</button>
       </view>
       <view wx:if="{{canOperate&&registration.registrationStatus!=='cancelled'&&registration.paymentStatus==='unpaid'&&!registration.batchId}}" class="actions"><button class="danger" bindtap="cancel">取消报名</button></view>
       <view wx:if="{{canOperate&&registration.registrationStatus!=='cancelled'&&!(registration.paymentStatus==='unpaid'&&!registration.batchId)}}" class="notice">如需调整，请先在后台退款或撤销付款，再另外报名。</view>
+    </block>
+    <block wx:elif="{{view==='settlement'}}">
+      <text class="label">结算方式</text><picker range="{{settlementTypes}}" value="{{settlementTypeIndex}}" bindchange="selectSettlementType"><view class="card picker-card">{{settlementTypes[settlementTypeIndex]}}</view></picker>
+      <text class="label">最终现金金额（元，可填0）</text><input type="digit" value="{{form.finalAmount}}" data-key="finalAmount" bindinput="field"/>
+      <block wx:if="{{settlementValues[settlementTypeIndex]==='pass'}}"><text class="label">卡次账户</text><picker range="{{passAccounts}}" range-key="passType" value="{{passAccountIndex}}" bindchange="selectPassAccount"><view class="card picker-card">{{passAccounts.length ? passAccounts[passAccountIndex].passType + ' · 剩余' + passAccounts[passAccountIndex].balance + '次' : '暂无可用账户，请先到电脑后台核验'}}</view></picker><text class="label">使用卡次</text><input type="number" value="{{form.passUnits}}" data-key="passUnits" bindinput="field"/></block>
+      <text class="label">核对说明（选填）</text><input value="{{form.settlementNote}}" data-key="settlementNote" bindinput="field" maxlength="500"/>
+      <view class="notice">确认结算不会把报名自动改为已付款。</view><button class="primary" loading="{{saving}}" disabled="{{saving}}" bindtap="settle">确认结算结果</button>
     </block>
     <block wx:else>
       <text class="label">实收金额（元）</text>

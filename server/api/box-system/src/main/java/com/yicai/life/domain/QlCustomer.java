@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
 import java.io.Serializable;
+import java.math.BigDecimal;
 import java.util.Date;
 
 @Data
@@ -21,6 +22,7 @@ public class QlCustomer implements Serializable {
     private Date birthDate;
     private String gender;
     private String city;
+    private BigDecimal heightCm;
     private String firstSource;
     private String dataSource;
     private String dataConfidence;

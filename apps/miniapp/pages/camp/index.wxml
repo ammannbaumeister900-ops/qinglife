@@ -19,12 +19,14 @@
     data-id="{{item.id}}"
     bindtap="openActivity"
   >
+    <image wx:if="{{item.cover}}" class="activity-cover" src="{{item.cover}}" mode="aspectFill" />
     <view wx:if="{{index === 0 && item.canRegister}}" class="feature-label">下一期 · 现在可以报名</view>
     <view class="activity-top">
       <view class="pill {{item.statusTone === 'warning' ? 'warning' : item.statusTone === 'full' ? 'disabled' : item.statusTone === 'waitlist' || item.statusTone === 'planned' ? 'mist' : item.statusTone === 'cancelled' ? 'plain' : ''}}">第 {{item.sessionNumber}} 期 · {{item.status}}</view>
       <view class="activity-arrow">›</view>
     </view>
     <view class="activity-name">{{item.name}}</view>
+    <view class="activity-theme">{{item.theme}}</view>
     <view class="activity-details">
       <view class="activity-detail">
         <view class="activity-detail-label">日期</view>
@@ -36,7 +38,7 @@
       </view>
     </view>
     <view class="activity-footer">
-      <view class="activity-fee">新轻友 ¥{{item.fee}}<text>/人</text><view wx:if="{{item.returningFee != null}}">老轻友 ¥{{item.returningFee}}/人</view></view>
+      <view class="activity-fee">公开价 · 新轻友 ¥{{item.fee}}<text>/人</text><view wx:if="{{item.returningFee != null}}">老轻友 ¥{{item.returningFee}}/人</view><view class="settlement-note">最终结算由工作人员确认</view></view>
       
     </view>
     <view class="button-row"><button class="primary" disabled="{{!item.canRegister}}" data-id="{{item.id}}" catchtap="signup">{{item.canRegister ? '报名' : item.status}}</button><button class="secondary" data-id="{{item.id}}" catchtap="openActivity">查看详情</button></view>

@@ -1,6 +1,7 @@
 const samples = require('../../data/reading-samples')
 const legacyApi = require('../../services/legacy-api')
 const store = require('../../utils/store')
+const business = require('../../services/business-api')
 
 Page({
   data: {
@@ -22,7 +23,12 @@ Page({
   async loadArticle() {
     this.setData({ loading: true })
     const sample = samples.find(a => a.id === this.data.id)
-    const result = sample ? { item: sample, source: 'demo' } : await legacyApi.getArticle(this.data.id)
+    let result
+    if (sample) result = { item: sample, source: 'demo' }
+    else if (business.enabled()) {
+      try { result = { item: await business.reading(this.data.id), source: 'business' } }
+      catch (error) { result = { item: {}, source: 'business', error: error.message } }
+    } else result = await legacyApi.getArticle(this.data.id)
     const article = result.item
     if (this.data.routeTitle && article.title === '未命名文章') article.title = this.data.routeTitle
     const state = store.getState()

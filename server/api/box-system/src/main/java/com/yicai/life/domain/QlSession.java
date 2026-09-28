@@ -18,6 +18,8 @@ public class QlSession implements Serializable {
     private String id;
     private Integer sessionNumber;
     private String name;
+    private String theme;
+    private String coverUrl;
     private String intro;
     private Date startDate;
     private Date endDate;

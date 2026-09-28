@@ -20,6 +20,14 @@ export function changePayment(id, data) {
   return request({ url: '/life/registration/' + id + '/payment', method: 'put', data })
 }
 
+export function confirmSettlement(id, data) {
+  return request({ url: '/life/registration/' + id + '/settlement', method: 'put', data })
+}
+
+export function revokeSettlement(id, settlementId, data) {
+  return request({ url: '/life/registration/' + encodeURIComponent(id) + '/settlement/' + encodeURIComponent(settlementId) + '/revoke', method: 'put', data })
+}
+
 export function changeBatchPayment(batchId, data) {
   return request({ url: '/life/registration/batch/' + batchId + '/payment', method: 'put', data })
 }

@@ -12,6 +12,8 @@ import com.yicai.common.utils.SecurityUtils;
 import com.yicai.life.domain.bo.QlCustomerBo;
 import com.yicai.life.domain.vo.QlCustomerVo;
 import com.yicai.life.service.IQlCustomerService;
+import com.yicai.life.service.QlFriendAssessmentExportService;
+import com.yicai.life.service.QlFriendAssessmentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -28,6 +30,20 @@ import java.util.Map;
 public class QlCustomerController extends BaseController {
     private final IQlCustomerService customerService;
     private final com.yicai.life.service.QlCustomerDossierService dossierService;
+    private final QlFriendAssessmentService friendAssessments;
+    private final QlFriendAssessmentExportService assessmentExport;
+
+    @PreAuthorize("@ss.hasPermi('life:assessment:statistics')")
+    @GetMapping("/statistics")
+    public AjaxResult<Map<String,Object>> statistics(@RequestParam(required=false) String startDate,
+                                                     @RequestParam(required=false) String endDate) {
+        return AjaxResult.success(friendAssessments.statistics(startDate,endDate));
+    }
+
+    @PreAuthorize("@ss.hasPermi('life:assessment:export') and @ss.hasPermi('life:assessment:sensitive')")
+    @Log(title = "轻友登记导出", businessType = BusinessType.EXPORT)
+    @GetMapping("/export")
+    public AjaxResult export(QlCustomerBo bo) { return assessmentExport.export(bo); }
 
     @PreAuthorize("@ss.hasPermi('life:customer:query')")
     @GetMapping("/{id}/dossier")
@@ -51,6 +67,13 @@ public class QlCustomerController extends BaseController {
     @GetMapping("/{id}/timeline")
     public AjaxResult<List<Map<String, Object>>> timeline(@PathVariable String id) {
         return AjaxResult.success(customerService.queryTimeline(id));
+    }
+
+    @PreAuthorize("@ss.hasPermi('life:customer:query')")
+    @GetMapping("/{id}/assessments")
+    public AjaxResult<List<Map<String,Object>>> assessments(@PathVariable String id) {
+        boolean sensitive=com.yicai.common.utils.SecurityUtils.getLoginUser().getPermissions().contains("life:assessment:sensitive");
+        return AjaxResult.success(friendAssessments.history(id,sensitive));
     }
 
     @PreAuthorize("@ss.hasPermi('life:customer:add')")

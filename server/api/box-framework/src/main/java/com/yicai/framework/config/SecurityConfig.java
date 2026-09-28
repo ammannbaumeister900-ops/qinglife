@@ -128,6 +128,8 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter
                 .antMatchers(HttpMethod.GET,
                         "/app/qinglife/sessions",
                         "/app/qinglife/sessions/*",
+                        "/app/qinglife/readings/*",
+                        "/app/qinglife/contact",
                         "/app/qinglife/invitations/*").permitAll()
                 .antMatchers("/app/qinglife/**").authenticated()
                 // Spring Boot Actuator 的安全配置
