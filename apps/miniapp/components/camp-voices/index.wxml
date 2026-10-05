@@ -1,0 +1,4 @@
+<view wx:if="{{voices.length}}" class="voice-section">
+  <view class="voice-head"><text>这一期，留下的声音</text><button bindtap="pause" class="voice-pause">{{paused ? '继续漂流' : '暂停'}}{{paused ? ' ›' : ' Ⅱ'}}</button></view>
+  <view class="voice-window"><block wx:for="{{lanes}}" wx:for-item="lane" wx:key="index"><view wx:if="{{lane.length}}" class="voice-lane {{index === 1 ? 'second-lane' : ''}}"><view class="voice-track {{paused || !active || !inView ? 'paused' : ''}}"><view class="voice-set"><button wx:for="{{lane}}" wx:key="id" class="voice-slip" data-id="{{item.id}}" bindtap="read">{{item.excerpt}}<text class="voice-author"> · {{item.author || '本期轻友'}}</text></button></view><view class="voice-set duplicate" aria-hidden="true"><button wx:for="{{lane}}" wx:key="id" class="voice-slip" data-id="{{item.id}}" bindtap="read">{{item.excerpt}}<text class="voice-author"> · {{item.author || '本期轻友'}}</text></button></view></view></view></block></view>
+</view>

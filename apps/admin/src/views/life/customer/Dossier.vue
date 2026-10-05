@@ -39,6 +39,7 @@
             <el-empty v-if="!assessments.length" description="尚无轻友登记记录" />
             <article v-for="(item,index) in assessments" :key="item.id" class="record-card assessment-card">
               <div class="history-heading"><div><div class="eyebrow">{{ index===assessments.length-1?'首次登记':'第 '+(assessments.length-index)+' 次登记' }}</div><h3>{{ item.submittedAt }}</h3></div><el-tag size="small">{{ item.formVersion }}</el-tag></div>
+              <p class="muted">{{ item.sessionNumber ? '第 '+item.sessionNumber+' 期 · '+item.sessionName : '日常登记' }}</p>
               <div class="assessment-grid"><p><b>体重</b>{{ item.weightKg }} kg</p><p><b>清体目的</b>{{ list(item.cleanBodyGoals) }}</p><p><b>饮水量</b>{{ item.waterIntakeMl }} ml</p><p><b>作息</b>{{ item.wakeTime }} 起 / {{ item.sleepTime }} 睡</p><p><b>饮食</b>{{ item.dietPreference }}</p><p><b>排便</b>{{ item.bowelStatus }}</p><p><b>精力</b>{{ item.energyStatus }}</p><p><b>运动</b>{{ item.exerciseStatus }}</p><p><b>情绪</b>{{ list(item.emotionalStatus) }}</p><p><b>身体情况</b>{{ list(item.healthConditions) }}</p><p><b>药物/保健品</b>{{ item.medications || '-' }}</p><p><b>孕期</b>{{ item.pregnancyStatus || '-' }}</p><p><b>来源/朋友</b>{{ item.referralSource }}</p><p><b>复训原因</b>{{ item.retrainingReason || '-' }}</p></div>
               <p v-if="item.otherHealthCondition" class="record-text">其他身体情况：{{ item.otherHealthCondition }}</p>
             </article>

@@ -11,6 +11,7 @@ import com.yicai.life.domain.QlRegistration;
 import com.yicai.life.domain.QlRegistrationStatusLog;
 import com.yicai.life.domain.QlTransaction;
 import com.yicai.life.domain.bo.QlPaymentBo;
+import com.yicai.life.domain.bo.QlPaymentConfirmationBo;
 import com.yicai.life.domain.bo.QlRegistrationBo;
 import com.yicai.life.domain.bo.QlSettlementBo;
 import com.yicai.life.domain.vo.QlRegistrationVo;
@@ -52,6 +53,8 @@ public class QlRegistrationServiceImpl
 
     @Override
     public TableDataInfo<QlRegistrationVo> queryPageList(QlRegistrationBo bo) {
+        if(bo.getSessionNumberKeyword()!=null && !bo.getSessionNumberKeyword().matches("[0-9]{0,10}"))
+            throw new CustomException("期次查询只能输入最多10位数字",400);
         Page<QlRegistrationVo> page = registrationMapper.selectPageList(PageUtils.buildPage(), bo);
         return PageUtils.buildDataInfo(page);
     }
@@ -131,6 +134,62 @@ public class QlRegistrationServiceImpl
                     bo.getRegistrationStatus(), "后台更新报名状态", operatorId, new Date());
         }
         return updated;
+    }
+
+    @Override
+    @Transactional
+    public boolean confirmPayment(String id, QlPaymentConfirmationBo bo, Long operatorId) {
+        if (bo == null || !Arrays.asList("wechat_scan", "alipay_scan", "transfer", "cash", "other", "pass").contains(bo.getPaymentMethod()))
+            throw new CustomException("请选择有效的付款方式", 400);
+        if (bo.getNote() != null && bo.getNote().length() > 500) throw new CustomException("备注最多500字", 400);
+        boolean byPass = "pass".equals(bo.getPaymentMethod());
+        if (!byPass && (bo.getAmount() == null || bo.getAmount().signum() < 0
+                || bo.getAmount().scale() > 2 || bo.getAmount().compareTo(new BigDecimal("99999999.99")) > 0))
+            throw new CustomException("请填写有效的付款金额，最多2位小数", 400);
+        if (!byPass && (bo.getPassUnits() != null || StrUtil.isNotBlank(bo.getPassAccountId())))
+            throw new CustomException("现金付款不能同时使用卡次", 400);
+        if (byPass && bo.getAmount() != null && bo.getAmount().signum() != 0)
+            throw new CustomException("卡次付款不能同时填写现金金额", 400);
+
+        QlRegistration snapshot = getById(id);
+        if (snapshot == null) throw new CustomException("报名记录不存在", 404);
+        // Reuse the established session -> order -> participants lock order.
+        policy.lockSession(snapshot.getSessionId());
+        if (StrUtil.isNotBlank(snapshot.getBatchId())) {
+            if (registrationMapper.selectBatchForPayment(snapshot.getBatchId()) == null) throw new CustomException("报名订单不存在", 404);
+            List<QlRegistration> participants = registrationMapper.selectBatchRegistrationsForUpdate(snapshot.getBatchId());
+            if (participants.isEmpty()) throw new CustomException("报名订单没有参与人", 400);
+            for (QlRegistration participant : participants) if (!"confirmed".equals(participant.getRegistrationStatus()))
+                throw new CustomException("请先确认订单内全部报名", 400);
+        } else {
+            QlRegistration current = registrationMapper.selectForUpdate(id);
+            if (current == null || !"confirmed".equals(current.getRegistrationStatus())) throw new CustomException("请先确认报名", 400);
+        }
+        QlRegistrationVo current = registrationMapper.selectVoById(id);
+        String paid = StrUtil.blankToDefault(current.getBatchPaymentStatus(), current.getPaymentStatus());
+        if ("paid".equals(paid)) throw new CustomException("付款已确认，请刷新后查看", 409);
+        if (!Objects.equals(StrUtil.emptyToNull(bo.getExpectedSettlementId()), StrUtil.emptyToNull(current.getCurrentSettlementId())))
+            throw new CustomException("付款信息已变化，请刷新后重新核对", 409);
+        if ("confirmed".equals(current.getSettlementStatus())) {
+            if (!"money".equals(current.getSettlementType())) throw new CustomException("本次已完成卡次抵扣，不能重复确认", 409);
+            if (byPass) throw new CustomException("原金额已确认，不能直接改用卡次", 400);
+            if (current.getFinalAmount() == null || current.getFinalAmount().compareTo(bo.getAmount()) != 0)
+                throw new CustomException("原金额已确认，请按原金额收款；需改金额时先撤销原金额确认", 400);
+        } else {
+            QlSettlementBo settlement = new QlSettlementBo();
+            settlement.setSettlementType(byPass ? "pass" : "money");
+            settlement.setFinalAmount(byPass ? BigDecimal.ZERO : bo.getAmount());
+            settlement.setPassAccountId(byPass ? bo.getPassAccountId() : null);
+            settlement.setPassUnits(byPass ? bo.getPassUnits() : null);
+            settlement.setNote(bo.getNote());
+            if (!confirmSettlement(id, settlement, operatorId)) throw new CustomException("付款确认失败", 500);
+        }
+        if (byPass) return true;
+        QlPaymentBo payment = new QlPaymentBo();
+        payment.setPaymentStatus("paid");payment.setAmount(bo.getAmount());
+        payment.setPaymentMethod(bo.getPaymentMethod());payment.setChangeReason(bo.getNote());
+        if (!changePayment(id, payment, operatorId)) throw new CustomException("付款登记失败", 500);
+        return true;
     }
 
     @Override

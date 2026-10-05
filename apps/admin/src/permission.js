@@ -4,6 +4,7 @@ import { Message } from 'element-ui'
 import NProgress from 'nprogress'
 import 'nprogress/nprogress.css'
 import { getToken } from '@/utils/auth'
+import { checkPermi } from '@/utils/permission'
 
 NProgress.configure({ showSpinner: false })
 
@@ -33,6 +34,11 @@ router.beforeEach((to, from, next) => {
             })
           })
       } else {
+        if (to.meta.permission && !checkPermi([to.meta.permission])) {
+          next({ path: '/401', replace: true })
+          NProgress.done()
+          return
+        }
         next()
       }
     }

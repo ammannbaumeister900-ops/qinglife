@@ -65,6 +65,39 @@ public class QlMiniAppServiceImpl implements IQlMiniAppService {
     }
 
     @Override
+    public Map<String,Object> listReadings(QlReadingQueryBo query) {
+        if(query.getPageNum()==null || query.getPageNum()<1 || query.getPageNum()>100000
+                || query.getPageSize()==null || query.getPageSize()<1 || query.getPageSize()>50)
+            throw new CustomException("文章分页参数无效",400);
+        if(query.getLabelId()!=null && !query.getLabelId().matches("[0-9]{1,19}")
+                || query.getQuery()!=null && query.getQuery().length()>100)
+            throw new CustomException("文章筛选参数无效",400);
+        if(query.getQuery()!=null) query.setQuery(query.getQuery().trim());
+        List<Map<String,Object>> rows=miniAppMapper.selectPublicReadings(query,query.getPageSize(),(long)(query.getPageNum()-1)*query.getPageSize());
+        normalizeReadings(rows);
+        long total=miniAppMapper.countPublicReadings(query);
+        Map<String,Object> result=new java.util.LinkedHashMap<>();
+        result.put("list",rows);result.put("total",total);
+        result.put("hasMore",(long)query.getPageNum()*query.getPageSize()<total);
+        return result;
+    }
+    @Override
+    public List<Map<String,Object>> readingTopics() { return miniAppMapper.selectPublicReadingTopics(); }
+    @Override
+    public Map<String,Object> homeReadings() {
+        List<Map<String,Object>> stories=miniAppMapper.selectFeaturedStories();normalizeReadings(stories);
+        List<Map<String,Object>> featured=miniAppMapper.selectFeaturedGeneralReadings();normalizeReadings(featured);
+        Map<String,Object> result=new java.util.LinkedHashMap<>();result.put("stories",stories);result.put("featured",featured);
+        return result;
+    }
+    private void normalizeReadings(List<Map<String,Object>> readings) {
+        for(Map<String,Object> reading:readings) {
+            reading.put("cover",publicMediaUrl(reading.get("cover")));
+            Object story=reading.get("isStory");
+            reading.put("isStory",Boolean.TRUE.equals(story) || story instanceof Number && ((Number)story).intValue()==1);
+        }
+    }
+    @Override
     public Map<String, Object> readingDetail(Long id) {
         Map<String,Object> reading = miniAppMapper.selectPublicReading(id);
         if (reading == null) throw new CustomException("轻读不存在或未发布", 404);
@@ -76,11 +109,11 @@ public class QlMiniAppServiceImpl implements IQlMiniAppService {
     public Map<String, Object> contact() {
         Map<String,Object> result = new LinkedHashMap<>();
         result.put("name", "桃子");
-        result.put("wechat", "");
+        result.put("wechat", "qinglife2014");
         for (Map<String,Object> row : miniAppMapper.selectContactConfig()) {
             String value = Objects.toString(row.get("configValue"), "").trim();
             if ("qinglife.contact.name".equals(row.get("configKey")) && StrUtil.isNotBlank(value)) result.put("name", value);
-            if ("qinglife.contact.wechat".equals(row.get("configKey"))) result.put("wechat", value);
+            if ("qinglife.contact.wechat".equals(row.get("configKey")) && StrUtil.isNotBlank(value)) result.put("wechat", value);
         }
         result.put("configured", StrUtil.isNotBlank(String.valueOf(result.get("wechat"))));
         return result;
@@ -99,7 +132,7 @@ public class QlMiniAppServiceImpl implements IQlMiniAppService {
         result.put("experienceRecords", miniAppMapper.selectExperienceRecords(customerId));
         result.put("habit", habitPlans.latest(customerId));
         result.put("returningEligible", miniAppMapper.countCompletedSessions(customerId) > 0);
-        result.put("invitationEligible", miniAppMapper.countCompletedExperience(customerId) > 0);
+        result.put("invitationEligible", true); // Every authenticated light friend may invite.
         return result;
     }
 
@@ -142,7 +175,7 @@ public class QlMiniAppServiceImpl implements IQlMiniAppService {
         String referrerId = null;
         if (StrUtil.isNotBlank(bo.getInvitationCode())) {
             Map<String,Object> invitation = miniAppMapper.selectInvitation(bo.getInvitationCode());
-            if (invitation == null || !bo.getSessionId().equals(String.valueOf(invitation.get("sessionId")))) throw new CustomException("邀请与当前活动不匹配");
+            if (invitation == null || !"registration".equals(invitation.get("purpose")) || !bo.getSessionId().equals(String.valueOf(invitation.get("sessionId")))) throw new CustomException("邀请与当前活动不匹配");
             if (invitation.get("ownerId") != null) referrerId = String.valueOf(invitation.get("ownerId"));
         }
         Date now = requestTime;
@@ -343,7 +376,6 @@ public class QlMiniAppServiceImpl implements IQlMiniAppService {
     @Transactional
     public Map<String,Object> createInvitation(String token, String sessionId, boolean staff) {
         String ownerId = staff ? null : requireCustomerId(token);
-        if (!staff && miniAppMapper.countCompletedExperience(ownerId) == 0) throw new CustomException("完成本人体验后可生成邀请", 403);
         requireOpenInvitationSession(sessionId);
         String code = uuid().replace("-", "");
         miniAppMapper.insertInvitation(code, sessionId, ownerId, staff ? "staff" : "referral", new Date());
@@ -355,11 +387,17 @@ public class QlMiniAppServiceImpl implements IQlMiniAppService {
 
     @Override
     public Map<String,Object> resolveInvitation(String code) {
+        if (code == null || !code.matches("[a-fA-F0-9]{32}")) throw new CustomException("邀请无效", 404);
         Map<String,Object> invitation = miniAppMapper.selectInvitation(code);
-        if (invitation == null) throw new CustomException("邀请无效", 404);
+        if (invitation == null || !"registration".equals(invitation.get("purpose"))) throw new CustomException("邀请无效", 404);
         String sessionId = String.valueOf(invitation.get("sessionId"));
         requireOpenInvitationSession(sessionId);
         Map<String,Object> result = new LinkedHashMap<>(); result.put("sessionId", sessionId); return result;
+    }
+
+    @Override
+    public List<Map<String,Object>> myReferrals(String token) {
+        return miniAppMapper.selectMyReferrals(requireCustomerId(token));
     }
 
     private Date asDate(Object value) {
@@ -444,7 +482,7 @@ public class QlMiniAppServiceImpl implements IQlMiniAppService {
     private String publicMediaUrl(Object raw) {
         String value = Objects.toString(raw, "").trim();
         if (value.isEmpty() || value.startsWith("https://") || value.startsWith("http://")) return value;
-        return RuoYiConfig.getImagePath() + value;
+        return com.yicai.common.utils.file.PublicMediaUpload.url(value);
     }
 
     private Number number(Object value) {

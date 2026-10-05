@@ -25,5 +25,10 @@ public class QlRegistrationBo extends BaseEntity {
     private String attributionSource;
     private String nickname;
     private Integer sessionNumber;
+    /** Optional digits-only substring filter; exact sessionNumber takes precedence. */
+    @javax.validation.constraints.Pattern(regexp="[0-9]{0,10}",message="期次查询只能输入最多10位数字")
+    private String sessionNumberKeyword;
     private String paymentStatus;
+    @javax.validation.constraints.Pattern(regexp="pending|completed|cancelled",message="付款进度无效")
+    private String paymentProgress;
 }

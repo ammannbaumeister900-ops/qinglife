@@ -8,9 +8,13 @@ import java.util.Map;
 public interface IQlMiniAppService {
     List<Map<String, Object>> listSessions();
     List<Map<String, Object>> listFeaturedReadings();
+    Map<String,Object> listReadings(QlReadingQueryBo query);
+    List<Map<String,Object>> readingTopics();
+    Map<String,Object> homeReadings();
     Map<String, Object> readingDetail(Long id);
     Map<String, Object> contact();
     Map<String, Object> sessionDetail(String sessionId);
+    List<Map<String,Object>> myReferrals(String token);
     Map<String, Object> createInvitation(String token, String sessionId, boolean staff);
     Map<String, Object> resolveInvitation(String code);
     void saveExperience(String token, QlMiniAppExperienceBo bo);

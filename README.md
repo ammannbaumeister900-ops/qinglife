@@ -2,7 +2,7 @@
 
 轻生活完整业务系统 Monorepo，统一维护微信小程序、运营管理后台、Java API、数据库迁移和产品文档。
 
-当前统一验收版本已经通过 [PR #4](https://github.com/ammannbaumeister900-ops/qinglife/pull/4) 合入 **main**，源码快照标签为 **acceptance-p0-friend-20260928**。该版本统一包含 P0 报名/卡次结算、结算撤销与重新确认，以及原生轻友登记、历次档案、统计和导出。入口、验证证据和剩余边界见 [P0 + 轻友档案统一验收说明](docs/operations/p0-acceptance-20260924.md)。该版本尚未部署或完成微信真机验收。仓库不包含生产环境密钥、验收账号、数据库备份、用户数据或构建产物。
+当前 UI 优化前的阶段性基线为 **2026-10-05 轻生活统一功能基线**，微信小程序、移动工作台、管理后台、Java API 和数据库迁移统一保存在一次 Git 提交中。后续 UI 优化从此提交继续，统一入口见 [阶段性基线说明](docs/operations/ui-baseline-20261005.md)。目前为本地工作分支提交与隔离验收，最新界面仍需手机确认；生产发布与远端同步分别处理。仓库不包含密钥、验收账号、数据库备份、用户数据或构建产物。
 
 ## 仓库结构
 
@@ -13,7 +13,7 @@ qinglife/
 │  └─ admin/            # Vue 2 运营管理后台
 ├─ server/
 │  ├─ api/              # Spring Boot / MyBatis Plus 后端 API
-│  └─ migrations/       # V1.1—V1.4.3 数据库增量迁移
+│  └─ migrations/       # V1.1—V1.4.13 数据库增量迁移
 ├─ packages/
 │  └─ shared/           # 待逐步抽取的共享业务契约
 └─ docs/

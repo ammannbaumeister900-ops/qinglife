@@ -29,7 +29,7 @@ import Layout from '@/layout'
 export const constantRoutes = [
   {
     path: '/activityOperations/session-edit', component: Layout, hidden: true,
-    children: [{ path: ':id?', component: () => import('@/views/life/session/edit'), name: 'QlSessionEdit', meta: { title: '期次设置', noCache: true, activeMenu: '/activityOperations/session' } }]
+    children: [{ path: ':id?', component: () => import('@/views/life/session/edit'), name: 'QlSessionEdit', meta: { title: '期次设置', permission: 'life:session:edit', noCache: true, activeMenu: '/activityOperations/session' } }]
   },
   {
     path: '/redirect',
@@ -93,7 +93,7 @@ export const constantRoutes = [
         path: 'role/:userId(\\d+)',
         component: (resolve) => require(['@/views/system/user/authRole'], resolve),
         name: 'AuthRole',
-        meta: { title: '分配角色', activeMenu: '/system/user'}
+        meta: { title: '分配角色', permission: 'system:user:edit', activeMenu: '/system/user'}
       }
     ]
   },
@@ -106,7 +106,7 @@ export const constantRoutes = [
         path: 'user/:roleId(\\d+)',
         component: (resolve) => require(['@/views/system/role/authUser'], resolve),
         name: 'AuthUser',
-        meta: { title: '分配用户', activeMenu: '/system/role'}
+        meta: { title: '分配用户', permission: 'system:role:edit', activeMenu: '/system/role'}
       }
     ]
   },
@@ -119,7 +119,7 @@ export const constantRoutes = [
         path: 'index/:dictId(\\d+)',
         component: (resolve) => require(['@/views/system/dict/data'], resolve),
         name: 'Data',
-        meta: { title: '字典数据', activeMenu: '/system/dict'}
+        meta: { title: '字典数据', permission: 'system:dict:list', activeMenu: '/system/dict'}
       }
     ]
   },
@@ -132,7 +132,7 @@ export const constantRoutes = [
         path: 'index',
         component: (resolve) => require(['@/views/monitor/job/log'], resolve),
         name: 'JobLog',
-        meta: { title: '调度日志', activeMenu: '/monitor/job'}
+        meta: { title: '调度日志', permission: 'monitor:job:list', activeMenu: '/monitor/job'}
       }
     ]
   },
@@ -145,7 +145,7 @@ export const constantRoutes = [
         path: 'index/:tableId(\\d+)',
         component: (resolve) => require(['@/views/tool/gen/editTable'], resolve),
         name: 'GenEdit',
-        meta: { title: '修改生成配置', activeMenu: '/tool/gen'}
+        meta: { title: '修改生成配置', permission: 'tool:gen:edit', activeMenu: '/tool/gen'}
       }
     ]
   },

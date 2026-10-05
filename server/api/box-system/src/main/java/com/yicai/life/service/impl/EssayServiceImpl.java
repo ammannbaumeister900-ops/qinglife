@@ -141,7 +141,7 @@ public class EssayServiceImpl extends ServicePlusImpl<EssayMapper, Essay, EssayV
                 essayUser.setCreateBy(SecurityUtils.getLoginUser().getUser().getUserName());
                 essayUsers.add(essayUser);
             }
-            essayUserMapper.insertAll(essayUsers);
+            if(!essayUsers.isEmpty()) essayUserMapper.insertAll(essayUsers);
         }else{
             result = false;
         }
@@ -183,7 +183,7 @@ public class EssayServiceImpl extends ServicePlusImpl<EssayMapper, Essay, EssayV
                         essayUser.setCreateBy(SecurityUtils.getLoginUser().getUser().getUserName());
                         essayUsers.add(essayUser);
                     }
-                    essayUserMapper.insertAll(essayUsers);
+                    if(!essayUsers.isEmpty()) essayUserMapper.insertAll(essayUsers);
                 }
             }
             LambdaQueryWrapper<EssayLabel> lqw = new LambdaQueryWrapper<>();

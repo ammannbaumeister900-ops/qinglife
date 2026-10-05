@@ -5,29 +5,65 @@ const domain = require('../../utils/domain')
 const discovery = require('../../utils/discovery')
 const navigation = require('../../utils/navigation')
 const readingSamples = require('../../data/reading-samples')
+function showHomeTask(state, view) {
+  const reg = (state.registrations || {})[view.activityId] || state.registration || {}
+  return !!state.loggedIn && reg.status && reg.status !== 'none' && !['confirmed', 'completed'].includes(reg.status)
+}
+function featuredCamp(activities) {
+  const activity = discovery.activities(activities).find(a => a.canRegister)
+  return activity ? { ...activity, dateLabel: discovery.dateRange(activity) } : null
+}
 Page({
-  data: { view: {}, state: {}, featuredReadings: [] },
+  data: { view: {}, state: {}, featuredReadings: [], stories: [], storyIndex: 0, visible: false, readingError: '' },
   async onShow() {
+    const version = this.requestVersion = (this.requestVersion || 0) + 1
+    this.setData({ visible: true })
     const tab = this.getTabBar && this.getTabBar()
     if (tab) tab.setData({ selected: 0 })
     if (business.enabled()) {
       this.setData({ loading: !this.data.ready, refreshing: !!this.data.ready, loadError: '' })
-      try { const [{ state, activities }, featuredReadings] = await Promise.all([business.context(), business.featuredReadings().catch(() => [])]); this.setData({ state, featuredReadings: featuredReadings || [], ready: true, returning: discovery.returning(state), featured: discovery.activities(activities).find(a => a.canRegister) || null, view: domain.homeTask(state, activities) }) }
-      catch (error) { this.setData({ loadError: error.message, ...(error.code === 401 ? { state: {}, participationTimeline: [], currentRegistrations: [], returning: false } : {}) }) }
-      finally { this.setData({ loading: false, refreshing: false }) }
+      try {
+        const [{ state, activities }, readings] = await Promise.all([business.context(), business.homeReadings().catch(() => null)])
+        if (version !== this.requestVersion) return
+        const view = domain.homeTask(state, activities)
+        this.setData({ showHomeTask: showHomeTask(state, view), state, stories: readings && readings.stories || [], featuredReadings: readings && readings.featured || [],
+          storyIndex: 0, readingError: readings ? '' : '轻读暂时未能读取，请稍后重试。', ready: true,
+          returning: discovery.returning(state), featured: featuredCamp(activities),
+          view })
+      } catch (error) {
+        if (version !== this.requestVersion) return
+        this.setData({ loadError: error.message, ...(error.code === 401 ? { state: {}, returning: false, showHomeTask: false } : {}) })
+      } finally {
+        if (version === this.requestVersion) this.setData({ loading: false, refreshing: false })
+      }
       return
     }
     const state = store.getState()
-    this.setData({ state, featuredReadings: readingSamples.slice(0, 4), ready: true, returning: discovery.returning(state), featured: discovery.activities(demo.activities).find(a => a.canRegister) || null, view: domain.homeTask(state, demo.activities) })
+    const view = domain.homeTask(state, demo.activities)
+    this.setData({ showHomeTask: showHomeTask(state, view), state, stories: [], storyIndex: 0, readingError: '', featuredReadings: readingSamples.slice(0, 4), ready: true,
+      returning: discovery.returning(state), featured: featuredCamp(demo.activities),
+      view })
   },
-  openActivity(event) { navigation.navigateTo({ url: '/pages/camp-flow/index?view=' + (event.currentTarget.dataset.view || 'detail') + '&id=' + encodeURIComponent(this.data.featured.id) }) },
-  openReading() { navigation.switchTab({ url: '/pages/content/index' }) },
+  onHide() { this.setData({ visible: false }) },
+  onUnload() { this.requestVersion = (this.requestVersion || 0) + 1 },
+  storyChanged(event) { this.setData({ storyIndex: event.detail.current }) },
+  stepStory(event) {
+    if (this.data.stories.length < 2) return
+    const index = this.data.storyIndex + Number(event.currentTarget.dataset.step)
+    this.setData({ storyIndex: Math.max(0, Math.min(this.data.stories.length - 1, index)) })
+  },
+  openActivity(event) {
+    if (!this.data.featured) return
+    navigation.navigateTo({ url: '/pages/camp-flow/index?view=' + (event.currentTarget.dataset.view || 'detail') + '&id=' + encodeURIComponent(this.data.featured.id) })
+  },
+  openReading() { navigation.openReadingList(false) },
+  openStories() { navigation.openReadingList(true) },
   openArticle(event) { const { id, title } = event.currentTarget.dataset; navigation.navigateTo({ url: '/pages/article/index?id=' + encodeURIComponent(id) + '&title=' + encodeURIComponent(title || '') }) },
   openCamp() { navigation.switchTab({ url: '/pages/camp/index' }) },
   openPrimary() {
     const view = this.data.view
     if (view.activityId) store.updateState(state => { state.selectedActivityId = view.activityId; return state })
-    if (view.route === 'reading') return navigation.switchTab({ url: '/pages/content/index' })
+    if (view.route === 'reading') return navigation.openReadingList(false)
     if (view.route === 'habit') return navigation.navigateTo({ url: '/pages/mine-flow/index?view=habit' })
     if (view.route === 'daily') return navigation.navigateTo({ url: '/pages/friend-flow/index?view=daily' })
     navigation.navigateTo({ url: '/pages/camp-flow/index?view=' + view.route + (view.activityId ? '&id=' + encodeURIComponent(view.activityId) : '') })

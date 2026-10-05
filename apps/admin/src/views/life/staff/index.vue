@@ -7,8 +7,7 @@
     />
     <el-button type="primary" style="margin: 16px 0" @click="create">新增授权</el-button>
     <el-table :data="rows">
-      <el-table-column label="小程序账号编号" prop="app_user_id" />
-      <el-table-column label="小程序称呼" prop="appName" />
+      <el-table-column label="轻友账号" min-width="220"><template slot-scope="s">{{ accountLabel({ name: s.row.appName, phoneHint: s.row.phoneHint }) }}</template></el-table-column>
       <el-table-column label="工作人员" prop="staffName" />
       <el-table-column label="状态">
         <template slot-scope="s">{{ s.row.enabled ? '启用' : '停用' }}</template>
@@ -26,9 +25,9 @@
 
     <el-dialog title="工作人员授权" :visible.sync="open" width="620px">
       <el-form label-position="top">
-        <el-form-item label="小程序账号（核实编号与本人身份，不按昵称自动匹配）">
-          <el-select v-model="form.appUserId" filterable remote :remote-method="searchApps" :disabled="editing" style="width: 100%">
-            <el-option v-for="u in apps" :key="u.id" :value="u.id" :label="u.id + ' · ' + u.name" />
+        <el-form-item label="轻友账号（请核实称呼与手机号）">
+          <el-select v-model="form.appUserId" filterable remote :remote-method="searchApps" :disabled="editing" :loading="searching" placeholder="输入称呼或手机号搜索" style="width: 100%">
+            <el-option v-for="u in apps" :key="u.id" :value="u.id" :label="accountLabel(u)" />
           </el-select>
         </el-form-item>
         <el-form-item label="绑定后台工作人员">
@@ -62,7 +61,9 @@ export default {
       form: {},
       open: false,
       editing: false,
-      saving: false
+      saving: false,
+      searching: false,
+      searchVersion: 0
     }
   },
   created() {
@@ -73,8 +74,18 @@ export default {
     load() {
       return request({ url: '/life/staff/list' }).then(response => { this.rows = response.data })
     },
-    searchApps(query) {
-      request({ url: '/life/staff/app-users', params: { q: query }}).then(response => { this.apps = response.data })
+    accountLabel(account) {
+      return (account.name || '轻友') + ' · ' + (account.phoneHint || '未登记手机号')
+    },
+    async searchApps(query) {
+      const version = ++this.searchVersion
+      this.searching = true
+      try {
+        const response = await request({ url: '/life/staff/app-users', params: { q: query }})
+        if (version === this.searchVersion) this.apps = response.data
+      } finally {
+        if (version === this.searchVersion) this.searching = false
+      }
     },
     create() {
       this.editing = false
@@ -84,7 +95,9 @@ export default {
     },
     edit(row) {
       this.editing = true
-      this.apps = [{ id: row.app_user_id, name: row.appName }]
+      ++this.searchVersion
+      this.searching = false
+      this.apps = [{ id: row.app_user_id, name: row.appName, phoneHint: row.phoneHint }]
       this.form = {
         appUserId: row.app_user_id,
         sysUserId: row.sys_user_id,

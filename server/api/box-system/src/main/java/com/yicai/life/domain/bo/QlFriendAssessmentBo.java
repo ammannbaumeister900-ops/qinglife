@@ -19,6 +19,9 @@ public class QlFriendAssessmentBo {
     @NotNull private BigDecimal heightCm;
     @NotNull private BigDecimal weightKg;
     @NotBlank private String city;
+    private String province;
+    private Integer revision;
+    @javax.validation.constraints.Size(max=32) private String invitationCode;
     @NotNull private List<String> cleanBodyGoals;
     @NotBlank private String dietPreference;
     @NotNull private Integer waterIntakeMl;

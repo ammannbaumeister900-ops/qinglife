@@ -3,6 +3,7 @@
   "navigationStyle": "custom",
   "usingComponents": {
     "launch-splash": "/components/launch-splash/index",
-    "ql-nav-space": "/components/ql-nav-space/index"
+    "ql-nav-space": "/components/ql-nav-space/index",
+    "camp-voices": "/components/camp-voices/index"
   }
 }

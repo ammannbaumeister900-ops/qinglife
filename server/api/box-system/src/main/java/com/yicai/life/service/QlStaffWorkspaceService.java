@@ -28,7 +28,7 @@ public class QlStaffWorkspaceService {
         return rows.get(0);
     }
     public long operator(Map<String,Object> a){return ((Number)a.get("sys_user_id")).longValue();}
-    public void permit(Map<String,Object> a,String flag){if(!Integer.valueOf(1).equals(((Number)a.get(flag)).intValue()))throw new CustomException("没有此操作权限",403);}
+    public void permit(Map<String,Object> a,String flag){Object value=a==null?null:a.get(flag);if(!(value instanceof Number)||((Number)value).intValue()!=1)throw new CustomException("没有此操作权限",403);}
     public List<Map<String,Object>> people(String q,int limit){
         String pattern="%"+(q==null?"":q.trim().replace("!","!!").replace("%","!%").replace("_","!_"))+"%";
         return db.queryForList("SELECT c.id,c.nickname,c.real_name AS realName,c.city,COALESCE(d.birth_month,DATE_FORMAT(c.birth_date,'%Y-%m')) AS birthMonth,d.referral_source AS referralSource,(SELECT i.identifier_value FROM ql_customer_identifier i WHERE i.customer_id=c.id AND i.identifier_type='phone' AND i.valid_to IS NULL ORDER BY i.is_primary DESC LIMIT 1) AS phone FROM ql_customer c LEFT JOIN ql_customer_staff_detail d ON d.customer_id=c.id WHERE c.deleted_at IS NULL AND c.status='active' AND (c.nickname LIKE ? ESCAPE '!' OR c.real_name LIKE ? ESCAPE '!' OR EXISTS(SELECT 1 FROM ql_customer_identifier i WHERE i.customer_id=c.id AND i.identifier_type='phone' AND i.valid_to IS NULL AND i.identifier_value LIKE ? ESCAPE '!')) ORDER BY c.updated_at DESC LIMIT ?",pattern,pattern,pattern,Math.min(100,Math.max(1,limit)));
@@ -133,8 +133,19 @@ public class QlStaffWorkspaceService {
         if(!"paid".equals(bo.getPaymentStatus()))throw new CustomException("收款更正请在后台处理",400);
         registrationService.changePayment(id,bo,operator(a));
     }
-    public List<Map<String,Object>> grants(){return db.queryForList("SELECT a.*,u.nick_name AS staffName,w.nick_name AS appName FROM ql_staff_access a JOIN sys_user u ON u.user_id=a.sys_user_id JOIN app_user_info w ON w.id=a.app_user_id ORDER BY a.updated_at DESC");}
-    public List<Map<String,Object>> appUsers(String q){return db.queryForList("SELECT id,nick_name AS name,last_login_time AS lastLoginTime FROM app_user_info WHERE status=1 AND (nick_name LIKE ? OR CAST(id AS CHAR)=?) ORDER BY last_login_time DESC LIMIT 30","%"+q+"%",q);}
+    // Use the existing legacy identity link; display labels never determine the authorization owner.
+    private static final String APP_NAME = "COALESCE(NULLIF(TRIM(c.nickname),''),NULLIF(TRIM(w.nick_name),''),'轻友')";
+    private static final String APP_PHONE_HINT = "CASE WHEN p.identifier_value REGEXP '^1[0-9]{10}$' THEN CONCAT(LEFT(p.identifier_value,3),'****',RIGHT(p.identifier_value,4)) ELSE NULL END";
+    private static final String APP_IDENTITY_JOIN = " LEFT JOIN ql_customer c ON c.id=(SELECT i.customer_id FROM ql_customer_identifier i WHERE i.legacy_app_user_id=w.id AND i.verification_status<>'conflict' ORDER BY i.is_primary DESC,i.created_at ASC LIMIT 1)"
+            + " LEFT JOIN ql_customer_identifier p ON p.id=(SELECT i.id FROM ql_customer_identifier i WHERE i.customer_id=c.id AND i.identifier_type='phone' AND i.valid_to IS NULL AND i.verification_status NOT IN ('conflict','expired') ORDER BY i.is_primary DESC,i.created_at DESC,i.id LIMIT 1)";
+    public List<Map<String,Object>> grants() {
+        return db.queryForList("SELECT a.*,u.nick_name AS staffName,"+APP_NAME+" AS appName,"+APP_PHONE_HINT+" AS phoneHint FROM ql_staff_access a JOIN sys_user u ON u.user_id=a.sys_user_id JOIN app_user_info w ON w.id=a.app_user_id"+APP_IDENTITY_JOIN+" ORDER BY a.updated_at DESC");
+    }
+    public List<Map<String,Object>> appUsers(String q) {
+        String query=q==null?"":q.trim();
+        if(query.length()>64)throw new CustomException("搜索内容过长",400);
+        return db.queryForList("SELECT w.id,"+APP_NAME+" AS name,"+APP_PHONE_HINT+" AS phoneHint,w.last_login_time AS lastLoginTime FROM app_user_info w"+APP_IDENTITY_JOIN+" WHERE w.status=1 AND (LOCATE(?,"+APP_NAME+")>0 OR LOCATE(?,p.identifier_value)>0 OR ?='') ORDER BY w.last_login_time DESC,w.id DESC LIMIT 30",query,query,query);
+    }
     public List<Map<String,Object>> operators(){return db.queryForList("SELECT user_id AS id,nick_name AS name FROM sys_user WHERE status='0' AND del_flag='0' ORDER BY user_id LIMIT 200");}
     @Transactional
     public void grant(Map<String,Object> b,long operator){long app=Long.parseLong(text(b,"appUserId",20,true)),user=Long.parseLong(text(b,"sysUserId",20,true));if(db.queryForObject("SELECT COUNT(*) FROM app_user_info WHERE id=? AND status=1",Integer.class,app)!=1||db.queryForObject("SELECT COUNT(*) FROM sys_user WHERE user_id=? AND status='0' AND del_flag='0'",Integer.class,user)!=1)throw new CustomException("账号不可用",400);db.queryForList("SELECT user_id FROM sys_user WHERE user_id=? FOR UPDATE",user);if(db.queryForObject("SELECT COUNT(*) FROM ql_staff_access WHERE sys_user_id=? AND app_user_id<>?",Integer.class,user,app)>0)throw new CustomException("该工作人员已绑定其他小程序账号，请先处理原绑定",400);db.update("INSERT INTO ql_staff_access(app_user_id,sys_user_id,enabled,can_operate,can_payment,updated_by) VALUES(?,?,?,?,?,?) ON DUPLICATE KEY UPDATE sys_user_id=VALUES(sys_user_id),enabled=VALUES(enabled),can_operate=VALUES(can_operate),can_payment=VALUES(can_payment),updated_by=VALUES(updated_by)",app,user,Boolean.TRUE.equals(b.get("enabled"))?1:0,Boolean.TRUE.equals(b.get("canOperate"))?1:0,Boolean.TRUE.equals(b.get("canPayment"))?1:0,operator);}

@@ -13,6 +13,12 @@ import java.util.Map;
 
 @Mapper
 public interface QlMiniAppMapper {
+    List<Map<String,Object>> selectPublicReadings(@Param("filter") com.yicai.life.domain.bo.QlReadingQueryBo filter,
+                                                @Param("limit") int limit,@Param("offset") long offset);
+    long countPublicReadings(@Param("filter") com.yicai.life.domain.bo.QlReadingQueryBo filter);
+    List<Map<String,Object>> selectPublicReadingTopics();
+    List<Map<String,Object>> selectFeaturedStories();
+    List<Map<String,Object>> selectFeaturedGeneralReadings();
 
     @Select("SELECT customer_id FROM ql_customer_identifier WHERE legacy_app_user_id = #{legacyUserId} " +
             "AND verification_status <> 'conflict' ORDER BY is_primary DESC, created_at ASC LIMIT 1")
@@ -42,7 +48,7 @@ public interface QlMiniAppMapper {
                          @Param("status") String status, @Param("legacyUserId") Long legacyUserId,
                          @Param("now") Date now);
 
-    @Select("SELECT COALESCE(c.real_name,c.nickname) AS name, (c.birth_date IS NOT NULL AND TIMESTAMPDIFF(YEAR,c.birth_date,CURRENT_DATE())<18) AS minor, " +
+    @Select("SELECT COALESCE(c.real_name,c.nickname) AS name, c.nickname AS nickname, (c.birth_date IS NOT NULL AND TIMESTAMPDIFF(YEAR,c.birth_date,CURRENT_DATE())<18) AS minor, " +
             "(SELECT i.identifier_value FROM ql_customer_identifier i WHERE i.customer_id=c.id AND i.identifier_type='phone' AND i.valid_to IS NULL ORDER BY i.is_primary DESC,i.created_at LIMIT 1) AS phone FROM ql_customer c WHERE c.id=#{id}")
     Map<String,Object> selectCustomerProfile(@Param("id") String id);
 
@@ -225,8 +231,11 @@ public interface QlMiniAppMapper {
     @Insert("INSERT INTO ql_invitation(code,session_id,owner_customer_id,source,created_at) VALUES(#{code},#{sessionId},#{ownerId},#{source},#{now})")
     int insertInvitation(@Param("code") String code, @Param("sessionId") String sessionId, @Param("ownerId") String ownerId, @Param("source") String source, @Param("now") Date now);
 
-    @Select("SELECT code,session_id AS sessionId,owner_customer_id AS ownerId FROM ql_invitation WHERE code=#{code}")
+    @Select("SELECT code,session_id AS sessionId,owner_customer_id AS ownerId,purpose FROM ql_invitation WHERE code=#{code}")
     Map<String,Object> selectInvitation(@Param("code") String code);
+
+    @Select("SELECT r.id AS registrationId,c.nickname,s.session_number AS sessionNumber,s.name AS sessionName,r.registration_status AS registrationStatus,DATE_FORMAT(r.registered_at,'%Y-%m-%d %H:%i') AS registeredAt FROM ql_registration r JOIN ql_customer c ON c.id=r.customer_id JOIN ql_session s ON s.id=r.session_id WHERE r.session_referrer_customer_id=#{customerId} AND r.customer_id<>#{customerId} AND c.deleted_at IS NULL ORDER BY r.registered_at DESC,r.id DESC LIMIT 100")
+    List<Map<String,Object>> selectMyReferrals(@Param("customerId") String customerId);
 
     @Select("SELECT COUNT(DISTINCT r.session_id) FROM ql_registration r JOIN ql_session s ON s.id=r.session_id JOIN ql_customer c ON c.id=r.customer_id WHERE r.customer_id=#{customerId} AND r.registration_status='confirmed' AND r.is_minor_snapshot=0 AND (c.birth_date IS NULL OR TIMESTAMPDIFF(YEAR,c.birth_date,CURRENT_DATE())>=18) AND s.status='completed' AND (EXISTS(SELECT 1 FROM ql_participation_day pd WHERE pd.registration_id=r.id AND pd.attendance_status IN ('checked_in','late','left_early')) OR EXISTS(SELECT 1 FROM ql_participation p WHERE p.customer_id=r.customer_id AND p.session_id=r.session_id AND p.attendance_status IN ('checked_in','late','left_early','completed') AND NOT EXISTS(SELECT 1 FROM ql_participation_day existing_day JOIN ql_session_day existing_session_day ON existing_session_day.id=existing_day.session_day_id WHERE existing_day.customer_id=r.customer_id AND existing_session_day.session_id=r.session_id)))")
     int countCompletedExperience(@Param("customerId") String customerId);
@@ -273,12 +282,12 @@ public interface QlMiniAppMapper {
     @Select("SELECT id,registration_id AS registrationId,session_id AS sessionId,phase,node_key AS nodeKey,energy,relaxation,note,visibility_scope AS visibility,updated_at AS updatedAt FROM ql_experience_record WHERE customer_id=#{customerId} ORDER BY updated_at DESC")
     List<Map<String,Object>> selectExperienceRecords(@Param("customerId") String customerId);
 
-    @Select("SELECT e.id,e.title,e.Introduction AS summary,e.title_url AS cover,e.insert_time AS publishedAt," +
+    @Select("SELECT CAST(e.id AS CHAR) AS id,e.title,e.Introduction AS summary,e.title_url AS cover,e.insert_time AS publishedAt," +
             "COALESCE(u.nick_name,'轻生活') AS author,COALESCE((SELECT GROUP_CONCAT(l.name ORDER BY el.id SEPARATOR ' · ') FROM essay_label el JOIN label l ON l.id=el.label WHERE el.essay=e.id),'轻生活') AS category " +
             "FROM essay e LEFT JOIN sys_user u ON u.user_id=e.author WHERE e.status=1 AND e.home_featured=1 ORDER BY e.order_num,e.id LIMIT 8")
     List<Map<String,Object>> selectFeaturedReadings();
 
-    @Select("SELECT e.id,e.title,e.Introduction AS summary,e.title_url AS cover,e.content,e.insert_time AS publishedAt," +
+    @Select("SELECT CAST(e.id AS CHAR) AS id,e.title,e.Introduction AS summary,e.title_url AS cover,e.content,e.insert_time AS publishedAt," +
             "COALESCE(u.nick_name,'轻生活') AS author,COALESCE((SELECT GROUP_CONCAT(l.name ORDER BY el.id SEPARATOR ' · ') FROM essay_label el JOIN label l ON l.id=el.label WHERE el.essay=e.id),'轻生活') AS category " +
             "FROM essay e LEFT JOIN sys_user u ON u.user_id=e.author WHERE e.id=#{id} AND e.status=1")
     Map<String,Object> selectPublicReading(@Param("id") Long id);

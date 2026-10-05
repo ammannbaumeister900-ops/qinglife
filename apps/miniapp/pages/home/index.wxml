@@ -1,36 +1,26 @@
 <launch-splash />
-<ql-nav-space />
+<ql-nav-space title="轻生活" />
 <view class="page home-page">
   <view wx:if="{{refreshing}}" class="refresh-note">正在更新…</view><view wx:if="{{loading}}" class="empty-state">正在读取…</view><view wx:if="{{loadError}}" class="empty-state">{{loadError}}<button class="text-button" bindtap="onShow">重试</button></view>
   <block wx:if="{{!loading}}">
-  <view class="masthead"><view class="masthead-brand"><view class="masthead-title">轻生活</view><view class="seal">轻</view></view></view>
-  <view class="welcome-block">
-    <view class="pill">{{returning ? '欢迎回来，轻友' : '从认识轻生活开始'}}</view>
-    <view class="welcome-title">{{returning ? '把那一点轻松，带回日常。' : '生活很满，也可以留一点轻。'}}</view>
-    <view class="card-copy">{{returning ? '不必每天都有进步。愿意停下来看看自己的感受，就已经很好。' : '从一次线下体验或一篇轻读开始，给日常留一点余地。'}}</view>
+  <view class="welcome-block"><view class="welcome-brand-row"><view class="welcome-kicker">给日常，留一处空白</view><image class="welcome-logo" src="/assets/brand/logo-sage.png" mode="aspectFit" aria-label="轻生活品牌 Logo" /></view><view class="welcome-title">{{returning ? '把那一点轻松，' : '生活很满，'}}</view><view class="welcome-ending">{{returning ? '带回日常' : '也可以留一点'}}<text wx:if="{{!returning}}" class="welcome-light">轻</text></view><view class="welcome-rule"></view></view>
+  <view wx:if="{{showHomeTask}}" class="home-task">
+    <view class="home-task-top"><view class="home-task-title">{{view.title}}</view><button class="home-task-action" bindtap="openPrimary">{{view.action}} ›</button></view>
+    <view class="home-task-copy">{{view.copy}}</view>
   </view>
-  <view wx:if="{{state.loggedIn && state.registration.status !== 'none'}}" class="card home-task">
-    <view class="pill">{{view.kicker}}</view>
-    <view class="home-task-title">{{view.title}}</view>
-    <view class="card-copy home-task-copy">{{view.copy}}</view>
-    <button class="primary" bindtap="openPrimary">{{view.action}}</button>
+  <view wx:if="{{stories.length}}" class="home-stories">
+    <view class="index-head home-section-head"><text class="index-label">轻友的轻生活</text><button class="home-section-link home-more-stories" bindtap="openStories">更多故事 ›</button></view>
+    <view class="home-story-intro">看看他们，怎样把一点轻松带回日常。</view>
+    <swiper class="home-story-swiper" current="{{storyIndex}}" next-margin="{{stories.length > 1 ? '90rpx' : '0rpx'}}" autoplay="{{visible && stories.length > 1}}" circular="{{stories.length > 1}}" interval="6000" duration="450" bindchange="storyChanged">
+      <swiper-item wx:for="{{stories}}" wx:key="id"><view class="home-story-card" data-id="{{item.id}}" data-title="{{item.title}}" bindtap="openArticle"><view class="home-story-title">{{item.title}}</view><image wx:if="{{item.cover}}" class="home-story-cover" src="{{item.cover}}" mode="aspectFill" /><view wx:else class="home-story-cover home-cover-placeholder"><text class="home-cover-caption">轻友故事</text></view><view class="home-story-summary">{{item.summary || '读读轻友的日常，认识他们的轻生活。'}}</view></view></swiper-item>
+    </swiper>
+    <view wx:if="{{stories.length > 1}}" class="home-story-footer"><text class="home-story-count">{{storyIndex + 1}} / {{stories.length}}</text><view class="home-story-arrows"><button class="home-story-arrow" data-step="-1" bindtap="stepStory" disabled="{{storyIndex === 0}}" aria-label="上一个轻友故事">‹</button><button class="home-story-arrow" data-step="1" bindtap="stepStory" disabled="{{storyIndex === stories.length - 1}}" aria-label="下一个轻友故事">›</button></view></view>
   </view>
-  <view class="index-head"><text class="index-label">{{returning ? '近期动态 · 下一次相聚' : '从一次轻体营开始'}}</text></view>
-  <view wx:if="{{featured}}" class="card featured-camp">
-    <image wx:if="{{featured.cover}}" class="home-session-cover" src="{{featured.cover}}" mode="aspectFill" />
-    <view class="pill">下一期 · {{featured.status}}</view><view class="card-title">{{featured.name}}</view>
-    <view class="home-session-theme">{{featured.theme}}</view>
-    <view class="card-copy">{{featured.date}}</view><view class="card-copy">{{featured.city}} {{featured.place}}</view>
-    <view class="card-copy">公开价：新轻友 ¥{{featured.fee}}<text wx:if="{{featured.returningFee != null}}"> · 老轻友 ¥{{featured.returningFee}}</text></view><view class="card-copy">最终结算由工作人员核对确认。</view>
-    <view class="button-row"><button class="primary" data-view="register" bindtap="openActivity">报名</button><button class="secondary" data-view="detail" bindtap="openActivity">查看详情</button></view>
-  </view>
-  <view wx:else class="card"><view class="card-copy">新的开放期次正在准备中。可以先看看轻读，认识轻生活。</view></view>
-  <button class="text-button" bindtap="openCamp">查看全部期次 ›</button>
-  <view class="index-head"><text class="index-label">精选轻读</text></view>
-  <swiper wx:if="{{featuredReadings.length}}" class="reading-swiper" autoplay circular interval="5000" duration="450" indicator-dots>
-    <swiper-item wx:for="{{featuredReadings}}" wx:key="id"><view class="reading-slide" data-id="{{item.id}}" data-title="{{item.title}}" bindtap="openArticle"><image wx:if="{{item.cover}}" class="reading-cover" src="{{item.cover}}" mode="aspectFill" /><view wx:else class="reading-cover reading-cover-placeholder">轻读</view><view class="reading-copy"><view class="pill">{{item.category || '轻读'}}</view><view class="reading-title">{{item.title}}</view><view class="card-copy">{{item.summary}}</view><view class="latest-link">打开阅读 ›</view></view></view></swiper-item>
-  </swiper>
-  <view wx:else class="card support-card"><view class="card-title">轻读正在准备中</view><view class="card-copy">可以前往轻读查看全部已发布内容。</view></view>
-  <button class="text-button" bindtap="openReading">查看全部轻读 ›</button>
+  <button wx:if="{{featured}}" class="home-camp-entry" data-view="detail" bindtap="openActivity"><view class="home-camp-time"><view class="home-camp-label">近期轻体营</view><view class="home-camp-date">{{featured.dateLabel}}</view></view><view class="home-camp-period">第 {{featured.sessionNumber}} 期 <text>›</text></view></button>
+  <button wx:else class="home-camp-entry home-camp-empty" bindtap="openCamp"><text>暂无开放期次</text><text class="home-section-link">全部期次 ›</text></button>
+  <view class="index-head home-section-head home-reading-head"><text class="index-label">精选轻读</text><button class="home-section-link" bindtap="openReading">全部轻读 ›</button></view>
+  <view wx:if="{{readingError}}" class="home-reading-message"><view>{{readingError}}</view><button class="text-button" bindtap="onShow">重试</button></view>
+  <view wx:elif="{{featuredReadings.length}}" class="home-reading-list"><block wx:for="{{featuredReadings}}" wx:key="id"><button wx:if="{{index < 2}}" class="home-reading-row" data-id="{{item.id}}" data-title="{{item.title}}" bindtap="openArticle"><text class="home-reading-title">{{item.title}}</text><text class="home-reading-arrow">›</text></button></block></view>
+  <view wx:else class="home-reading-message">轻读正在准备中，可以前往轻读看看。</view>
   </block>
 </view>

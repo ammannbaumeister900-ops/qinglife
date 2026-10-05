@@ -52,5 +52,13 @@ public class QlPassController extends BaseController {
         return AjaxResult.success(passService.adjust(id, bo, userId()));
     }
 
+    @PreAuthorize("@ss.hasPermi('life:pass:query')")
+    @GetMapping("/{id}/image")
+    public org.springframework.http.ResponseEntity<byte[]> image(@PathVariable String id) {
+        Map<String,Object> image=passService.image(id);
+        return org.springframework.http.ResponseEntity.ok().header("Cache-Control","no-store").header("X-Content-Type-Options","nosniff")
+                .contentType(org.springframework.http.MediaType.parseMediaType(String.valueOf(image.get("mime")))).body((byte[])image.get("data"));
+    }
+
     private Long userId() { return SecurityUtils.getLoginUser().getUser().getUserId(); }
 }

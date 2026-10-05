@@ -1,6 +1,7 @@
 package com.yicai.life.service;
 
 import com.yicai.common.exception.CustomException;
+import com.yicai.common.utils.file.UploadContentValidator;
 import com.yicai.life.domain.bo.QlPassAccountBo;
 import com.yicai.life.domain.bo.QlPassAdjustmentBo;
 import lombok.RequiredArgsConstructor;
@@ -19,25 +20,36 @@ public class QlPassService {
     public List<Map<String,Object>> list(String customerId) {
         String where = customerId == null || customerId.trim().isEmpty() ? "" : " WHERE a.customer_id=?";
         String sql = "SELECT a.id,a.customer_id AS customerId,c.customer_no AS customerNo,c.nickname,c.real_name AS realName," +
-                "a.pass_type AS passType,a.status,DATE_FORMAT(a.valid_from,'%Y-%m-%d') AS validFrom," +
+                "a.pass_type AS passType,a.status,a.created_at AS createdAt,(a.image_data IS NOT NULL) AS hasImage,DATE_FORMAT(a.valid_from,'%Y-%m-%d') AS validFrom," +
                 "DATE_FORMAT(a.valid_until,'%Y-%m-%d') AS validUntil,COALESCE(SUM(l.quantity_delta),0) AS balance," +
                 "CASE WHEN a.status='active' AND (a.valid_from IS NULL OR a.valid_from<=CURRENT_DATE()) " +
                 "AND (a.valid_until IS NULL OR a.valid_until>=CURRENT_DATE()) THEN 1 ELSE 0 END AS usable " +
                 "FROM ql_pass_account a JOIN ql_customer c ON c.id=a.customer_id " +
                 "LEFT JOIN ql_pass_ledger l ON l.pass_account_id=a.id" + where +
-                " GROUP BY a.id,a.customer_id,c.customer_no,c.nickname,c.real_name,a.pass_type,a.status,a.valid_from,a.valid_until " +
-                "ORDER BY a.created_at DESC";
+                " GROUP BY a.id,a.customer_id,c.customer_no,c.nickname,c.real_name,a.pass_type,a.status,a.valid_from,a.valid_until,a.created_at " +
+                "ORDER BY a.created_at DESC,a.id DESC";
         return where.isEmpty() ? db.queryForList(sql) : db.queryForList(sql, customerId);
     }
 
     public List<Map<String,Object>> ledger(String accountId) {
-        return db.queryForList("SELECT l.id,l.entry_type AS entryType,l.quantity_delta AS quantityDelta," +
-                "l.balance_after AS balanceAfter,l.reason,DATE_FORMAT(l.occurred_at,'%Y-%m-%d %H:%i:%s') AS occurredAt," +
-                "l.registration_id AS registrationId,l.registration_batch_id AS registrationBatchId," +
-                "s.session_number AS sessionNumber,u.nick_name AS operatorName " +
-                "FROM ql_pass_ledger l LEFT JOIN ql_session s ON s.id=l.session_id " +
-                "LEFT JOIN sys_user u ON u.user_id=l.operator_id WHERE l.pass_account_id=? " +
-                "ORDER BY l.occurred_at DESC,l.created_at DESC", accountId);
+        return db.queryForList("SELECT h.id,h.entryType,h.quantityDelta,h.balanceAfter,h.reason,h.registrationId,h.registrationBatchId,h.sessionNumber," +
+                "h.previousValidFrom,h.previousValidUntil,h.validFrom,h.validUntil,DATE_FORMAT(h.occurredAt,'%Y-%m-%d %H:%i:%s') AS occurredAt,u.nick_name AS operatorName FROM (" +
+                "SELECT l.id,l.entry_type AS entryType,l.quantity_delta AS quantityDelta,l.balance_after AS balanceAfter," +
+                "l.reason,l.occurred_at AS occurredAt,l.registration_id AS registrationId," +
+                "l.registration_batch_id AS registrationBatchId,s.session_number AS sessionNumber,l.operator_id," +
+                "NULL AS previousValidFrom,NULL AS previousValidUntil,NULL AS validFrom,NULL AS validUntil " +
+                "FROM ql_pass_ledger l LEFT JOIN ql_session s ON s.id=l.session_id WHERE l.pass_account_id=? " +
+                "UNION ALL SELECT v.id,'validity',NULL,NULL,v.reason,v.created_at,NULL,NULL,NULL,v.operator_id," +
+                "DATE_FORMAT(v.previous_valid_from,'%Y-%m-%d'),DATE_FORMAT(v.previous_valid_until,'%Y-%m-%d')," +
+                "DATE_FORMAT(v.valid_from,'%Y-%m-%d'),DATE_FORMAT(v.valid_until,'%Y-%m-%d') " +
+                "FROM ql_pass_validity_log v WHERE v.pass_account_id=?" +
+                ") h LEFT JOIN sys_user u ON u.user_id=h.operator_id ORDER BY h.occurredAt DESC,h.id DESC",accountId,accountId);
+    }
+
+    public Map<String,Object> image(String accountId) {
+        List<Map<String,Object>> rows=db.queryForList("SELECT image_mime AS mime,image_data AS data FROM ql_pass_account WHERE id=? AND image_data IS NOT NULL",accountId);
+        if(rows.isEmpty()) throw new CustomException("图片不存在",404);
+        return rows.get(0);
     }
 
     @Transactional
@@ -47,23 +59,35 @@ public class QlPassService {
         }
         Integer customers = db.queryForObject("SELECT COUNT(*) FROM ql_customer WHERE id=? AND deleted_at IS NULL", Integer.class, bo.getCustomerId());
         if (customers == null || customers == 0) throw new CustomException("轻友档案不存在", 404);
+        byte[] image = bo.getImage() == null ? null : UploadContentValidator.decodeInterviewImage(bo.getImage().getMime(), bo.getImage().getData());
         String id = UUID.randomUUID().toString();
         java.util.Date now = new java.util.Date();
-        db.update("INSERT INTO ql_pass_account(id,customer_id,pass_type,valid_from,valid_until,status,created_by,created_at,updated_at) VALUES(?,?,?,?,?,'active',?,?,?)",
-                id, bo.getCustomerId(), bo.getPassType().trim(), sqlDate(bo.getValidFrom()), sqlDate(bo.getValidUntil()), operatorId, now, now);
-        insertLedger(id, null, null, null, null, "grant", bo.getInitialUnits(), bo.getInitialUnits(), bo.getReason().trim(), operatorId, now);
+        db.update("INSERT INTO ql_pass_account(id,customer_id,pass_type,valid_from,valid_until,status,created_by,created_at,updated_at,image_mime,image_data) VALUES(?,?,?,?,?,'active',?,?,?,?,?)",
+                id, bo.getCustomerId(), bo.getPassType().trim(), sqlDate(bo.getValidFrom()), sqlDate(bo.getValidUntil()), operatorId, now, now, image == null ? null : bo.getImage().getMime(), image);
+        insertLedger(id, null, null, null, null, "grant", bo.getInitialUnits(), bo.getInitialUnits(), bo.getReason() == null ? null : bo.getReason().trim(), operatorId, now);
         return id;
     }
 
     @Transactional
     public int adjust(String accountId, QlPassAdjustmentBo bo, Long operatorId) {
-        if (bo.getQuantityDelta() == null || bo.getQuantityDelta() == 0) throw new CustomException("调整次数不能为0", 400);
+        if (bo.getQuantityDelta() == null) throw new CustomException("请填写调整次数",400);
+        if (bo.getReason() == null || bo.getReason().trim().isEmpty() || bo.getReason().trim().length()>500) throw new CustomException("请填写500字以内的调整原因",400);
         Map<String,Object> account = lock(accountId);
+        Date from=sqlDate(bo.getValidFrom()),until=sqlDate(bo.getValidUntil());
+        if(bo.isChangeValidity() && from!=null && until!=null && until.before(from)) throw new CustomException("结束日期不能早于开始日期",400);
+        boolean datesChanged=bo.isChangeValidity() && (!Objects.equals(from,account.get("validFrom")) || !Objects.equals(until,account.get("validUntil")));
+        if(bo.getQuantityDelta()==0 && !datesChanged) throw new CustomException("请调整次数或有效期",400);
         int current = number(account.get("balance"));
         long calculated = (long) current + bo.getQuantityDelta();
         if (calculated < 0 || calculated > Integer.MAX_VALUE) throw new CustomException("调整后的卡次余额无效", 400);
         int after = (int) calculated;
-        insertLedger(accountId, null, null, null, null, "adjust", bo.getQuantityDelta(), after, bo.getReason().trim(), operatorId, new java.util.Date());
+        java.util.Date now=new java.util.Date();
+        if(datesChanged) {
+            db.update("INSERT INTO ql_pass_validity_log(id,pass_account_id,previous_valid_from,previous_valid_until,valid_from,valid_until,reason,operator_id,created_at) VALUES(?,?,?,?,?,?,?,?,?)",
+                    UUID.randomUUID().toString(),accountId,account.get("validFrom"),account.get("validUntil"),from,until,bo.getReason().trim(),operatorId,now);
+            db.update("UPDATE ql_pass_account SET valid_from=?,valid_until=?,updated_at=? WHERE id=?",from,until,now,accountId);
+        }
+        if(bo.getQuantityDelta()!=0) insertLedger(accountId, null, null, null, null, "adjust", bo.getQuantityDelta(), after, bo.getReason().trim(), operatorId, now);
         return after;
     }
 
@@ -148,7 +172,7 @@ public class QlPassService {
     }
 
     private Map<String,Object> lock(String accountId) {
-        List<Map<String,Object>> rows = db.queryForList("SELECT a.id,a.customer_id AS customerId,a.status," +
+        List<Map<String,Object>> rows = db.queryForList("SELECT a.id,a.customer_id AS customerId,a.status,a.valid_from AS validFrom,a.valid_until AS validUntil," +
                 "CASE WHEN a.status='active' AND (a.valid_from IS NULL OR a.valid_from<=CURRENT_DATE()) " +
                 "AND (a.valid_until IS NULL OR a.valid_until>=CURRENT_DATE()) THEN 1 ELSE 0 END AS usable " +
                 "FROM ql_pass_account a WHERE a.id=? FOR UPDATE", accountId);

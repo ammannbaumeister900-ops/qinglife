@@ -6,39 +6,34 @@
   <view class="profile-head">
     <view class="profile-avatar">{{avatarText}}</view>
     <view class="list-main">
-      <view class="profile-title">{{state.loggedIn ? state.profile.nickname + '，今天也慢慢来。' : '登录后，留下自己的轻生活。'}}</view>
+      <button wx:if="{{state.loggedIn && !state.profile.nickname}}" class="profile-title profile-nickname-entry" bindtap="openFriendRegistration">点击登记你的小名</button>
+      <view wx:else class="profile-title">{{state.loggedIn ? state.profile.nickname + '，今天也慢慢来。' : '登录后，留下自己的轻生活。'}}</view>
       <button wx:if="{{!state.loggedIn}}" class="primary profile-login" loading="{{loginLoading}}" disabled="{{loginLoading}}" bindtap="login">微信登录</button>
     </view>
   </view>
 
+  <button wx:if="{{state.backend && state.loggedIn}}" class="invite-entry" bindtap="openReferrals"><view class="invite-entry-copy"><view class="invite-kicker">留一个位置，给想到的人</view><view class="invite-title">邀请轻友</view><view class="invite-subtitle">选一张邀请笺，一起留一点轻</view><view class="invite-action">制作邀请 <text>↗</text></view></view><view class="invite-still-life"><image class="invite-produce" src="/assets/invitations/pause-fresh.jpg" mode="aspectFit" /></view></button>
   <view wx:if="{{staffAccess}}" class="staff-entry">
     <view class="staff-entry-top"><text class="staff-entry-tag">工作人员专属</text><text class="staff-entry-arrow">↗</text></view>
     <view class="staff-entry-title">工作人员工作台</view>
     <view class="staff-entry-desc">查轻友、看名单，接续每一次服务。</view>
     <button class="staff-entry-btn" bindtap="openStaff">进入工作台 →</button>
   </view>
-  <view class="index-head timeline-head"><view class="index-rule"></view><text class="index-label">最近一次参与经历</text></view>
-  <view wx:if="{{participationTimeline.length}}" class="journey-timeline">
-    <view wx:for="{{participationTimeline}}" wx:if="{{index === 0}}" wx:key="id" class="timeline-item" data-view="experience" data-id="{{item.id}}" bindtap="openFlow">
-      <view class="timeline-axis"><view class="timeline-dot"></view><view wx:if="{{index < participationTimeline.length - 1}}" class="timeline-line"></view></view>
-      <view class="timeline-content">
-        <view class="timeline-meta"><text class="timeline-marker">第 {{item.sessionNumber}} 期</text><text class="timeline-status {{item.status === '已完成' || item.status === '进行中' ? 'pill--done' : item.status === '已取消' || item.status === '已失效' || item.status === '已归档' ? 'pill--closed' : 'pill--pending'}}">{{item.status}}</text></view>
-        <view class="timeline-place">{{item.meta}}</view>
-      </view>
-    </view>
+  <view wx:if="{{state.loggedIn && state.passAccounts && state.passAccounts.length}}" class="pass-ledger">
+    <view class="pass-balance-row"><view><view class="pass-label">我的卡次</view><view class="pass-caption">当前剩余</view></view><view class="pass-balance">{{state.currentPassBalance}}<text class="pass-unit"> 次</text></view></view>
+    <view class="pass-record-label">最近卡次消耗记录</view>
+    <view wx:for="{{passConsumptions}}" wx:key="id" class="pass-record"><view class="pass-record-main"><view>{{item.sessionNumber ? '第 ' + item.sessionNumber + ' 期' : '卡次使用'}}</view><view class="pass-record-date">{{item.occurredAt}}</view></view><view class="pass-record-amount">−{{0-item.quantityDelta}} 次<view class="pass-record-date">余 {{item.balanceAfter}} 次</view></view></view>
+    <view wx:if="{{!passConsumptions.length}}" class="pass-caption">暂无卡次消耗记录</view>
   </view>
-  <view wx:else class="card mist"><view class="card-title">你的轻生活经历，会从这里开始。</view><button class="secondary" bindtap="openCamp">看看近期轻体营</button></view>
-
-  <view wx:if="{{state.loggedIn && state.passAccounts && state.passAccounts.length}}" class="card"><view class="card-title">我的卡次</view><view class="hero-title">当前剩余 {{state.currentPassBalance}} 次</view><view wx:for="{{passConsumptions}}" wx:key="id" class="card-copy">{{item.occurredAt}} · {{item.sessionNumber ? '第' + item.sessionNumber + '期 · ' : ''}}使用 {{0-item.quantityDelta}} 次，余 {{item.balanceAfter}} 次</view><view wx:if="{{!passConsumptions.length}}" class="card-copy">暂无卡次消耗记录</view></view>
 
   <view class="asset-list">
     <button class="asset" bindtap="openFriendRegistration"><view class="asset-main"><view class="asset-name">轻友登记</view><view class="asset-description">建立档案，保留每一次参加前的状态</view></view><text class="asset-chevron">›</text></button>
-    <button class="asset" data-view="experiences" bindtap="openFlow"><view class="asset-main"><view class="asset-name">全部参与经历</view><view class="asset-description">每一期的报名、状态与安排</view></view><text class="asset-chevron">›</text></button>
+    <button class="asset" data-view="experiences" bindtap="openFlow"><view class="asset-main"><view class="asset-name">全部参与经历</view><view class="asset-description">回看往期体验，留下自己的感受</view></view><text class="asset-chevron">›</text></button>
     <button class="asset" data-view="records" bindtap="openFlow"><view class="asset-main"><view class="asset-name">私人记录</view><view class="asset-description">自己的感受，只留给自己</view></view><text class="asset-chevron">›</text></button>
     <button class="asset" data-view="collections" bindtap="openFlow"><view class="asset-main"><view class="asset-name">内容收藏</view><view class="asset-description">把喜欢的阅读留在这里</view></view><text class="asset-chevron">›</text></button>
     <button class="asset" data-view="privacy" bindtap="openFlow"><view class="asset-main"><view class="asset-name">设置与隐私</view><view class="asset-description">查看个人信息与隐私设置</view></view><text class="asset-chevron">›</text></button>
   </view>
-  <view class="contact-card"><view><view class="eyebrow">联系轻生活</view><view class="contact-title">{{contact.name || '桃子'}}</view><view class="asset-description">{{contact.configured ? '微信号：' + contact.wechat : '微信号待运营配置'}}</view></view><button class="secondary contact-copy" bindtap="copyContact">{{contact.configured ? '复制微信号' : '暂未配置'}}</button></view>
+  <view class="contact-card"><view class="contact-top"><view class="contact-main"><view class="eyebrow">联系轻生活</view><view class="contact-title">{{contact.name}}</view><text class="contact-wechat" user-select="true" selectable="true">{{contact.wechat}}</text></view><button class="secondary contact-copy" bindtap="copyContact">复制微信号</button></view><view class="contact-hint">复制后，在微信中搜索添加好友</view></view>
   <button class="text-button history-entry" data-view="archive" bindtap="openFlow">历史打卡</button>
   </block>
 </view>

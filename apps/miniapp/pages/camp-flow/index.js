@@ -24,7 +24,7 @@ Page({
     dayViews: [],
     motivationOptions: ['想让身体慢下来', '改善日常饮食节奏', '和家人一起体验', '朋友推荐'],
     todayDay: null,
-    registration: {}, draft: null, availability: {}, isRegistered: false, canReview: false, expandedDay: '', reviewNote: '', reviewSaved: false, addingPerson: false, personName: '', personPhone: '', personRelation: '', personMinor: false
+    registration: {}, serviceStatus: {}, draft: null, availability: {}, isRegistered: false, canReview: false, expandedDay: '', reviewNote: '', reviewSaved: false, addingPerson: false, personName: '', personPhone: '', personRelation: '', personMinor: false
   },
 
   onLoad(options) {
@@ -42,7 +42,7 @@ Page({
   async onShow() {
     await this.refresh()
     if (this.data.view !== 'register' || this.data.loadError) return
-    if (['pending', 'confirmed', 'completed', 'waitlisted', 'waitlist'].includes(this.data.registration.status)) {
+    if (domain.hasRegistration(this.data.registration)) {
       this.setData({ view: 'journey' })
       return
     }
@@ -75,9 +75,9 @@ Page({
         const record = (overview.experienceRecords || []).find(record => self && record.registrationId === self.registrationId && record.phase === phase && !(record.nodeKey || ''))
         const identityChanged = this.data.loadedCustomerId !== overview.customerId
         if (identityChanged) this.setData({ draft: null, sharePath: '', shareTitle: '', requestId: '', loadedCustomerId: overview.customerId })
-        const draft = this.data.draft || { serviceConsent: false, contactName: state.profile.name || '', contactPhone: state.phone || '', participants: [{ id: 'person-self', name: state.profile.name, relation: '本人', minor: state.profile.minor, phone: state.phone || '', selected: true }] }
+        const draft = this.data.draft || { serviceConsent: true, contactName: state.profile.nickname || '', contactPhone: state.phone || '', participants: [{ id: 'person-self', name: state.profile.nickname || '', relation: '本人', minor: state.profile.minor, phone: state.phone || '', selected: true }] }
         const experienceTimeline = (overview.experienceRecords || []).filter(row => self && row.registrationId === self.registrationId).map(row => ({ ...row, label: row.phase === 'before' ? '活动前' : row.phase === 'after' ? '活动后' : ((activity.days.find(day => day.id === row.nodeKey) || {}).label || '活动期间') })).reverse()
-        this.setData({ activity, state, registration, draft, overview, experienceTimeline, loading: false, routeActivityId: activity.id,
+        this.setData({ activity, state, registration, draft, serviceStatus: domain.campServiceStatus(registration), overview, experienceTimeline, loading: false, routeActivityId: activity.id,
           selectedCount: (this.data.view === 'register' ? draft : registration).participants.filter(person => person.selected).length,
           isRegistered: registration.status !== 'none', availability: domain.activityState(activity), todayDay,
           dayViews: activity.days.map(day => ({ ...day, date: String(day.activityDate).slice(0,10), today: day.id === (todayDay && todayDay.id), checked: (overview.attendance || []).some(row => row.sessionDayId === day.id && ['checked_in','late'].includes(row.attendanceStatus)) })),
@@ -92,7 +92,7 @@ Page({
     const state = store.getState()
     const activity = demo.activities.find((item) => item.id === state.selectedActivityId) || demo.activities[0]
     const registration = (state.registrations || {})[activity.id] || (state.registration.activityId === activity.id ? state.registration : { ...state.registration, status: 'none' })
-    const draft = this.data.draft || JSON.parse(JSON.stringify({ ...state.registration, serviceConsent: false }))
+    const draft = this.data.draft || JSON.parse(JSON.stringify({ ...state.registration, serviceConsent: true, contactName: state.profile.nickname || '', participants: state.registration.participants.map(person => person.id === 'person-self' ? { ...person, name: state.profile.nickname || '' } : person) }))
     const selectedCount = (this.data.view === 'register' ? draft : registration).participants.filter(item => item.selected).length
     const today = domain.localDate()
     const dayViews = activity.days.map((day, index) => {
@@ -108,7 +108,7 @@ Page({
       state,
       activity,
       selectedCount,
-      registration, draft, canWriteReview: registration.participants.some(person => person.selected && person.id === 'person-self'), availability: domain.activityState(activity), isRegistered: registration.status !== 'none', canReview,
+      registration, draft, serviceStatus: domain.campServiceStatus(registration), canWriteReview: registration.participants.some(person => person.selected && person.id === 'person-self'), availability: domain.activityState(activity), isRegistered: registration.status !== 'none', canReview,
       dayViews, todayDay: dayViews.find(day => day.today) || null,
       reviewNote: review && registration.participants.some(person => person.selected && person.id === 'person-self') ? review.note : this.data.reviewNote, reviewSaved: !!review
     })
@@ -116,6 +116,7 @@ Page({
 
   async startRegistration() {
     const state = this.data.state
+    if (domain.hasRegistration(this.data.registration)) return this.openJourney()
     if (!domain.activityState(this.data.activity).canRegister) {
       return wx.showToast({ title: '请查看本期名额状态', icon: 'none' })
     }
@@ -152,13 +153,16 @@ Page({
       return wx.showToast({ title: '请至少选择一位参与者', icon: 'none' })
     }
     if (!this.data.draft.contactName || !/^1\d{10}$/.test(this.data.draft.contactPhone || '')) return wx.showToast({ title: '请填写可靠的主要联系人和手机号', icon: 'none' })
+    if (this.data.draft.participants.some(person => person.selected && !String(person.name || '').trim())) return wx.showToast({ title: '请填写参与者的小名或称呼', icon: 'none' })
     const invalidPhone = this.data.draft.participants.some(person => person.selected && person.phone && !/^1\d{10}$/.test(person.phone))
     if (invalidPhone) return wx.showToast({ title: '请检查选填的参与人手机号', icon: 'none' })
     this.setData({ step: Math.min(2, this.data.step + 1) })
+    wx.pageScrollTo({ scrollTop: 0, duration: 0 })
   },
 
   previousStep() {
     this.setData({ step: Math.max(1, this.data.step - 1) })
+    wx.pageScrollTo({ scrollTop: 0, duration: 0 })
   },
 
   async submitRegistration() {
@@ -246,6 +250,7 @@ Page({
     this.setData({ addingPerson: false, personName: '', personPhone: '', personRelation: '', personMinor: false })
     this.refresh()
   },
+  openReflection() { navigation.navigateTo({ url: '/pages/camp-reflection/index?id=' + encodeURIComponent(this.data.activity.id) }) },
   openFeeling() { this.setData({ view: 'feeling' }) },
   chooseScale(event) { const { field, value } = event.currentTarget.dataset; if (['energy','relaxation'].includes(field)) this.setData({ [field]: this.data[field] === Number(value) ? null : Number(value) }) },
   onFeelingInput(event) { this.setData({ feelingNote: event.detail.value }) },

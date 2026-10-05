@@ -92,7 +92,20 @@ function homeTask(state, activities, now = new Date()) {
   return next ? task(next.name, next.date + ' · ' + next.city + ' · ¥' + next.fee + '/人', '了解这一期', 'detail', next.id) : task('暂时没有要完成的事', '给自己一点放慢的时间。', '随便读读', 'reading')
 }
 
-module.exports = { localDate, activityState, homeTask,
+function hasRegistration(registration) {
+  return !!(registration && registration.status && registration.status !== 'none')
+}
+function campServiceStatus(registration = {}) {
+  const statuses = { pending: '待确认', confirmed: '已确认', completed: '已结束', waitlist: '候补中', waitlisted: '候补中', cancelled: '已取消', rescheduled: '安排有调整', none: '尚未报名' }
+  const notes = { pending: '工作人员确认后，名额才会生效', waitlist: '名额尚未确认，请等候工作人员联系', waitlisted: '名额尚未确认，请等候工作人员联系', cancelled: '如需了解后续安排，请联系工作人员', rescheduled: '请与工作人员核对新的安排' }
+  const result = { registration: statuses[registration.status] || '待核对', registrationNote: notes[registration.status] || '', payment: '金额待确认', paymentNote: '最终费用由工作人员确认' }
+  if (registration.settlementStatus !== 'confirmed') return result
+  if (registration.settlementType === 'pass') return { ...result, payment: '已用卡次', paymentNote: '本次使用 ' + registration.passUnits + ' 次卡次' }
+  if (registration.finalAmount == null || !Number.isFinite(Number(registration.finalAmount))) return result
+  const amount = Number(registration.finalAmount)
+  return { ...result, payment: amount === 0 ? '无需付款' : registration.paymentStatus === 'paid' ? '已付款' : '待付款', paymentNote: '本次金额 ¥' + amount.toFixed(2) + (amount > 0 && registration.paymentStatus !== 'paid' ? ' · 请联系工作人员付款' : '') }
+}
+module.exports = { hasRegistration, campServiceStatus, localDate, activityState, homeTask,
   dailyKey,
   cleanDisplayTitle,
   registrationStatus,

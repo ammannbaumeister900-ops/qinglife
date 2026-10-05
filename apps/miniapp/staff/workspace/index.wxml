@@ -23,6 +23,7 @@
       </view>
       <view wx:if="{{searchEmpty}}" class="note">暂无匹配轻友，请调整姓名、称呼或手机号</view>
     </block>
+    <view wx:if="{{canOperate}}" class="card assessment-share-entry"><view class="title">把本期登记，轻轻递给轻友</view><view class="note">分享到微信群，由轻友登录后填写并归入自己的历次档案</view><button class="secondary small" data-view="assessment-share" bindtap="go">分享轻友登记表（新） ›</button></view>
     <view class="section"><text class="section-title">当前轻体营</text><text class="section-link" data-view="history" bindtap="go">历史期次 ›</text></view>
     <view wx:for="{{sessions}}" wx:key="id" class="card session-card">
       <text class="tag">当前服务期次</text>
@@ -46,6 +47,13 @@
       <view wx:if="{{!roster.length}}" class="empty">本期暂无报名</view>
     </block>
     <view wx:if="{{view==='desk'}}" class="section"><text class="section-title">最近回访</text><text class="section-link" data-view="interviews" bindtap="go">全部记录 ›</text></view>
+  </block>
+
+  <block wx:if="{{view==='assessment-share'}}">
+    <view class="heading">轻友登记表（新）</view><view class="note">选择本次轻体营，再将小程序卡片分享给微信群里的轻友</view>
+    <view wx:for="{{assessmentSessions}}" wx:key="id" class="card"><text class="tag">第 {{item.sessionNumber}} 期</text><view class="title">{{item.name}}</view><view class="sub">{{item.startDate}} — {{item.endDate}}</view><button class="secondary small" data-id="{{item.id}}" disabled="{{sharePreparing}}" loading="{{sharePreparing}}" bindtap="prepareAssessmentShare">准备本期登记表</button></view>
+    <view wx:if="{{!assessmentSessions.length}}" class="empty">暂无可填写登记的期次</view>
+    <view wx:if="{{assessmentSharePath}}" class="card"><view class="title">第 {{assessmentShareNumber}} 期登记表已准备好</view><view class="note">填写者需登录小程序，每次提交会保存到自己的轻友档案</view><button class="primary" open-type="share">分享到微信群</button></view>
   </block>
 
   <block wx:if="{{view==='people'}}">

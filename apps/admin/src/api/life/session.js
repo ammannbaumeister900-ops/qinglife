@@ -19,3 +19,7 @@ export function updateSession(data) {
 export function createSessionInvitation(id) {
   return request({ url: '/life/session/' + id + '/invitation', method: 'post' })
 }
+
+export function previewSessionCover(sessionNumber) {
+  return request({ url: '/life/session/cover-preview', method: 'get', params: { sessionNumber }, responseType: 'blob' })
+}

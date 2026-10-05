@@ -7,7 +7,16 @@
         <el-form-item label="期次编号" prop="sessionNumber"><el-input-number v-model="form.sessionNumber" :min="1" :max="2147483647" :precision="0" :controls="false" placeholder="例如：501" /></el-form-item>
         <el-form-item label="期次名称" prop="name"><el-input v-model="form.name" maxlength="100" placeholder="例如：轻体营·第501期" /><div class="hint">按“XX营·第XXX期”填写，例如：清体营·第501期。</div></el-form-item>
         <el-form-item label="当期主题" prop="theme"><el-input v-model="form.theme" maxlength="200" placeholder="例如：在秋天，重新听见身体" /></el-form-item>
-        <el-form-item label="展示封面" prop="coverUrl"><imageLocalUpload v-model="form.coverUrl" :limit="1" /><div class="hint">用于首页、轻体营列表和活动详情；建议横向图片。</div></el-form-item>
+        <el-form-item label="展示封面" prop="coverUrl">
+          <el-radio-group v-model="coverMode"><el-radio label="auto">自动生成</el-radio><el-radio label="upload">上传图片</el-radio></el-radio-group>
+          <div v-if="coverMode === 'auto'" class="cover-area">
+            <img v-if="coverPreviewUrl" :src="coverPreviewUrl" class="cover-preview" alt="本期自动封面预览" />
+            <div v-else class="hint">{{ coverPreviewLoading ? '正在生成预览…' : coverPreviewError || '填写期次编号后自动生成封面' }}</div>
+            <div class="hint">固定模板，期数自动更新；保存时生成，无需上传图片。</div>
+          </div>
+          <image-upload v-else v-model="form.coverUrl" :limit="1" />
+          <div class="hint">首页、列表和详情统一使用 2:1 横向封面；上传建议 1200 × 600 像素。</div>
+        </el-form-item>
         <el-form-item label="开始日期" prop="startDate"><el-date-picker v-model="form.startDate" type="date" value-format="yyyy-MM-dd" :picker-options="startOptions" placeholder="选择活动第一天" /></el-form-item>
         <el-form-item label="结束日期" prop="endDate"><el-date-picker v-model="form.endDate" type="date" value-format="yyyy-MM-dd" :picker-options="endOptions" placeholder="选择活动最后一天" /><div class="hint">开始日 00:00 起，结束日全天有效（至当天 24:00）。</div></el-form-item>
         <el-form-item label="报名开放日期"><el-date-picker v-model="openDate" type="date" value-format="yyyy-MM-dd" :picker-options="openOptions" placeholder="不填则不限制开放日期" /></el-form-item>
@@ -35,18 +44,22 @@
 </template>
 
 <script>
-import { getSession, addSession, updateSession } from '@/api/life/session'
+import { getSession, addSession, updateSession, previewSessionCover } from '@/api/life/session'
 import cities from '@/data/citys.json'
+import ImageUpload from '@/components/ImageUpload'
+const isAutoCover = value => !value || /\/session-covers\/v1-\d+\.png$/.test(value)
 const regions = cities.map(p => ({ value: p.label, label: p.label, children: (p.children || []).map(c => ({ value: c.label, label: c.label })) }))
 const day = date => { const pad = n => String(n).padStart(2, '0'); return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}` }
 export default {
   name: 'QlSessionEdit',
+  components: { ImageUpload },
   data() {
     return {
+      coverMode: 'auto', coverPreviewUrl: '', coverPreviewLoading: false, coverPreviewError: '',
       loading: false, loadFailed: false, submitting: false, regions, region: ['上海市', '上海城区'], legacyCity: '', guides: [], openDate: '', closeDate: '',
       form: { sessionNumber: undefined, name: '', theme: '', coverUrl: '', startDate: '', endDate: '', capacity: 30, standardPrice: 3800, returningPrice: 2500, province: '上海市', city: '上海市', publicVenue: '', status: 'draft', registrationConfirmMode: 'manual', intro: '', cancelPolicy: '' },
       statusOptions: [{label:'草稿',value:'draft'},{label:'报名中',value:'open'},{label:'已关闭',value:'closed'},{label:'进行中',value:'in_progress'},{label:'已完成',value:'completed'},{label:'已取消',value:'cancelled'}],
-      rules: { sessionNumber: [{required:true,message:'请输入期次编号',trigger:'change'}], name: [{required:true,message:'请输入期次名称，例如：轻体营·第501期',trigger:'blur'}], theme: [{required:true,message:'请输入本期主题',trigger:'blur'}], coverUrl: [{required:true,message:'请上传本期展示封面',trigger:'change'}], startDate: [{required:true,message:'请选择开始日期',trigger:'change'}], endDate: [{required:true,message:'请选择结束日期',trigger:'change'}], city: [{required:true,message:'请选择省、市',trigger:'change'}], capacity: [{required:true,message:'请输入名额',trigger:'change'}], standardPrice: [{required:true,message:'请输入新轻友价格',trigger:'change'}], returningPrice: [{required:true,message:'请输入老轻友价格',trigger:'change'}] }
+      rules: { sessionNumber: [{required:true,message:'请输入期次编号',trigger:'change'}], name: [{required:true,message:'请输入期次名称，例如：轻体营·第501期',trigger:'blur'}], theme: [{required:true,message:'请输入本期主题',trigger:'blur'}], startDate: [{required:true,message:'请选择开始日期',trigger:'change'}], endDate: [{required:true,message:'请选择结束日期',trigger:'change'}], city: [{required:true,message:'请选择省、市',trigger:'change'}], capacity: [{required:true,message:'请输入名额',trigger:'change'}], standardPrice: [{required:true,message:'请输入新轻友价格',trigger:'change'}], returningPrice: [{required:true,message:'请输入老轻友价格',trigger:'change'}] }
     }
   },
   computed: {
@@ -56,12 +69,26 @@ export default {
     openOptions() { return { disabledDate: d => !!this.closeDate && day(d) > this.closeDate } },
     closeOptions() { return { disabledDate: d => !!this.openDate && day(d) < this.openDate } }
   },
+  watch: {
+    'form.sessionNumber'() { this.queueCoverPreview() },
+    coverMode(value) {
+      if (value === 'upload' && isAutoCover(this.form.coverUrl)) this.form.coverUrl = ''
+      this.queueCoverPreview()
+    }
+  },
+  beforeDestroy() {
+    clearTimeout(this.coverTimer)
+    this.coverRequestId = (this.coverRequestId || 0) + 1
+    if (this.coverPreviewUrl) URL.revokeObjectURL(this.coverPreviewUrl)
+  },
   created() {
     if (!this.$route.params.id) return
     this.loading = true
     getSession(this.$route.params.id).then(res => {
       if (!res.data) throw new Error('期次不存在')
       this.form = res.data
+      this.coverMode = isAutoCover(this.form.coverUrl) ? 'auto' : 'upload'
+      this.queueCoverPreview()
       this.guides = (this.form.leaderName || '').split(/[,，、]/).map(x=>x.trim()).filter(Boolean)
       this.openDate = (this.form.registrationOpenAt || '').slice(0,10)
       this.closeDate = (this.form.registrationCloseAt || '').slice(0,10)
@@ -74,6 +101,22 @@ export default {
     }).catch(error => { this.loadFailed = true; this.msgError(error.message || '加载期次失败，请返回重试') }).finally(()=>{this.loading=false})
   },
   methods: {
+    queueCoverPreview() {
+      clearTimeout(this.coverTimer)
+      const requestId = this.coverRequestId = (this.coverRequestId || 0) + 1
+      if (this.coverPreviewUrl) URL.revokeObjectURL(this.coverPreviewUrl)
+      this.coverPreviewUrl = ''; this.coverPreviewError = ''; this.coverPreviewLoading = false
+      if (this.coverMode !== 'auto' || !Number.isInteger(this.form.sessionNumber) || this.form.sessionNumber < 1) return
+      this.coverPreviewLoading = true
+      this.coverTimer = setTimeout(() => {
+        previewSessionCover(this.form.sessionNumber).then(blob => {
+          if (requestId !== this.coverRequestId) return
+          if (!(blob instanceof Blob) || blob.type !== 'image/png') throw new Error('自动封面预览失败')
+          this.coverPreviewUrl = URL.createObjectURL(blob)
+        }).catch(() => { if (requestId === this.coverRequestId) this.coverPreviewError = '预览暂不可用，保存时将重新生成' })
+          .finally(() => { if (requestId === this.coverRequestId) this.coverPreviewLoading = false })
+      }, 250)
+    },
     changeRegion(value) { this.form.province = value[0] || ''; this.form.city = /城区$/.test(value[1] || '') ? value[0] : value[1] || ''; this.legacyCity = '' },
     back() { this.$router.push('/activityOperations/session') },
     submit() {
@@ -82,7 +125,8 @@ export default {
         if (!valid) return
         if (this.form.endDate < this.form.startDate) return this.msgError('结束日期不能早于开始日期')
         if (this.openDate && this.closeDate && this.closeDate < this.openDate) return this.msgError('报名截止日期不能早于开放日期')
-        const payload = { ...this.form, leaderName: this.guides.join('、'), registrationOpenAt: this.openDate ? this.openDate+' 00:00:00' : null, registrationCloseAt: this.closeDate ? this.closeDate+' 23:59:59' : null }
+        if (this.coverMode === 'upload' && !this.form.coverUrl) return this.msgError('请上传封面，或选择自动生成')
+        const payload = { ...this.form, coverUrl: this.coverMode === 'auto' ? '' : this.form.coverUrl, leaderName: this.guides.join('、'), registrationOpenAt: this.openDate ? this.openDate+' 00:00:00' : null, registrationCloseAt: this.closeDate ? this.closeDate+' 23:59:59' : null }
         this.submitting = true
         const request = payload.id ? updateSession(payload) : addSession(payload)
         request.then(()=>{this.msgSuccess('期次已保存');this.back()}).finally(()=>{this.submitting=false})
@@ -101,6 +145,8 @@ export default {
 .session-form >>> .el-input-number, .session-form >>> .el-select, .session-form >>> .el-cascader, .session-form >>> .el-date-editor { width: 100%; }
 .session-form >>> .el-input-number .el-input__inner { text-align: left; padding: 0 15px; }
 .session-form >>> .el-radio { margin-bottom: 12px; line-height: 24px; white-space: normal; }
+.cover-area { margin-top: 12px; }
+.cover-preview { display: block; width: 100%; max-width: 480px; height: auto; border-radius: 8px; }
 .hint { color: #606266; font-size: 13px; line-height: 1.7; margin-top: 6px; }
 .form-actions { padding: 20px 0; border-top: 1px solid #ebeef5; }
 @media (max-width: 760px) { .form-grid { grid-template-columns: minmax(0,1fr); } }

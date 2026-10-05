@@ -16,6 +16,16 @@ function page(name, mocks) {
   return result
 }
 const activity = (id, date, extra = {}) => ({ id, name: id, startDate: date, endDate: date, seatsLeft: 5, sourceStatus: 'open', status: '开放报名', statusTone: 'open', ...extra })
+test('compact camp dates retain the month and year boundaries', () => {
+  const range = (startDate, endDate) => discovery.dateRange({ startDate, endDate }, '2026-10-02')
+  assert.equal(range('2026-10-15', '2026-10-17'), '10月15日—17日')
+  assert.equal(range('2026-10-31', '2026-11-02'), '10月31日—11月2日')
+  assert.equal(range('2026-12-31', '2027-01-02'), '2026年12月31日—2027年1月2日')
+  assert.equal(range('2027-01-01', '2027-01-03'), '2027年1月1日—3日')
+  assert.equal(range('2026-10-15', '2026-10-15'), '10月15日')
+  assert.equal(discovery.dateRange({ date: '时间另行通知' }), '时间另行通知')
+})
+
 test('all visible sessions remain flat; next available first; closed windows cannot register', () => {
   const rows = discovery.activities([activity('late', '2099-02-01'), activity('next', '2099-01-01'), activity('closed', '2099-01-02', { registrationCloseAt: '2020-01-01' }), activity('draft', '2099-01-03', { sourceStatus: 'draft' })])
   assert.deepEqual(rows.map(r => r.id), ['next', 'late', 'closed'])
@@ -69,7 +79,7 @@ test('refresh keeps the last good camp list while request is pending', async () 
 test('sample reading opens complete labeled local articles without calling legacy API', async () => {
   const samples = require('../data/reading-samples')
   assert.equal(new Set(samples.map(a => a.category)).size, 4)
-  const content = page('content', { '../../config/runtime': { environment: 'staging' }, '../../services/legacy-api': { getArticles: () => { throw new Error('production forbidden') } } })
+  const content = page('content', { '../../config/runtime': { environment: 'demo' }, '../../services/legacy-api': { getArticles: () => { throw new Error('production forbidden') } } })
   await content.loadArticles()
   assert.equal(content.data.visibleArticles.length, 4)
   assert.ok(samples.every(a => a.sample && a.content.includes('演示')))

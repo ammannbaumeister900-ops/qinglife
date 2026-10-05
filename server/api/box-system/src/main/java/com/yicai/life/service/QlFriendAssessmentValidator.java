@@ -31,6 +31,7 @@ public final class QlFriendAssessmentValidator {
         require(range(b.getHeightCm(),"80","250"),"身高应在80至250厘米之间");
         require(range(b.getWeightKg(),"20","300") && b.getWeightKg().stripTrailingZeros().scale()<=1,"体重应在20至300公斤之间，最多一位小数");
         require(length(b.getCity(),1,100),"请输入所在城市");
+        require(b.getProvince()==null || length(b.getProvince(),1,100),"省份格式不正确");
         choices(b.getCleanBodyGoals(),GOALS,"清体目的",true);
         choice(b.getDietPreference(),DIETS,"饮食偏好");
         require(b.getWaterIntakeMl()!=null && b.getWaterIntakeMl()>=0 && b.getWaterIntakeMl()<=10000,"饮水量应在0至10000毫升之间");

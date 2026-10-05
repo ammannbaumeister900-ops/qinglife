@@ -10,6 +10,7 @@ import com.yicai.common.core.validate.EditGroup;
 import com.yicai.common.enums.BusinessType;
 import com.yicai.common.utils.SecurityUtils;
 import com.yicai.life.domain.bo.QlPaymentBo;
+import com.yicai.life.domain.bo.QlPaymentConfirmationBo;
 import com.yicai.life.domain.bo.QlRegistrationBo;
 import com.yicai.life.domain.bo.QlSettlementBo;
 import com.yicai.life.domain.bo.QlSettlementReversalBo;
@@ -32,7 +33,7 @@ public class QlRegistrationController extends BaseController {
 
     @PreAuthorize("@ss.hasPermi('life:registration:list')")
     @GetMapping("/list")
-    public TableDataInfo<QlRegistrationVo> list(QlRegistrationBo bo) {
+    public TableDataInfo<QlRegistrationVo> list(@Valid QlRegistrationBo bo) {
         return registrationService.queryPageList(bo);
     }
 
@@ -62,6 +63,13 @@ public class QlRegistrationController extends BaseController {
     @PutMapping("/{id}/payment")
     public AjaxResult<Void> changePayment(@PathVariable String id, @Valid @RequestBody QlPaymentBo bo) {
         return toAjax(registrationService.changePayment(id, bo, currentUserId()));
+    }
+
+    @PreAuthorize("@ss.hasPermi('life:registration:payment')")
+    @Log(title = "报名付款确认", businessType = BusinessType.UPDATE)
+    @PutMapping("/{id}/payment-confirmation")
+    public AjaxResult<Void> confirmPayment(@PathVariable String id, @Valid @RequestBody QlPaymentConfirmationBo bo) {
+        return toAjax(registrationService.confirmPayment(id, bo, currentUserId()));
     }
 
     @PreAuthorize("@ss.hasPermi('life:registration:payment')")

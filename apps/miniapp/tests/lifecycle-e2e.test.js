@@ -28,7 +28,7 @@ async function actor(name, minor = false) {
   class Clock extends Date { constructor(...args) { super(...(args.length ? args : [now])) } static now() { return new Date(now).getTime() } }
   const wx = {
     getStorageSync: key => storage.get(key), setStorageSync: (key, value) => storage.set(key, value), removeStorageSync: key => storage.delete(key),
-    showToast: value => toasts.push(value.title), showModal() {},
+    showToast: value => toasts.push(value.title), showModal() {}, pageScrollTo() {},
     navigateTo: x => nav.push(x.url), redirectTo: x => nav.push(x.url), switchTab: x => nav.push(x.url),
     request(options) {
       assert.ok(options.url.startsWith(base + '/'), 'NO PRODUCTION NETWORK')
@@ -71,7 +71,7 @@ async function signup(person, page) {
   assert.equal(page.data.view, 'register')
   page.onSelfName(event({}, person.name)); page.onSelfPhone(event({}, '1990000' + String(++count).padStart(4,'0')))
   page.nextStep(); assert.equal(page.data.step, 2)
-  page.toggleConsent()
+  assert.equal(page.data.draft.serviceConsent, true)
   await Promise.all([page.submitRegistration(), page.submitRegistration()])
   assert.equal(page.data.loadError, '')
   assert.equal(page.data.view, 'journey', person.toasts.join(';'))
@@ -113,13 +113,13 @@ async function main() {
       assert.equal((await overview(b)).registrations.length, 0)
       await http('/app/qinglife/registrations', 'POST', { ...payload, clientRequestId: 'new-duplicate' }, a.auth, 409)
     })
-    await test('04 待确认不能记录或老带新；工作人员确认后报名与结算状态独立', async () => {
+    await test('04 待确认可邀请但不能记录；确认后报名与结算状态独立', async () => {
       await http('/app/qinglife/experience-records', 'PUT', { registrationId: aReg, phase: 'before', note: '待确认' }, a.auth, 400)
-      await http('/app/qinglife/sessions/' + next.id + '/invitations', 'POST', {}, a.auth, 403)
+      await http('/app/qinglife/sessions/' + next.id + '/invitations', 'POST', {}, a.auth)
       await confirm(aReg); await confirm(dReg); await p.refresh()
       assert.equal(p.data.registration.status, 'confirmed'); assert.equal(p.data.registration.settlementStatus, 'pending')
       const home = await a.page('home'), camp = await a.page('camp'), mine = await a.page('mine')
-      assert.equal(home.data.view.activityId, first.id); assert.equal(camp.data.currentRegistrations[0].status, 'confirmed'); assert.equal(mine.data.participationTimeline[0].id, first.id)
+      assert.equal(home.data.view.activityId, first.id); assert.equal(camp.data.currentRegistrations[0].status, 'confirmed'); assert.equal(mine.data.state.registration.activityId, first.id); assert.equal(home.data.showHomeTask, false)
       await clockAt('2026-09-07T00:00:00Z'); await p.refresh()
       p.openFeeling(); assert.equal(p.data.energy, null); assert.equal((await overview(a)).experienceRecords.length, 0)
       p.onFeelingInput(event({}, '测试活动前感受')); await p.saveFeeling()
@@ -172,14 +172,14 @@ async function main() {
       assert.equal((await overview(a)).experienceRecords.length,5)
       assert.equal((await overview(b)).registrations.length,2)
     })
-    await test('09 代报名只见参与状态，不能代写私人感受；未成年不能发起老带新', async () => {
+    await test('09 代报名不能代写私人感受；所有登录轻友均可邀请', async () => {
       const parent=await actor('测试家长'), child=await actor('测试未成年',true)
       const body={sessionId:third.id,clientRequestId:'family',serviceConsent:true,contactName:parent.name,contactPhone:'19999990001',participants:[{self:true,name:parent.name,phone:'19999990001',minor:false},{self:false,name:'测试同行儿童',minor:true,relation:'子女'}]}
       const result=(await http('/app/qinglife/registrations','POST',body,parent.auth)).data
       const childReg=result.registrations.find(r=>r.customerId!==parent.customerId)
       assert.equal((await overview(parent)).registrations.length,2)
       await http('/app/qinglife/experience-records','PUT',{registrationId:childReg.registrationId,phase:'before',note:'代写'},parent.auth,403)
-      await http('/app/qinglife/sessions/'+third.id+'/invitations','POST',{},child.auth,403)
+      await http('/app/qinglife/sessions/'+third.id+'/invitations','POST',{},child.auth)
       await http('/app/qinglife/registrations','POST',{...body,clientRequestId:'forged-person',participants:[{name:'冒用参与者',customerId:a.customerId,phone:'19999990002'}]},parent.auth,403)
     })
     await test('10 无效邀请、错期邀请、满额、断网均无假成功，错误不退回演示活动', async () => {
@@ -194,10 +194,10 @@ async function main() {
       await http('/app/qinglife/registrations','POST',body,d.auth,400)
       a.setOffline(true); const offline=await a.page('camp-flow',{id:third.id}); assert.ok(offline.data.loadError); a.setOffline(false)
       assert.equal((await overview(d)).registrations.length,1)
-      const retry=await d.page('camp-flow',{id:third.id}); await retry.startRegistration(); retry.onSelfPhone(event({},'19999990009')); retry.toggleConsent()
+      const retry=await d.page('camp-flow',{id:third.id}); await retry.startRegistration(); retry.onSelfPhone(event({},'19999990009')); assert.equal(retry.data.draft.serviceConsent,true)
       d.setOffline(true); await retry.submitRegistration(); assert.equal(retry.data.view,'register'); assert.equal((await overview(d)).registrations.length,1); d.setOffline(false)
       await retry.submitRegistration(); assert.equal(retry.data.view,'journey'); assert.equal((await overview(d)).registrations.length,2)
-      a.storage.delete('qinglife_business_token:' + base); const guest=await a.page('mine'); assert.equal(guest.data.state.loggedIn,false); assert.equal(guest.data.participationTimeline.length,0)
+      a.storage.delete('qinglife_business_token:' + base); const guest=await a.page('mine'); assert.equal(guest.data.state.loggedIn,false); assert.equal(guest.data.passConsumptions.length,0)
     })
     fs.mkdirSync(path.join(root,'test-artifacts'),{recursive:true})
     fs.writeFileSync(path.join(root,'test-artifacts/lifecycle-e2e-results.json'),JSON.stringify({generatedAt:new Date().toISOString(),mode:'isolated HTTP Mock + actual Mini Program page handlers',production:false,groups:cases.length,cases},null,2))

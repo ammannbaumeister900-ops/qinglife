@@ -5,6 +5,7 @@
         r.id, r.batch_id, b.order_no, b.submitted_by_customer_id AS buyer_customer_id,
         buyer.nickname AS buyer_nickname, b.contact_name, b.contact_phone, b.participant_count,
         b.quoted_amount, b.payable_amount,
+        (b.id IS NULL OR NOT EXISTS(SELECT 1 FROM ql_registration ready WHERE ready.batch_id=b.id AND ready.registration_status &lt;&gt; 'confirmed')) AS batch_ready_for_payment,
         CASE WHEN b.id IS NOT NULL THEN b.final_amount ELSE r.final_amount END AS final_amount,
         CASE WHEN b.id IS NOT NULL THEN b.settlement_status ELSE r.settlement_status END AS settlement_status,
         CASE WHEN b.id IS NOT NULL THEN b.settlement_type ELSE r.settlement_type END AS settlement_type,
@@ -35,14 +36,33 @@
                     OR c.real_name LIKE CONCAT('%', #{bo.nickname}, '%')
                     OR CONVERT(c.customer_no USING utf8mb4) LIKE CONCAT('%', #{bo.nickname}, '%'))
             </if>
-            <if test="bo.sessionNumber != null">
-                AND s.session_number = #{bo.sessionNumber}
-            </if>
+            <choose>
+                <when test="bo.sessionNumber != null">
+                    AND s.session_number = #{bo.sessionNumber}
+                </when>
+                <when test="bo.sessionNumberKeyword != null and bo.sessionNumberKeyword != ''">
+                    AND CAST(s.session_number AS CHAR) LIKE CONCAT('%', #{bo.sessionNumberKeyword}, '%')
+                </when>
+            </choose>
             <if test="bo.registrationStatus != null and bo.registrationStatus != ''">
                 AND r.registration_status = #{bo.registrationStatus}
             </if>
             <if test="bo.paymentStatus != null and bo.paymentStatus != ''">
                 AND COALESCE(b.payment_status, r.payment_status) = #{bo.paymentStatus}
+            </if>
+            <if test="bo.paymentProgress != null and bo.paymentProgress != ''">
+                <choose>
+                    <when test="bo.paymentProgress == 'cancelled'">AND r.registration_status='cancelled'</when>
+                    <when test="bo.paymentProgress == 'completed'">
+                        AND r.registration_status&lt;&gt;'cancelled'
+                        AND (COALESCE(b.payment_status,r.payment_status)='paid'
+                            OR (COALESCE(b.settlement_status,r.settlement_status)='confirmed' AND COALESCE(b.settlement_type,r.settlement_type)='pass'))
+                    </when>
+                    <otherwise>
+                        AND r.registration_status&lt;&gt;'cancelled' AND COALESCE(b.payment_status,r.payment_status)&lt;&gt;'paid'
+                        AND NOT(COALESCE(b.settlement_status,r.settlement_status)='confirmed' AND COALESCE(b.settlement_type,r.settlement_type,'')='pass')
+                    </otherwise>
+                </choose>
             </if>
         </where>
         ORDER BY r.registered_at DESC

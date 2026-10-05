@@ -1,8 +1,11 @@
 <template>
   <div class="app-container statistics-page">
     <div class="toolbar">
-      <el-radio-group v-model="preset" size="small" @change="applyPreset"><el-radio-button label="7">近7天</el-radio-button><el-radio-button label="30">近30天</el-radio-button><el-radio-button label="month">本月</el-radio-button><el-radio-button label="custom">自定义</el-radio-button></el-radio-group>
+      <el-radio-group v-model="preset" size="small" @change="applyPreset"><el-radio-button label="7">近7天</el-radio-button><el-radio-button label="30">近30天</el-radio-button><el-radio-button label="month">本月</el-radio-button><el-radio-button label="session">按期次</el-radio-button><el-radio-button label="custom">自定义</el-radio-button></el-radio-group>
       <el-date-picker v-if="preset==='custom'" v-model="range" type="daterange" value-format="yyyy-MM-dd" range-separator="至" start-placeholder="开始日期" end-placeholder="结束日期" size="small" @change="load" />
+      <el-select v-if="preset==='session'" v-model="sessionId" filterable clearable size="small" placeholder="选择期次" style="width:300px" @change="applySession"><el-option v-for="item in sessions" :key="item.id" :value="item.id" :label="sessionLabel(item)" :disabled="!validSessionRange(item)" /></el-select>
+      <span v-if="preset==='session' && range.length===2" class="scope-note">{{range[0]}} 至 {{range[1]}} · 报名开始至课程结束</span>
+      <span v-if="preset==='session' && !sessionId" class="scope-note">请选择期次；未设置报名开始日期的期次需先补齐设置</span>
       <span class="scope-note">登记相关指标按提交时间；新增轻友按建档时间。</span>
     </div>
     <div v-loading="loading">
@@ -21,12 +24,12 @@
 </template>
 
 <script>
-import { getCustomerStatistics } from '@/api/life/customer'
+import { getCustomerStatistics, getStatisticsSessions } from '@/api/life/customer'
 export default {
   name: 'FriendStatistics',
   data() {
     return {
-      loading: false, preset: '30', range: [], data: {}, metrics: {},
+      loading: false, preset: '30', range: [], sessionId: '', sessions: [], data: {}, metrics: {},
       metricCards: [{ key: 'friendTotal', label: '轻友总数', note: '当前全部主档' }, { key: 'newFriends', label: '范围内新增轻友', note: '按建档时间' }, { key: 'assessmentPeople', label: '登记人数', note: '去重轻友' }, { key: 'assessmentCount', label: '登记次数', note: '按提交次数' }, { key: 'retrainingFriends', label: '复训轻友数', note: '范围内登记 ≥ 2 次' }],
       sections: [
         { key: 'cleanBodyGoals', title: '清体目的', note: '选择人数；多选项目合计可超过登记人数' },
@@ -39,10 +42,13 @@ export default {
       ]
     }
   },
-  created() { this.applyPreset('30') },
+  created() { this.applyPreset('30'); getStatisticsSessions().then(res => { this.sessions = res.data || [] }) },
   methods: {
-    applyPreset(value) { const end = new Date(); const start = new Date(end); if (value === 'month')start.setDate(1); else start.setDate(end.getDate() - Number(value || 1) + 1); if (value !== 'custom') { this.range = [this.date(start), this.date(end)]; this.load() } },
-    load() { if (!this.range || this.range.length !== 2) return; this.loading = true; getCustomerStatistics({ startDate: this.range[0], endDate: this.range[1] }).then(res => { this.data = res.data || {}; this.metrics = this.data.metrics || {} }).finally(() => { this.loading = false }) },
+    applyPreset(value) { if (value === 'session') return this.applySession(); if (value === 'custom') return; const end = new Date(); const start = new Date(end); if (value === 'month') start.setDate(1); else start.setDate(end.getDate() - Number(value || 1) + 1); this.range = [this.date(start), this.date(end)]; this.load() },
+    validSessionRange(item) { return !!item.registrationStartDate && !!item.endDate && item.registrationStartDate <= item.endDate },
+    sessionLabel(item) { return '第 ' + item.sessionNumber + ' 期 · ' + item.name + (this.validSessionRange(item) ? '' : '（报名开始日期未配置或无效）') },
+    applySession() { const item = this.sessions.find(item => item.id === this.sessionId); if (!item || !this.validSessionRange(item)) { this.requestId = (this.requestId || 0) + 1; this.loading = false; this.range = []; this.data = {}; this.metrics = {}; return } this.range = [item.registrationStartDate, item.endDate]; this.load() },
+    load() { if (!this.range || this.range.length !== 2) return; const requestId = this.requestId = (this.requestId || 0) + 1; this.loading = true; getCustomerStatistics({ startDate: this.range[0], endDate: this.range[1] }).then(res => { if (requestId !== this.requestId) return; this.data = res.data || {}; this.metrics = this.data.metrics || {} }).finally(() => { if (requestId === this.requestId) this.loading = false }) },
     date(value) { return [value.getFullYear(), String(value.getMonth() + 1).padStart(2, '0'), String(value.getDate()).padStart(2, '0')].join('-') },
     barWidth(key, value) { const rows = this.data[key] || []; const max = Math.max(1, ...rows.map(item => Number(item.value) || 0)); return Math.max(4, Math.round(Number(value || 0) / max * 100)) + '%' }
   }

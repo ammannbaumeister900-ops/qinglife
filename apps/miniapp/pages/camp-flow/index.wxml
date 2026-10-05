@@ -1,11 +1,11 @@
 <launch-splash />
 <ql-nav-space title="{{view === 'detail' ? '' : '轻体营服务'}}" back immersive="{{view === 'detail'}}" />
-<view class="page camp-flow-page editorial-page {{view === 'detail' ? 'immersive-page' : ''}}">
+<view class="page camp-flow-page editorial-page {{view === 'detail' ? 'immersive-page' : view === 'register' ? 'registration-page' : view === 'journey' ? 'service-page' : ''}}">
   <view wx:if="{{loading}}" class="empty-state">正在读取活动…</view>
   <view wx:if="{{loadError}}" class="empty-state"><view class="empty-title">暂时无法打开活动</view><view class="empty-copy">{{loadError}}</view><button class="empty-action" bindtap="refresh">重试</button></view>
   <block wx:if="{{!loading && !loadError}}">
   <block wx:if="{{view === 'detail'}}">
-    <view class="camp-cover">
+    <view class="camp-cover {{activity.cover ? 'has-session-cover' : ''}}">
       <image wx:if="{{activity.cover}}" class="camp-cover-image" src="{{activity.cover}}" mode="aspectFill" />
       <view class="cover-light cover-light-one"></view>
       <view class="cover-light cover-light-two"></view>
@@ -30,10 +30,10 @@
         <view class="fact-row"><text class="fact-label">新轻友公开价</text><text class="fact-price">¥{{activity.fee}}<text>/人</text></text></view>
       </view>
 
-      <view class="detail-section-title">三天的节奏</view>
+      <view class="detail-section-title">本期的节奏</view>
       <view class="rhythm-list">
         <view wx:for="{{activity.days}}" wx:key="id" class="rhythm-row">
-          <view class="rhythm-axis"><text>{{index === 0 ? '壹' : index === 1 ? '贰' : '叁'}}</text><view wx:if="{{index < activity.days.length - 1}}" class="rhythm-line"></view></view>
+          <view class="rhythm-axis"><text>{{item.dayNo || index + 1}}</text><view wx:if="{{index < activity.days.length - 1}}" class="rhythm-line"></view></view>
           <view class="rhythm-copy"><text class="rhythm-title">{{item.theme}}</text><text class="rhythm-meta">{{item.label}} · {{item.time}}</text></view>
         </view>
       </view>
@@ -60,7 +60,7 @@
     <view class="detail-actionbar">
       <view><view class="action-price">公开价 ¥{{activity.fee}}<text>/人</text></view><view class="action-status">{{availability.label}} · 最终费用待确认</view></view>
       <button wx:if="{{!isRegistered}}" class="primary action-primary" disabled="{{!availability.canRegister}}" bindtap="startRegistration">{{availability.canRegister ? (activity.status === '候补中' ? '申请候补' : '报名这一期') : availability.label}}</button>
-      <button wx:else class="primary action-primary" bindtap="openJourney">查看我的活动</button>
+      <button wx:else class="primary action-primary" bindtap="openJourney">查看报名与服务</button>
     </view>
   </block>
 
@@ -72,16 +72,16 @@
     </view>
 
     <block wx:if="{{step === 1}}">
-      <view class="hero"><view class="hero-title">这次，谁会一起参加？</view><view class="hero-copy">记录分别归属于每名实际参与者，而不是报名发起人。</view></view>
+      <view class="hero"><view class="hero-title">这次，谁会一起参加？</view><view class="hero-copy">选好同行的人，再确认一次就好</view></view>
       <view class="card">
         <view wx:if="{{!draft.participants.length}}" class="empty"><view class="empty-title">还没有可选参与者</view><view class="empty-copy">请先完善本人或家人的参与信息。</view></view>
         <view wx:for="{{draft.participants}}" wx:key="id" class="check-row" data-id="{{item.id}}" bindtap="toggleParticipant">
           <checkbox checked="{{item.selected}}" color="#A6B6A2"/>
-          <view class="list-main"><text class="list-title">{{item.name}} · {{item.relation}}</text><text class="list-note">{{item.phone ? '已填写本人手机号' : '未填写手机号 · 仍会保留独立参与记录'}}</text></view>
+          <view class="list-main"><text class="list-title">{{item.name || '本人'}} · {{item.relation}}</text><text class="list-note">{{item.phone ? '已填写本人手机号' : '未填写手机号 · 仍会保留独立参与记录'}}</text></view>
         </view>
       </view>
-      <view class="card"><view class="card-title">主要联系人</view><view class="card-copy">本次报名只需一位可靠联系人，联系人不必是每一位实际参与者。</view><view class="field"><text class="label">联系人姓名</text><input class="input" maxlength="50" value="{{draft.contactName}}" bindinput="onContactName" /></view><view class="field"><text class="label">联系人手机号</text><input class="input" type="number" maxlength="11" value="{{draft.contactPhone}}" bindinput="onContactPhone" /></view></view>
-      <view wx:if="{{state.backend}}" class="card"><view class="field"><text class="label">本人姓名或称呼</text><input class="input" value="{{draft.participants[0].name}}" bindinput="onSelfName" /></view><view class="field"><text class="label">本人手机号（选填）</text><input class="input" type="number" maxlength="11" value="{{draft.participants[0].phone}}" bindinput="onSelfPhone" /></view></view>
+      <view class="card"><view class="card-title">主要联系人</view><view class="card-copy">留下一位联系人，方便我们确认安排</view><view class="field"><text class="label">联系人小名或称呼</text><input class="input" maxlength="50" value="{{draft.contactName}}" bindinput="onContactName" /></view><view class="field"><text class="label">联系人手机号</text><input class="input" type="number" maxlength="11" value="{{draft.contactPhone}}" bindinput="onContactPhone" /></view></view>
+      <view wx:if="{{state.backend}}" class="card"><view class="field"><text class="label">本人的小名</text><input class="input" maxlength="50" placeholder="你希望大家怎样称呼你" value="{{draft.participants[0].name}}" bindinput="onSelfName" /></view><view class="field"><text class="label">本人手机号（选填）</text><input class="input" type="number" maxlength="11" value="{{draft.participants[0].phone}}" bindinput="onSelfPhone" /></view></view>
       <button class="text-button" bindtap="showAddPerson">添加参与者</button>
       <view wx:if="{{addingPerson}}" class="card">
         <view class="field"><text class="label">姓名或称呼</text><input class="input" value="{{personName}}" bindinput="onPersonName" /></view>
@@ -94,19 +94,16 @@
     </block>
 
     <block wx:else>
-      <view class="hero"><view class="hero-title">确认本次报名，信息由你掌握。</view><view class="hero-copy">请核对参与者和时间。公开价格是参考，提交后由工作人员确认最终金额或卡次。</view></view>
-      <view class="card">
-        <view class="check-row" data-key="serviceConsent" bindtap="toggleConsent"><checkbox checked="{{draft.serviceConsent}}" color="#A6B6A2"/><view class="list-main"><text class="list-title">服务必要信息（必选）</text><text class="list-note">用于报名、签到与履约。</text></view></view>
+      <view class="confirmation-title">确认同行名单</view>
+      <view class="card confirmation-card">
+        <view class="summary-heading"><text class="summary-label">本次参加</text><text class="summary-count">{{selectedCount}} 位轻友</text></view>
+        <view class="summary-people"><text wx:for="{{draft.participants}}" wx:key="id" wx:if="{{item.selected}}" class="summary-person">{{item.name}}</text></view>
+        <view class="summary-contact"><view class="summary-label">联系你</view><view>{{draft.contactName}} · {{draft.contactPhone}}</view></view>
+        <view class="summary-price">参考价：新轻友 ¥{{activity.fee}}/人<text wx:if="{{activity.returningFee != null}}"> · 老轻友 ¥{{activity.returningFee}}/人</text><view>最终费用或卡次由工作人员确认</view></view>
+        <view wx:if="{{invitationCode}}" class="privacy-note">通过轻友专属邀请报名，会记录推荐关系；推荐轻友可查看参与者小名与报名状态。</view>
+        <view class="check-row summary-consent" data-key="serviceConsent" bindtap="toggleConsent"><checkbox checked="{{draft.serviceConsent}}" color="#A6B6A2"/><view class="list-main"><text class="list-title">服务必要信息（必选）</text><text class="list-note">用于报名联系与活动服务，可取消勾选</text></view></view>
       </view>
-      <view class="card"><view class="card-title">{{activity.name}}</view><view class="card-copy">{{activity.date}} · {{activity.city}}{{activity.place}} · 新轻友公开价 ¥{{activity.fee}}/人</view><view wx:if="{{activity.returningFee != null}}" class="card-copy">老轻友公开价 ¥{{activity.returningFee}}/人；实际结算以工作人员确认结果为准。</view><view class="card-copy">主要联系人：{{draft.contactName}} · {{draft.contactPhone}}</view><view class="card-copy">共 {{selectedCount}} 位参与者</view><view wx:for="{{draft.participants}}" wx:key="id" wx:if="{{item.selected}}" class="card-copy">{{item.name}} · {{item.relation}}</view><view class="card-copy">{{activity.rules.change}}</view><view class="card-copy">{{activity.rules.body}}</view></view>
-      <view class="privacy-note">个人感受和“我的轻体验”默认仅自己可见。</view>
     </block>
-
-    <view class="button-row">
-      <button wx:if="{{step > 1}}" class="secondary" bindtap="previousStep">上一步</button>
-      <button wx:if="{{step < 2}}" class="primary" bindtap="nextStep">继续</button>
-      <button wx:else class="primary" loading="{{submitting}}" disabled="{{submitting}}" bindtap="submitRegistration">提交报名</button>
-    </view>
   </block>
 
   <block wx:elif="{{view === 'success'}}">
@@ -115,21 +112,24 @@
       <view class="card-copy">共 {{selectedCount}} 位参与者。报名状态和结算状态分别由工作人员确认。</view>
     </view>
     <view wx:if="{{state.registration.status === 'pending'}}" class="privacy-note">运营确认后将通知你。</view>
-    <button wx:else class="primary" bindtap="openJourney">查看三日准备卡</button>
+    <button class="primary" bindtap="openJourney">查看报名与服务</button>
     <button class="text-button" bindtap="backToCamp">返回轻体营</button>
   </block>
 
   <block wx:elif="{{view === 'journey'}}">
-    <view class="hero"><view class="hero-title">{{activity.name}}</view><view class="hero-copy">{{activity.date}} · {{activity.city}}{{activity.place}}</view></view>
-    <view class="card"><view class="card-title">{{registration.status === 'pending' ? '报名已收到，等待确认' : (registration.status === 'waitlist' || registration.status === 'waitlisted') ? '候补中，名额尚未确认' : registration.status === 'cancelled' ? '报名已取消' : registration.status === 'rescheduled' ? '安排有调整，请联系工作人员' : registration.status === 'completed' ? '活动已结束' : registration.status === 'none' ? '尚未报名' : '报名已确认'}}</view><view class="card-copy">{{selectedCount}} 位参与者 · 到场状态由工作人员现场核验。</view><view wx:if="{{registration.settlementStatus !== 'confirmed'}}" class="card-copy">结算状态：待工作人员确认</view><view wx:elif="{{registration.settlementType === 'pass'}}" class="card-copy">结算结果：已使用 {{registration.passUnits}} 次卡次<text wx:if="{{registration.currentPassBalance != null}}"> · 当前剩余 {{registration.currentPassBalance}} 次</text></view><view wx:else class="card-copy">{{registration.paymentStatus === 'paid' ? '结算结果：现金已收款 ¥' : registration.finalAmount == 0 ? '现金金额已确认，无需收款 ¥' : '现金金额已确认，待线下收款 ¥'}}{{registration.finalAmount}}</view></view>
-    <view wx:if="{{!dayViews.length}}" class="empty-state"><view class="empty-title">行程正在准备中</view></view>
-    <view wx:for="{{dayViews}}" wx:key="id" class="card">
-      <button class="text-button" data-id="{{item.id}}" bindtap="toggleDay">{{item.label}} · {{item.theme}}{{item.today ? ' · 今天' : ''}}</button>
-      <view wx:if="{{item.today || expandedDay === item.id}}"><view class="card-copy">{{item.date}} · {{item.time}}</view><view class="card-copy">{{item.checked ? '已有到场记录' : item.selfConfirmed ? '本人已确认到场，待现场核验' : '尚无到场确认'}}</view><button wx:if="{{!state.backend && item.today && !item.checked && !item.selfConfirmed && registration.status === 'confirmed'}}" class="primary" data-id="{{item.id}}" bindtap="checkDay">确认今天到场</button></view>
+    <view class="service-heading"><view class="pill">第 {{activity.sessionNumber}} 期</view><view class="service-title">{{activity.name}}</view><view class="card-copy">{{activity.date}} · {{activity.city}}{{activity.place}}</view></view>
+    <view class="card service-status-card">
+      <view class="service-status-row"><view class="summary-label">报名状态</view><view class="service-status-value">{{serviceStatus.registration}}</view><view wx:if="{{serviceStatus.registrationNote}}" class="service-status-note">{{serviceStatus.registrationNote}}</view><view class="service-status-note">{{selectedCount}} 位参与者</view></view>
+      <view class="service-status-row"><view class="summary-label">付款状态</view><view class="service-status-value">{{serviceStatus.payment}}</view><view class="service-status-note">{{serviceStatus.paymentNote}}</view></view>
     </view>
-    <view class="privacy-note">{{activity.rules.body}}</view><view class="card-copy">集合地点、携带物品或改期事项，请以工作人员确认的通知为准。{{activity.rules.change}}</view>
-    <button wx:if="{{canRecordFeeling && !canReview}}" class="secondary" bindtap="openFeeling">记录此刻感受（选填）</button>
-    <button wx:if="{{canReview}}" class="primary" bindtap="openExperience">查看本次经历</button>
+    <view class="journey-reflection service-reflection">
+      <view class="journey-reflection-title">轻友心声</view>
+      <view class="card-copy"><view>开营时的期待、营期里的变化</view><view>或结束后想带走的感受，都可以留在这里</view></view>
+      <button wx:if="{{state.backend && canWriteReview && (registration.status === 'confirmed' || registration.status === 'completed')}}" class="secondary" bindtap="openReflection">写下我的心声 ›</button>
+      <view wx:elif="{{!canWriteReview}}" class="service-status-note">由实际参加的轻友登录后填写</view>
+      <view wx:else class="service-status-note">报名确认后，从开营当天起可填写</view>
+    </view>
+    <button class="text-button service-back" bindtap="backToCamp">返回轻体营</button>
   </block>
   <block wx:elif="{{view === 'feeling'}}">
     <view class="hero"><view class="hero-title">{{feelingPhase === 'before' ? '来到这里的这一刻，你是什么感觉？' : '这一刻，有什么想留下的吗？'}}</view><view class="hero-copy">写一句话即可，也可以直接返回，不影响参加或完成活动。</view></view>
@@ -146,9 +146,16 @@
     <view class="hero"><view class="hero-title">回看这一次的体验</view><view class="hero-copy">漏签到不会阻止你回看自己的经历。</view></view>
     <view wx:if="{{canReview}}" class="card"><view class="card-title">{{activity.name}}</view><view class="card-copy">{{activity.date}}</view><view wx:if="{{canWriteReview}}" class="field"><text class="label">留下一点感受（选填）</text><textarea class="textarea" maxlength="1000" value="{{reviewNote}}" bindinput="onReviewInput" /></view><view class="privacy-note">仅本人可见，不是医疗结论。替家人报名不会获得对方的私人感受。</view><button wx:if="{{canWriteReview}}" class="primary" bindtap="saveReview">保存本次感受</button><view wx:if="{{reviewSaved}}" class="card-copy">已保存 · 仅自己可见</view></view>
     <view wx:else class="empty-state"><view class="empty-title">本次体验尚未开始回顾</view></view>
+    <view wx:if="{{state.backend && canWriteReview && (registration.status === 'confirmed' || registration.status === 'completed')}}" class="journey-reflection"><view class="journey-reflection-title">这几天，什么想带回去</view><button class="secondary" bindtap="openReflection">为这次相遇，留一笺 ›</button></view>
     <view wx:if="{{state.backend && canReview && experienceTimeline.length}}" class="card"><view class="card-title">这次的私人记录</view><view wx:for="{{experienceTimeline}}" wx:key="id" class="field"><view class="label">{{item.label}}</view><view class="card-copy">精力 {{item.energy || '未填'}} · 放松 {{item.relaxation || '未填'}}</view><view class="card-copy">{{item.note}}</view></view></view>
     <button wx:if="{{state.backend && canReview && !state.profile.minor}}" class="secondary" bindtap="openInvite">邀请朋友了解下一期</button>
     <button class="text-button" bindtap="backToCamp">返回轻体营</button>
   </block>
   </block>
+</view>
+
+<view wx:if="{{view === 'register' && !loading && !loadError}}" class="registration-actionbar">
+  <button wx:if="{{step > 1}}" class="secondary" disabled="{{submitting}}" bindtap="previousStep">上一步</button>
+  <button wx:if="{{step < 2}}" class="primary" bindtap="nextStep">继续</button>
+  <button wx:else class="primary" loading="{{submitting}}" disabled="{{submitting || !draft.serviceConsent}}" bindtap="submitRegistration">提交报名</button>
 </view>

@@ -3,18 +3,17 @@
 <view class="page camp-page">
   <view wx:if="{{refreshing}}" class="refresh-note">正在更新…</view><view wx:if="{{loading}}" class="empty-state">正在读取…</view><view wx:if="{{loadError}}" class="empty-state">{{loadError}}<button class="text-button" bindtap="onShow">重试</button></view>
   <block wx:if="{{!loading}}">
-  <view class="hero"><view class="hero-title">轻体营</view><view class="hero-copy">了解近期活动，查看自己的报名与行程。</view></view>
+  <view class="camp-intro"><view class="camp-intro-line"></view><view class="camp-intro-copy">让身体慢下来，也给自己一点空闲</view><view class="camp-intro-note">从一次相聚开始</view></view>
 
 
   <view class="index-head">
 
     <view class="index-rule"></view>
-    <text class="index-label">近期轻体营</text>
+    <text class="index-label">近期相聚</text>
   </view>
 
+  <block wx:for="{{visibleActivities}}" wx:key="id">
   <view
-    wx:for="{{visibleActivities}}"
-    wx:key="id"
     class="card activity-card {{index === 0 ? 'featured-camp' : ''}}"
     data-id="{{item.id}}"
     bindtap="openActivity"
@@ -38,11 +37,17 @@
       </view>
     </view>
     <view class="activity-footer">
-      <view class="activity-fee">公开价 · 新轻友 ¥{{item.fee}}<text>/人</text><view wx:if="{{item.returningFee != null}}">老轻友 ¥{{item.returningFee}}/人</view><view class="settlement-note">最终结算由工作人员确认</view></view>
+      <view class="activity-prices">
+        <view class="price-tier"><view class="price-label">新轻友</view><view class="price-amount"><text class="price-currency">¥</text><text class="price-value">{{item.fee}}</text><text class="price-unit">/人</text></view></view>
+        <view wx:if="{{item.returningFee != null}}" class="price-tier returning-price"><view class="price-label">老轻友</view><view class="price-amount"><text class="price-currency">¥</text><text class="price-value">{{item.returningFee}}</text><text class="price-unit">/人</text></view></view>
+      </view><view class="settlement-note">公开参考价 · 最终结算由工作人员确认</view>
       
     </view>
-    <view class="button-row"><button class="primary" disabled="{{!item.canRegister}}" data-id="{{item.id}}" catchtap="signup">{{item.canRegister ? '报名' : item.status}}</button><button class="secondary" data-id="{{item.id}}" catchtap="openActivity">查看详情</button></view>
+    <view class="button-row"><button class="primary" disabled="{{!item.canRegister && !item.hasRegistration}}" data-id="{{item.id}}" catchtap="signup">{{item.hasRegistration ? '查看报名' : item.canRegister ? '报名' : item.status}}</button><button class="secondary" data-id="{{item.id}}" catchtap="openActivity">查看详情</button></view>
+    <view wx:if="{{item.canLeaveReflection}}" class="camp-reflection-entry"><button class="reflection-link" data-id="{{item.id}}" catchtap="openReflection">为这次相遇，留一笺 ›</button></view>
   </view>
+  <camp-voices voices="{{voicesBySession[item.id] || []}}" active="{{visible}}" />
+  </block>
 
   <view wx:if="{{!visibleActivities.length}}" class="empty-state">
     <view class="empty-title">暂时没有开放的轻体营</view>
@@ -53,6 +58,6 @@
     <view><text class="past-camp-label">我的活动</text><text class="past-camp-name">第 {{current.sessionNumber}} 期 · 已完成</text></view><text class="past-camp-link">查看体验记录 ›</text>
   </view>
 
-  <view wx:for="{{currentRegistrations}}" wx:key="activityId" class="card"><view class="pill">{{item.label}}</view><view class="card-title">{{item.activity.name}}</view><view class="card-copy">{{item.activity.date}}</view><button class="secondary" data-id="{{item.activityId}}" bindtap="openRegistration">查看本次安排</button></view>
+  <view wx:for="{{currentRegistrations}}" wx:key="activityId" class="card"><view class="pill">{{item.label}}</view><view class="card-title">{{item.activity.name}}</view><view class="card-copy">{{item.activity.date}}</view><button class="secondary" data-id="{{item.activityId}}" bindtap="openRegistration">查看报名与服务</button></view>
   </block>
 </view>

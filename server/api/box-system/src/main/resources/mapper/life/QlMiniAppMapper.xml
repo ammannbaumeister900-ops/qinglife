@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.yicai.life.mapper.QlMiniAppMapper">
+    <sql id="storyLabelId">
+        (SELECT CASE WHEN config_value REGEXP '^[0-9]{1,19}$' THEN CAST(config_value AS UNSIGNED) ELSE NULL END
+         FROM sys_config WHERE config_key='qinglife.reading.story_label_id' ORDER BY config_id LIMIT 1)
+    </sql>
+    <sql id="isStory">
+        EXISTS (SELECT 1 FROM essay_label sl JOIN label st ON st.id=sl.label AND st.status=1
+                WHERE sl.essay=e.id AND sl.label=<include refid="storyLabelId"/>)
+    </sql>
+    <sql id="readingColumns">
+        CAST(e.id AS CHAR) AS id,e.title,e.Introduction AS summary,e.title_url AS cover,
+        e.insert_time AS publishedAt,COALESCE(u.nick_name,'轻生活') AS author,
+        COALESCE((SELECT GROUP_CONCAT(DISTINCT l.name ORDER BY l.level,l.id SEPARATOR ' · ')
+                  FROM essay_label el JOIN label l ON l.id=el.label AND l.status=1 WHERE el.essay=e.id),'轻生活') AS category,
+        <include refid="isStory"/> AS isStory
+    </sql>
+    <sql id="publicReadingFilter">
+        e.status=1
+        <if test="filter.stories">AND <include refid="isStory"/></if>
+        <if test="filter.labelId != null and filter.labelId != ''">
+            AND EXISTS (SELECT 1 FROM essay_label el JOIN label l ON l.id=el.label AND l.status=1
+                        WHERE el.essay=e.id AND el.label=#{filter.labelId})
+        </if>
+        <if test="filter.query != null and filter.query != ''">
+            AND (LOCATE(#{filter.query},e.title)>0 OR LOCATE(#{filter.query},COALESCE(e.Introduction,''))>0
+                 OR EXISTS (SELECT 1 FROM essay_label el JOIN label l ON l.id=el.label AND l.status=1
+                            WHERE el.essay=e.id AND LOCATE(#{filter.query},l.name)>0))
+        </if>
+    </sql>
+    <select id="selectPublicReadings" resultType="java.util.HashMap">
+        SELECT <include refid="readingColumns"/> FROM essay e LEFT JOIN sys_user u ON u.user_id=e.author
+        WHERE <include refid="publicReadingFilter"/> ORDER BY e.order_num,e.id LIMIT #{limit} OFFSET #{offset}
+    </select>
+    <select id="countPublicReadings" resultType="long">
+        SELECT COUNT(*) FROM essay e WHERE <include refid="publicReadingFilter"/>
+    </select>
+    <select id="selectPublicReadingTopics" resultType="java.util.HashMap">
+        SELECT CAST(l.id AS CHAR) AS id,l.name FROM label l WHERE l.status=1
+        AND EXISTS (SELECT 1 FROM essay_label el JOIN essay e ON e.id=el.essay AND e.status=1 WHERE el.label=l.id)
+        ORDER BY l.level,l.id
+    </select>
+    <select id="selectFeaturedStories" resultType="java.util.HashMap">
+        SELECT <include refid="readingColumns"/> FROM essay e LEFT JOIN sys_user u ON u.user_id=e.author
+        WHERE e.status=1 AND e.home_featured=1 AND <include refid="isStory"/> ORDER BY e.order_num,e.id LIMIT 8
+    </select>
+    <select id="selectFeaturedGeneralReadings" resultType="java.util.HashMap">
+        SELECT <include refid="readingColumns"/> FROM essay e LEFT JOIN sys_user u ON u.user_id=e.author
+        WHERE e.status=1 AND e.home_featured=1 AND NOT <include refid="isStory"/> ORDER BY e.order_num,e.id LIMIT 8
+    </select>
+</mapper>

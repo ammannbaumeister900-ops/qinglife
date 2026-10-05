@@ -14,6 +14,7 @@ public class QlRegistrationVo {
     private String buyerCustomerId;
     private String buyerNickname;
     private Integer participantCount;
+    private Boolean batchReadyForPayment;
     private String contactName;
     private String contactPhone;
     private BigDecimal quotedAmount;

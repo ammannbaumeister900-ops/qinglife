@@ -1,0 +1,36 @@
+<ql-nav-space title="轻友心声" back />
+<view class="page reflection-page">
+  <view wx:if="{{loading}}" class="empty-state">正在打开这一笺…</view>
+  <view wx:elif="{{error}}" class="empty-state">{{error}}<button class="text-button" bindtap="load">重试</button></view>
+  <block wx:else>
+    <view class="reflection-period">第 {{context.sessionNumber}} 期 · {{context.name}}</view>
+    <view class="reflection-title">此刻，有什么想留下</view>
+    <view class="reflection-paper {{recording ? 'is-recording' : ''}} {{cancelOnRelease ? 'is-cancelling' : ''}}">
+      <textarea class="reflection-input" value="{{note}}" maxlength="-1" disabled="{{saving || !(phase === 'before' ? context.canBefore : context.canAfter)}}" placeholder="留下一点心情，或一个想记住的瞬间" bindinput="onInput" />
+      <view class="reflection-tools">
+        <text class="reflection-count {{length > 150 || voiceError || cancelOnRelease ? 'over-limit' : ''}}">{{recording ? (cancelOnRelease ? '松开取消' : '松开结束') : transcribing ? '转文字…' : voiceStarting ? '准备中…' : voiceError ? voiceError : length + ' / 150'}}</text>
+        <button wx:if="{{length > 0 && (phase === 'before' ? context.canBefore : context.canAfter)}}" class="reflection-reset" disabled="{{saving}}" bindtap="resetDraft" aria-label="重置心声">重置</button>
+        <button wx:if="{{microphoneDenied}}" class="voice-setting" open-type="openSetting" aria-label="打开麦克风授权设置">授权</button>
+        <button wx:if="{{voiceStarting || transcribing || showVoicePrivacy}}" class="voice-cancel" bindtap="cancelVoice" aria-label="取消语音输入">×</button>
+        <button class="voice-hold {{voicePressing || recording ? 'is-held' : ''}}" disabled="{{saving || !context.voiceAvailable || !(phase === 'before' ? context.canBefore : context.canAfter)}}" bindtouchstart="voiceTouchStart" bindlongpress="beginVoice" catchtouchmove="voiceTouchMove" bindtouchend="endVoice" bindtouchcancel="cancelVoice" aria-label="长按录音，松开转文字">
+          <text class="voice-hold-label">{{recording ? '松开' : '按住说'}}</text>
+        </button>
+      </view>
+      <view wx:if="{{showVoicePrivacy}}" class="voice-privacy">
+        <button class="privacy-link" bindtap="viewVoicePrivacy">{{privacyContractName}}</button>
+        <view class="privacy-actions"><button class="privacy-cancel" bindtap="cancelVoice">先不录</button><button id="voice-privacy-agree" class="privacy-agree" open-type="agreePrivacyAuthorization" bindagreeprivacyauthorization="agreeVoicePrivacy">同意</button></view>
+      </view>
+    </view>
+    <block wx:if="{{phase === 'before' ? context.canBefore : context.canAfter}}">
+      <view class="reflection-options">
+        <text class="reflection-author">{{anonymous ? '本期轻友' : context.authorName || '请选择匿名'}}</text>
+        <button class="reflection-anonymous" disabled="{{saving}}" bindtap="toggleAnonymous" aria-label="匿名发布" aria-pressed="{{anonymous}}"><text class="consent-check">{{anonymous ? '✓' : '○'}}</text><text>匿名发布</text></button>
+      </view>
+      <button class="primary reflection-submit" loading="{{saving}}" disabled="{{saving || length < 1 || length > 150 || (!anonymous && !context.authorName)}}" bindtap="save">提交心声</button>
+    </block>
+    <view wx:else class="reflection-copy">报名确认后，从开营当天起可填写</view>
+    <view wx:if="{{revision}}" class="reflection-status">{{status === 'submitted' ? '待审核' : status === 'published' ? '正在本期展示' : status === 'approved' ? '已审核，等待展示' : status === 'hidden' ? '已下架' : status === 'rejected' ? '本次未选用' : status === 'withdrawn' ? '已收回' : '已保存 · 仅自己可见'}}</view>
+    <button wx:if="{{shared}}" class="text-button" disabled="{{saving}}" bindtap="withdraw">收回公开分享</button>
+    <view wx:if="{{pastShares.length}}" class="past-shares"><view class="past-shares-title">此前留下的心声</view><view wx:for="{{pastShares}}" wx:key="phase" class="past-share"><view class="past-share-note">{{item.note}}</view><view wx:if="{{!item.shared}}" class="reflection-copy">仅自己可见</view><button wx:if="{{item.shared}}" class="text-button" data-phase="{{item.phase}}" disabled="{{saving}}" bindtap="withdraw">收回这份分享</button></view></view>
+  </block>
+</view>

@@ -17,6 +17,16 @@ import static org.mockito.Mockito.mock;
 
 class PublicMediaUploadTest {
     @TempDir Path temp;
+    @Test void publicBaseDoesNotDuplicatePublicAndAbsoluteUploadUrlsArePreserved() {
+        RuoYiConfig config=new RuoYiConfig();String old=RuoYiConfig.getImagePath();
+        try {
+            config.setImagePath("https://example.invalid/api/profile/public/");
+            assertEquals("https://example.invalid/api/profile/public/photo.png",com.yicai.common.utils.file.PublicMediaUpload.url("public/photo.png"));
+            assertEquals("https://images.example.invalid/custom.png",com.yicai.common.utils.file.PublicMediaUpload.url("https://images.example.invalid/custom.png"));
+            assertEquals("",com.yicai.common.utils.file.PublicMediaUpload.url(null));
+        } finally {config.setImagePath(old);}
+    }
+
     @Test void bothEditorEndpointsWriteValidatedMediaIntoPublicDirectory() throws Exception {
         RuoYiConfig config=new RuoYiConfig();
         String oldProfile=RuoYiConfig.getProfile(),oldImages=RuoYiConfig.getImagePath();

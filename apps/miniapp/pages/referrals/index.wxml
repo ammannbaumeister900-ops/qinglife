@@ -1,0 +1,24 @@
+<view class="referrals-page">
+  <view class="intro"><view class="eyebrow">一封轻生活的邀请</view><view class="title">留一个位置<view class="title-second">给想到的人</view></view><view class="intro-copy">下一次相聚，想和你一起</view></view>
+  <view wx:if="{{loading}}" class="empty">正在读取…</view>
+  <view wx:elif="{{error}}" class="empty"><view>{{error}}</view><button class="text-button" bindtap="refresh">重试</button></view>
+  <block wx:else>
+    <view wx:if="{{!eligible}}" class="empty">登录后，就可以制作自己的邀请笺</view>
+    <block wx:else>
+      <view class="invitation-preview"><image class="invitation-art" src="{{selectedPreset.image}}" mode="aspectFit" /></view>
+      <view class="art-caption">选一张邀请笺，带上你的心意</view>
+      <view class="preset-picker"><button wx:for="{{presets}}" wx:key="id" class="preset {{selectedPreset.id === item.id ? 'preset-selected' : ''}}" data-id="{{item.id}}" bindtap="choosePreset" aria-label="{{'选择' + item.name + '邀请图'}}"><image class="preset-art" src="{{item.image}}" mode="aspectFit" /><view class="preset-name">{{item.name}}<text wx:if="{{selectedPreset.id === item.id}}"> ✓</text></view></button></view>
+      <view class="section-label">邀请朋友参加哪一期</view>
+      <view wx:if="{{!sessions.length}}" class="empty">下一次相聚还在准备中，开放报名后再来邀请</view>
+      <button wx:for="{{sessions}}" wx:key="id" class="session-choice {{selectedSessionId === item.id ? 'session-selected' : ''}}" data-id="{{item.id}}" disabled="{{preparing}}" bindtap="chooseSession"><view class="session-main"><view class="session-title">第 {{item.sessionNumber}} 期 · {{item.name}}</view><view class="copy">{{item.date}} · {{item.place}}</view></view><view class="choice-mark">{{selectedSessionId === item.id ? '✓' : ''}}</view></button>
+      <block wx:if="{{sessions.length}}">
+        <button wx:if="{{!sharePath}}" class="primary prepare-button" loading="{{preparing}}" disabled="{{preparing || !selectedSessionId}}" bindtap="prepare">{{preparing ? '正在准备邀请' : '生成专属邀请'}}</button>
+        <view wx:else class="share-ready"><view class="ready-copy">第 {{selectedSessionNumber}} 期邀请笺已备好</view><button class="primary share-button" open-type="share">送给朋友或微信群 ↗</button><view class="share-hint">朋友点开卡片，就能查看这期轻体营</view></view>
+      </block>
+      <view class="privacy-copy">朋友通过邀请报名后，你可以在这里查看小名与报名状态</view>
+    </block>
+    <view class="record-heading">相聚的回音</view><view class="copy">推荐报名记录</view>
+    <view wx:if="{{!records.length}}" class="empty record-empty">还没有推荐报名记录，期待下一次相聚</view>
+    <view wx:for="{{records}}" wx:key="registrationId" class="record"><view class="record-top"><text>{{item.nickname || '轻友'}}</text><text class="status">{{item.statusText}}</text></view><view class="copy">第 {{item.sessionNumber}} 期 · {{item.sessionName}}</view><view class="date">{{item.registeredAt}}</view></view>
+  </block>
+</view>

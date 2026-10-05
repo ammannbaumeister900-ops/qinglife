@@ -38,13 +38,13 @@ function ensureToken() {
   }, fail: reject })).finally(() => { loginPromise = null })
   return loginPromise
 }
-function request(path, method = 'GET', data, auth = true) {
+function request(path, method = 'GET', data, auth = true, timeout = 10000) {
   return Promise.resolve().then(async () => {
     const base = baseUrl()
     if (!base) throw new Error('业务接口尚未配置')
     const token = auth ? await ensureToken() : ''
     return new Promise((resolve, reject) => wx.request({
-      url: base + '/app/qinglife' + path, method, data, timeout: 10000,
+      url: base + '/app/qinglife' + path, method, data, timeout,
       header: { 'content-type': 'application/json', ...(token ? { token } : {}) },
       success(res) {
         if (res.statusCode >= 200 && res.statusCode < 300 && res.data && res.data.code === 200) resolve(res.data.data)
@@ -90,26 +90,37 @@ async function refreshHabit() { return applyHabit((await request('/me/overview')
     const status = row.sessionStatus === 'completed' && row.registrationStatus === 'confirmed' && attended ? 'completed' : row.registrationStatus
     if (!registrations[row.sessionId]) { const account=(overview.passAccounts||[]).find(item=>item.id===row.passAccountId);registrations[row.sessionId] = { activityId: row.sessionId, status, participants: [], serviceConsent: true, quotedAmount: row.quotedAmount, finalAmount: row.finalAmount, settlementStatus: row.settlementStatus || 'pending', paymentStatus: row.orderPaymentStatus || row.paymentStatus, settlementType: row.settlementType, passUnits: row.passUnits, passAccountId:row.passAccountId, currentPassBalance:account?account.balance:null, contactName: row.contactName, contactPhone: row.contactPhone } }
     if (isSelf) registrations[row.sessionId].status = status
-    registrations[row.sessionId].participants.push({ id: isSelf ? 'person-self' : row.customerId, customerId: row.customerId, registrationId: row.registrationId, name: row.participantName || (isSelf ? profile.name : '') || '参与者', relation: isSelf ? '本人' : row.relation || '同行', selected: true, minor: !!row.minor, status })
+    registrations[row.sessionId].participants.push({ id: isSelf ? 'person-self' : row.customerId, customerId: row.customerId, registrationId: row.registrationId, name: isSelf ? String(profile.nickname || '').trim() || '本人' : row.participantName || '参与者', relation: isSelf ? '本人' : row.relation || '同行', selected: true, minor: !!row.minor, status })
   }
-  const self = { id: 'person-self', name: profile.name || '本人', relation: '本人', minor: !!profile.minor, phone: profile.phone || '', selected: true }
-  const registration = registrations[id] || Object.values(registrations)[0] || { activityId: id || '', status: 'none', participants: [self], serviceConsent: false, contactName: profile.name || '', contactPhone: profile.phone || '' }
+  const self = { id: 'person-self', name: String(profile.nickname || '').trim(), relation: '本人', minor: !!profile.minor, phone: profile.phone || '', selected: true }
+  const registration = registrations[id] || Object.values(registrations)[0] || { activityId: id || '', status: 'none', participants: [self], serviceConsent: false, contactName: String(profile.nickname || '').trim(), contactPhone: profile.phone || '' }
   const backendHabit = normalizeHabit(overview.habit)
   const passAccounts=overview.passAccounts||[],passLedger=overview.passLedger||[];const currentPassBalance=passAccounts.filter(item=>Number(item.usable)).reduce((sum,item)=>sum+Number(item.balance||0),0)
-  const state = { ...local, backend: true, returningEligible: !!overview.returningEligible, invitationEligible: !!overview.invitationEligible, phone: profile.phone || '', loggedIn: !!overview.customerId, phoneLinked: !!overview.customerId, profile: { name: profile.name || '轻友', nickname: profile.name || '轻友', minor: !!profile.minor }, registrations, registration, passAccounts, passLedger, currentPassBalance, habit: backendHabit, checkedDays: [], dailyRecords: {}, experienceReviews: {}, arrivalConfirmations: {}, stage: overview.habit ? 'habit' : 'journey' }
+  const state = { ...local, backend: true, returningEligible: !!overview.returningEligible, invitationEligible: !!overview.invitationEligible, phone: profile.phone || '', loggedIn: !!overview.customerId, phoneLinked: !!overview.customerId, profile: { name: profile.name || '轻友', nickname: String(profile.nickname || '').trim(), minor: !!profile.minor }, registrations, registration, passAccounts, passLedger, currentPassBalance, habit: backendHabit, checkedDays: [], dailyRecords: {}, experienceReviews: {}, arrivalConfirmations: {}, stage: overview.habit ? 'habit' : 'journey' }
   return { activities: list, activity: selected, overview, state }
 }
 module.exports = { normalizeHabit, applyHabit, refreshHabit, BASE_KEY, baseUrl, enabled, request, activity, sessions, context, login: ensureToken,
   featuredReadings: () => request('/readings/featured', 'GET', null, false),
+  readings: (filters = {}) => request('/readings', 'GET', filters, false),
+  readingTopics: () => request('/readings/topics', 'GET', null, false),
+  homeReadings: () => request('/readings/home', 'GET', null, false),
   reading: id => request('/readings/' + encodeURIComponent(id), 'GET', null, false),
   contact: () => request('/contact', 'GET', null, false),
   resolveInvitation: code => request('/invitations/' + encodeURIComponent(code), 'GET', null, false),
   register: data => request('/registrations', 'POST', data),
   saveExperience: data => request('/experience-records', 'PUT', data),
+  campVoices: id => request('/camp-voices/' + encodeURIComponent(id), 'GET', null, false),
+  campReflection: id => request('/reflections/' + encodeURIComponent(id)),
+  saveCampReflection: data => request('/reflections', 'PUT', data),
+  withdrawCampReflection: (id, phase) => request('/reflections/' + encodeURIComponent(id) + '/' + encodeURIComponent(phase) + '/share', 'DELETE'),
+  transcribeReflection: data => request('/reflections/voice', 'POST', data, true, 45000),
   saveDailyRecord: data => request('/daily-records/today', 'PUT', data),
   startHabit: data => request('/habits', 'POST', data),
   changeHabit: (id, paused) => request('/habits/' + encodeURIComponent(id) + (paused ? '/pause' : '/resume'), 'PUT', {}),
   createInvitation: id => request('/sessions/' + encodeURIComponent(id) + '/invitations', 'POST', {}),
+  myReferrals: () => request('/me/referrals'),
+  assessmentInvitation: code => request('/friend/assessment-invitations/' + encodeURIComponent(code)),
   friendProfile: () => request('/friend/profile'),
   friendAssessments: () => request('/friend/assessments'),
+  amendFriendAssessment: (id, data) => request('/friend/assessments/' + encodeURIComponent(id), 'PUT', data),
   submitFriendAssessment: data => request('/friend/assessments', 'POST', data) }

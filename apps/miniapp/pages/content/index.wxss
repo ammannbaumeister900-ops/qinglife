@@ -22,11 +22,12 @@
   font-size: 24rpx;
 }
 
-.search-row { display: flex; align-items: center; gap: 12rpx; margin-bottom: 24rpx; }
+.search-row { position: relative; box-sizing: border-box; height: 96rpx; margin-bottom: 24rpx; border: 1rpx solid var(--ql-border); border-radius: var(--ql-radius-inner); background: rgba(255, 252, 247, 0.92); }
 .fallback-note { display: flex; align-items: center; justify-content: space-between; gap: 20rpx; margin: 12rpx 0 24rpx; padding: 20rpx 24rpx; border-radius: 28rpx; background: rgba(195, 208, 214, 0.24); color: var(--ql-ink-light); font-size: 22rpx; }
 .fallback-note button { width: auto; margin: 0; padding: 10rpx 16rpx; background: transparent; color: var(--ql-clay-deep); font-size: 22rpx; line-height: 1.4; }
-.search-input { flex: 1; }
-.search-clear { width: auto; margin: 0; padding: 0 10rpx; background: transparent; color: var(--ql-clay-deep); font-size: 24rpx; line-height: 96rpx; }
+/* Keep the input and its border stable while the compact clear action appears. */
+.content-page .search-input { width: 100%; height: 100%; min-width: 0; padding: 0 104rpx 0 28rpx; border: 0; border-radius: 0; background: transparent; }
+.content-page .search-clear { position: absolute; top: 10rpx; right: 12rpx; width: 72rpx; min-width: 0; max-width: 72rpx; height: 72rpx; min-height: 0; margin: 0; padding: 0; border: 0; border-radius: 20rpx; background: transparent; color: var(--ql-clay-deep); font-size: 24rpx; line-height: 72rpx; }
 
 .content-switch {
   display: flex;
@@ -183,3 +184,5 @@
 }
 
 .content-page .chips .chip { display: inline-flex; align-items: center; justify-content: center; flex: none; width: auto; min-width: 0; min-height: 64rpx; margin: 0; padding: 12rpx 20rpx; font-size: 24rpx; line-height: 1.4; }
+
+.content-page { background: linear-gradient(180deg,#F5F0E6,#F7F3EB 780rpx,#F2F1E8 1400rpx); }

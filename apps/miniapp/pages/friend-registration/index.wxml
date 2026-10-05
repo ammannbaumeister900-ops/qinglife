@@ -1,19 +1,42 @@
 <view class="registration-page">
-  <view wx:if="{{loading}}" class="loading">正在读取轻友档案…</view>
+  <view wx:if="{{loading}}" class="loading">正在登录并读取轻友档案…</view>
+  <view wx:elif="{{loadError}}" class="loading"><view>{{loadError}}</view><button class="text-button" bindtap="onLoad">重新读取</button></view>
+  <view wx:elif="{{mode==='history'}}" class="history-page">
+    <view class="history-head"><view class="title">过往登记</view><view class="subtitle">每份记录按提交时间保留。提交后 48 小时内可修改，之后仅可查看。</view></view>
+    <view wx:if="{{historyLoading}}" class="history-state">正在读取…</view>
+    <view wx:elif="{{historyError}}" class="history-state"><view>{{historyError}}</view><button class="text-button" bindtap="openHistory">重试</button></view>
+    <view wx:elif="{{!history.length}}" class="history-state">还没有保存过登记。</view>
+    <block wx:else>
+    <button wx:for="{{history}}" wx:key="id" class="history-card" data-id="{{item.id}}" bindtap="viewAssessment">
+      <view class="history-card-top"><text class="history-number">第 {{history.length-index}} 次登记</text><text class="history-arrow">›</text></view>
+      <view class="history-date">{{item.submittedAt}}</view><view class="history-date">{{item.sessionNumber ? '第 '+item.sessionNumber+' 期 · '+item.sessionName : '日常登记'}}</view><view class="history-status {{item.canEdit?'editable':''}}">{{item.canEdit?'可修改至 '+item.editableUntil:'已归档 · 仅查看'}}</view>
+    </button>
+    </block>
+    <button class="history-back" bindtap="returnToForm">返回填写</button>
+  </view>
+  <view wx:elif="{{mode==='detail'}}" class="history-page">
+    <view class="history-head"><view class="title">登记记录</view><view class="subtitle">提交于 {{record.submittedAt}}</view><view class="history-status">{{record.canEdit?'可修改至 '+record.editableUntil:'已归档 · 仅查看'}}</view></view>
+    <view wx:if="{{!record.profileSnapshotAvailable}}" class="legacy-note">早期登记未单独保存基本信息，以下基本信息来自当前档案；生活与身体状态为当次记录。</view>
+    <view wx:for="{{record.sections}}" wx:key="title" class="record-section"><view class="record-section-title">{{item.title}}</view><view wx:for="{{item.rows}}" wx:for-item="row" wx:key="label" class="record-row"><text class="record-label">{{row.label}}</text><text class="record-value">{{row.value}}</text></view></view>
+    <button wx:if="{{record.canEdit}}" class="secondary record-edit" bindtap="editAssessment">修改这次登记</button>
+    <button class="history-back" bindtap="openHistory">返回过往登记</button>
+  </view>
   <view wx:elif="{{submitted}}" class="success-card">
-    <view class="success-mark">✓</view><view class="success-title">登记已保存</view>
-    <view class="success-copy">这是你的第 {{assessmentCount}} 次登记。历史记录已完整保留。</view>
-    <button class="primary" bindtap="backMine">返回我的</button><button class="text-button" bindtap="registerAgain">再登记一次</button>
+    <view class="success-mark">✓</view><view class="success-title">{{wasEditing?'修改已保存':'登记已保存'}}</view>
+    <view class="success-copy">{{wasEditing?'本次修改已保存，提交时间与修改期限保持不变。':'这是你的第 '+assessmentCount+' 次登记，过往记录已保留。'}}</view><view wx:if="{{savedDeadline}}" class="success-deadline">可修改至 {{savedDeadline}}</view>
+    <view wx:if="{{sessionContext && !wasEditing}}" class="success-copy">已归入第 {{sessionContext.sessionNumber}} 期登记记录</view>
+    <button class="primary" bindtap="backMine">返回我的</button><button class="text-button" bindtap="registerAgain">再登记一次</button><button class="history-entry" bindtap="openHistory">查看过往登记 ›</button>
   </view>
   <block wx:else>
-    <view class="head"><view class="progress"><view class="progress-fill" style="width: {{step * 25}}%"></view></view><view class="step-note">{{step}} / 4</view><view class="title">{{step===1?'基本信息':step===2?'生活习惯':step===3?'近期状态':'参加信息'}}</view><view class="subtitle">每次登记都会单独保存，不会覆盖过去的记录。</view></view>
+    <view wx:if="{{sessionContext && !editingId}}" class="session-context"><view class="session-context-label">第 {{sessionContext.sessionNumber}} 期 · 轻友登记</view><view class="session-context-name">{{sessionContext.sessionName}}</view><view class="subtitle">填写的是你自己这次的状态，保存到你的历次档案</view></view>
+    <view class="head"><view class="progress"><view class="progress-fill" style="width: {{step * 25}}%"></view></view><view class="step-note">{{step}} / 4</view><view class="title">{{step===1?'基本信息':step===2?'生活习惯':step===3?'近期状态':'参加信息'}}</view><view class="subtitle">{{editingId?'正在修改过往登记，可修改至 '+editDeadline:'每次登记单独保存，提交后 48 小时内可修改。'}}</view><button wx:if="{{editingId}}" class="history-entry" bindtap="cancelEdit">取消修改，返回记录</button></view>
     <view wx:if="{{step===1}}" class="section">
       <view class="field"><text>姓名 *</text><input value="{{form.name}}" data-field="name" bindinput="field" maxlength="30" placeholder="请输入真实姓名" /></view>
       <view class="field"><text>（老轻友填写）您的轻生活小名是：</text><input value="{{form.nickname}}" data-field="nickname" bindinput="field" maxlength="50" placeholder="选填" /></view>
       <view class="field"><text>出生年月日 *</text><picker mode="date" end="{{today}}" value="{{form.birthDate}}" bindchange="pickDate"><view class="picker">{{form.birthDate || '请选择日期'}}</view></picker></view>
       <view class="field"><text>联系电话 *</text><input value="{{form.phone}}" data-field="phone" bindinput="field" maxlength="24" placeholder="用于服务联系" /></view>
       <view class="two"><view class="field"><text>身高（cm）*</text><input type="digit" value="{{form.heightCm}}" data-field="heightCm" bindinput="field" placeholder="80–250" /></view><view class="field"><text>体重（kg）*</text><input type="digit" value="{{form.weightKg}}" data-field="weightKg" bindinput="field" placeholder="如 55.5" /></view></view>
-      <view class="field"><text>来自哪个城市？*</text><input value="{{form.city}}" data-field="city" bindinput="field" maxlength="100" placeholder="例如：上海" /></view>
+      <view class="field"><text>来自哪里？*</text><picker class="city-picker" mode="region" level="city" value="{{form.province?[form.province,form.city]:[]}}" bindchange="pickRegion"><view class="picker region-value {{form.province?'has-value':''}}"><text>{{form.province?form.province+' / '+form.city:'请选择省 / 市'}}</text><text class="picker-arrow">⌄</text></view></picker><view wx:if="{{!form.province && form.city}}" class="legacy-city">上次填写：{{form.city}}，请从选项中重新选择。</view></view>
     </view>
     <view wx:if="{{step===2}}" class="section">
       <view class="question"><view class="question-title">清体目的 *</view><view class="tags"><button wx:for="{{goals}}" wx:key="*this" class="tag {{cleanBodyGoalSelected[item]?'active':''}}" data-field="cleanBodyGoals" data-value="{{item}}" bindtap="multi">{{item}}</button></view></view>
@@ -36,6 +59,7 @@
       <view class="field"><text>若您是第二次或多次参加，您愿意再次来复训的主要因素是：</text><textarea value="{{form.retrainingReason}}" data-field="retrainingReason" bindinput="field" maxlength="2000" placeholder="请注明……"></textarea></view>
       <view class="consent-card"><view class="consent-title">敏感个人信息授权</view><view class="consent-copy">为了建立您的轻友档案，并帮助工作人员了解您参加轻生活期间的基础身体与生活状态，我们需要收集您主动填写的身体情况、健康状态、用药及相关信息。</view><view class="consent-copy">这些信息仅用于轻生活服务、用户档案管理及相关数据分析，并按照权限进行访问和保护。</view><view class="consent-check" bindtap="toggleConsent"><view class="box {{form.sensitiveConsent?'checked':''}}">{{form.sensitiveConsent?'✓':''}}</view><text>我已阅读并同意上述敏感个人信息的收集与使用</text></view></view>
     </view>
+    <button wx:if="{{assessmentCount>0 && !editingId}}" class="history-entry" bindtap="openHistory">过往登记 · {{assessmentCount}} ›</button>
     <view class="actionbar"><button wx:if="{{step>1}}" class="secondary" bindtap="previous">上一步</button><view wx:else class="spacer"></view><button wx:if="{{step<4}}" class="primary" bindtap="next">下一步</button><button wx:else class="primary" loading="{{submitting}}" disabled="{{submitting}}" bindtap="submit">确认提交</button></view>
   </block>
 </view>

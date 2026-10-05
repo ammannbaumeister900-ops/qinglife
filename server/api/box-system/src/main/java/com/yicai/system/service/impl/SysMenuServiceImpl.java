@@ -35,6 +35,9 @@ public class SysMenuServiceImpl extends ServicePlusImpl<SysMenuMapper, SysMenu, 
     public static final String PREMISSION_STRING = "perms[\"{0}\"]";
 
     @Autowired
+    private com.yicai.system.service.AccountPagePermissionService accountPages;
+
+    @Autowired
     private SysRoleMapper roleMapper;
 
     @Autowired
@@ -90,7 +93,7 @@ public class SysMenuServiceImpl extends ServicePlusImpl<SysMenuMapper, SysMenu, 
                 permsSet.addAll(Arrays.asList(perm.trim().split(",")));
             }
         }
-        return permsSet;
+        return accountPages.filterPermissions(userId,permsSet);
     }
 
     /**
@@ -107,7 +110,7 @@ public class SysMenuServiceImpl extends ServicePlusImpl<SysMenuMapper, SysMenu, 
         } else {
             menus = baseMapper.selectMenuTreeByUserId(userId);
         }
-        return getChildPerms(menus, 0);
+        return getChildPerms(accountPages.filterMenus(userId,menus), 0);
     }
 
     /**
