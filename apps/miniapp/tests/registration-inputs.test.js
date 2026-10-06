@@ -15,7 +15,7 @@ function fixture() {
     '../../utils/domain': {}, '../../utils/navigation': {}
   }
   vm.runInNewContext(fs.readFileSync(path.resolve(__dirname, '../pages/camp-flow/index.js'), 'utf8'), {
-    Page: value => { page = value }, require: name => mocks[name], wx: { showToast() {} }
+    Page: value => { page = value }, require: name => mocks[name] || require(path.resolve(__dirname, '../pages/camp-flow', name)), wx: { showToast() {} }
   })
   page.data = { ...page.data, activity: { id: 's1' }, state: { phone: '13800000000' }, draft: { serviceConsent: true,
     contactName: '测试轻友', contactPhone: '13800000000',

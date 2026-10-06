@@ -28,10 +28,10 @@ Page({
           const reg = state.registrations[activity.id], self = reg && reg.participants.find(person => person.id === 'person-self')
           return { ...activity, hasRegistration: domain.hasRegistration(reg), canLeaveReflection: !!self && ['confirmed', 'completed'].includes(self.status || reg.status) }
         })
-        this.setData({ state, activities, currentRegistrations, current: activities.find(a => a.id === state.registration.activityId) || null, openActivities, visibleActivities: openActivities })
+        this.setData({ ready: true, state, activities, currentRegistrations, current: activities.find(a => a.id === state.registration.activityId) || null, openActivities, visibleActivities: openActivities })
         await this.loadVoices(openActivities)
-      } catch (error) { this.setData({ loadError: error.message, ...(error.code === 401 ? { state: {}, participationTimeline: [], currentRegistrations: [], returning: false } : {}) }) }
-      finally { this.setData({ loading: false, refreshing: false, ready: true }) }
+      } catch (error) { this.setData({ loadError: error.message || '暂时无法读取，请重试', ...(error.code === 401 ? { ready: false, state: {}, participationTimeline: [], currentRegistrations: [], returning: false } : {}) }) }
+      finally { this.setData({ loading: false, refreshing: false }) }
       return
     }
     const state = store.getState()
@@ -39,7 +39,7 @@ Page({
     if (state.registration.status !== 'none') registrations[state.registration.activityId] = state.registration
     const currentRegistrations = Object.values(registrations).map(reg => ({ ...reg, activity: demo.activities.find(item => item.id === reg.activityId), label: { pending: '待确认', confirmed: '已确认', completed: '已结束', waitlist: '候补中', cancelled: '已取消', rescheduled: '安排有调整' }[reg.status] || reg.status })).filter(reg => reg.activity)
     this.setData({
-      state, currentRegistrations,
+      state, loading: false, refreshing: false, loadError: '', ready: true, currentRegistrations,
       current: demo.activities.find((item) => item.id === state.registration.activityId) || demo.activities[0],
       openActivities: demo.activities.filter((item) => item.status !== '已结束'),
       visibleActivities: discovery.activities(demo.activities).map(activity => ({ ...activity, hasRegistration: domain.hasRegistration(registrations[activity.id]) }))

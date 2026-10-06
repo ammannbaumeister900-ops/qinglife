@@ -1,6 +1,6 @@
 const store = require('../../utils/store')
 const business = require('../../services/business-api')
-const legacyApi = require('../../services/legacy-api')
+const favorites = require('../../services/article-favorites')
 const demo = require('../../data/demo')
 const navigation = require('../../utils/navigation')
 const domain = require('../../utils/domain')
@@ -36,7 +36,7 @@ Page({
   onShow() {
     this.refresh()
     if (this.data.view === 'habit' && business.enabled()) business.refreshHabit().then(() => this.refresh()).catch(error => wx.showToast({ title: error.message || '计划读取失败', icon: 'none' }))
-    if (this.data.view === 'collections' && !this.data.collections.length) this.loadCollections()
+    if (this.data.view === 'collections') return this.loadCollections()
   },
 
   refresh() {
@@ -129,36 +129,54 @@ Page({
   },
 
   async loadCollections() {
-    this.setData({ collectionsLoading: true })
-    const result = await legacyApi.getCollections()
-    this.setData({ collectionsLoading: false, collectionsSource: result.source, collections: result.list, collectionsError: result.error ? '收藏暂时无法读取，请重试。' : '' })
+    this.setData({ collectionsLoading: true, collectionsError: '' })
+    const requestId = this._collectionsRequest = (this._collectionsRequest || 0) + 1
+    try {
+      const result = await favorites.getCollections()
+      if (requestId !== this._collectionsRequest) return
+      this.setData({ collectionsLoading: false, collectionsSource: result.source, collections: result.list,
+        collectionsError: result.error ? result.list.length ? '部分收藏暂时无法读取，请重试。' : '收藏暂时无法读取，请重试。' : '' })
+    } catch (error) {
+      if (requestId !== this._collectionsRequest) return
+      this.setData({ collectionsLoading: false, collectionsError: this.data.collections.length ? '收藏暂未更新，请重试；下方保留上次读取的内容。' : '收藏暂时无法读取，请重试。' })
+    }
   },
 
   openArticle(event) {
-    const { id, title } = event.currentTarget.dataset
-    navigation.navigateTo({ url: `/pages/article/index?id=${encodeURIComponent(id)}&title=${encodeURIComponent(title || '')}` })
+    const { id, title, source } = event.currentTarget.dataset
+    navigation.navigateTo({ url: `/pages/article/index?id=${encodeURIComponent(id)}&title=${encodeURIComponent(title || '')}${source ? '&source=' + encodeURIComponent(source) : ''}` })
   },
 
   toggleSubscription() {
-    store.updateState((state) => {
-      state.subscriptionEnabled = !state.subscriptionEnabled
-      return state
-    })
+    try {
+      store.updateState((state) => {
+        state.subscriptionEnabled = !state.subscriptionEnabled
+        return state
+      })
+    } catch (error) {
+      return wx.showToast({ title: '本机偏好保存失败，请重试', icon: 'none' })
+    }
     this.refresh()
     wx.showModal({
-      title: '订阅消息',
-      content: this.data.state.subscriptionEnabled ? '已开启活动提醒和结营回访。' : '已关闭订阅消息。',
+      title: '本机提醒偏好',
+      content: this.data.state.subscriptionEnabled ? '希望接收提醒的偏好已保存到本机。当前不会发送活动提醒或结营回访消息。' : '不接收提醒的偏好已保存到本机。此操作不会更改微信订阅授权。',
       showCancel: false
     })
   },
 
   togglePrivacy(event) {
     const key = event.currentTarget.dataset.key
-    store.updateState((state) => {
-      state[key] = !state[key]
-      return state
-    })
+    if (!['operationConsent', 'aiConsent'].includes(key)) return
+    try {
+      store.updateState((state) => {
+        state[key] = !state[key]
+        return state
+      })
+    } catch (error) {
+      return wx.showToast({ title: '本机偏好保存失败，请重试', icon: 'none' })
+    }
     this.refresh()
+    wx.showToast({ title: '偏好已保存到本机', icon: 'none' })
   },
 
   openAccount() { this.setData({ view: 'auth' }) },

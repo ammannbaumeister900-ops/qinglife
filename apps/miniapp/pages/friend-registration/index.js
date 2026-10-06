@@ -1,4 +1,5 @@
 const business = require('../../services/business-api')
+const formFeedback = require('../../utils/form-feedback')
 const DRAFT_KEY = 'qinglife_friend_assessment_draft_2026_v1'
 const emptyForm = () => ({
   clientRequestId: 'fa_' + Date.now() + '_' + Math.random().toString(36).slice(2, 10),
@@ -11,7 +12,7 @@ const emptyForm = () => ({
 
 Page({
   data: {
-    step: 1, loading: true, loadError: '', submitting: false, submitted: false, assessmentCount: 0,
+    step: 1, formError: null, loading: true, loadError: '', submitting: false, submitted: false, assessmentCount: 0,
     sessionContext: null, invitationCode: '', mode: 'form', history: [], historyLoading: false, historyError: '', record: {}, editingId: '', editDeadline: '', wasEditing: false,
     form: emptyForm(), today: '', cleanBodyGoalSelected: {}, emotionSelected: {}, healthSelected: {},
     goals: ['排毒','减重','减压','调理'],
@@ -31,12 +32,13 @@ Page({
   },
 
   async onLoad(options = {}) {
+    formFeedback.cancel(this)
     if (typeof options.invite === 'string' || typeof options.scene === 'string' || options.history === '1') this.routeOptions = options
     options = this.routeOptions || {}
     let invitationCode = options.invite || ''
     if (!invitationCode && options.scene) { try { invitationCode = decodeURIComponent(options.scene) } catch (_) { invitationCode = 'invalid' } }
     this.initialized = false
-    this.setData({ loading: true, loadError: '', sessionContext: null, invitationCode, submitted: false, editingId: '', form: emptyForm(), mode: 'form' })
+    this.setData({ loading: true, loadError: '', formError: null, sessionContext: null, invitationCode, submitted: false, editingId: '', form: emptyForm(), mode: 'form' })
     const today = new Date()
     const date = [today.getFullYear(), String(today.getMonth()+1).padStart(2,'0'), String(today.getDate()).padStart(2,'0')].join('-')
     try {
@@ -91,7 +93,7 @@ Page({
     Object.keys(form).forEach(key => { if (record[key] != null && key !== 'clientRequestId' && key !== 'sensitiveConsent') form[key] = record[key] })
     form.birthDate = formatDate(record.birthDate)
     form.revision = record.revision
-    this.setData({ mode: 'form', submitted: false, editingId: record.id, editDeadline: record.editableUntil, step: 1, form, ...selectionMaps(form) })
+    formFeedback.changeStep(this, wx, { mode: 'form', submitted: false, editingId: record.id, editDeadline: record.editableUntil, step: 1, form, ...selectionMaps(form) })
   },
   cancelEdit() {
     const form = this.newFormBeforeEdit || emptyForm()
@@ -99,23 +101,24 @@ Page({
   },
   returnToForm() { this.setData({ mode: 'form' }) },
   pickRegion(event) {
+    formFeedback.clearError(this)
     const value = event.detail.value
     if (!Array.isArray(value) || !value[0] || !value[1]) return
     this.setData({ 'form.province': value[0], 'form.city': value[1] })
     this.saveDraft()
   },
 
-  field(event) {
+  field(event) { formFeedback.clearError(this);
     const key = event.currentTarget.dataset.field
     this.setData({ ['form.' + key]: event.detail.value })
     this.saveDraft()
   },
-  choose(event) {
+  choose(event) { formFeedback.clearError(this);
     const key = event.currentTarget.dataset.field, value = event.currentTarget.dataset.value
     this.setData({ ['form.' + key]: value })
     this.saveDraft()
   },
-  multi(event) {
+  multi(event) { formFeedback.clearError(this);
     const key = event.currentTarget.dataset.field, value = event.currentTarget.dataset.value
     let list = (this.data.form[key] || []).slice()
     if (key === 'healthConditions') {
@@ -127,27 +130,46 @@ Page({
     this.setData({ ['form.' + key]: list, [selectedKey]: selected })
     this.saveDraft()
   },
-  pickDate(event) { this.setData({ 'form.birthDate': event.detail.value }); this.saveDraft() },
-  pickTime(event) { const key=event.currentTarget.dataset.field;this.setData({ ['form.'+key]:event.detail.value });this.saveDraft() },
-  toggleConsent() { this.setData({ 'form.sensitiveConsent': !this.data.form.sensitiveConsent }); this.saveDraft() },
+  pickDate(event) { formFeedback.clearError(this); this.setData({ 'form.birthDate': event.detail.value }); this.saveDraft() },
+  pickTime(event) { formFeedback.clearError(this); const key=event.currentTarget.dataset.field;this.setData({ ['form.'+key]:event.detail.value });this.saveDraft() },
+  toggleConsent() { formFeedback.clearError(this); this.setData({ 'form.sensitiveConsent': !this.data.form.sensitiveConsent }); this.saveDraft() },
   saveDraft() { if (this.draftKey && !this.data.editingId) wx.setStorageSync(this.draftKey, this.data.form) },
   validate(step) {
-    const f=this.data.form
-    if (step===1 && (!f.name.trim() || !f.birthDate || !f.phone.trim() || !f.heightCm || !f.weightKg || !f.province.trim() || !f.city.trim())) return '请完整填写基本信息'
-    if (step===1 && (Number(f.heightCm)<80 || Number(f.heightCm)>250 || Number(f.weightKg)<20 || Number(f.weightKg)>300)) return '请检查身高和体重范围'
-    if (step===2 && (!f.cleanBodyGoals.length || !f.dietPreference || f.waterIntakeMl==='' || !f.wakeTime || !f.sleepTime || !f.bowelStatus || !f.energyStatus || !f.exerciseStatus)) return '请完成生活习惯问题'
-    if (step===3 && (!f.emotionalStatus.length || !f.healthConditions.length)) return '请完成近期状态问题'
-    if (step===3 && f.healthConditions.includes('其他') && !f.otherHealthCondition.trim()) return '请补充说明其他身体情况'
-    if (step===4 && !f.referralSource.trim()) return '请填写了解轻生活的途径'
-    return ''
+    const f = this.data.form
+    const required = step === 1 ? [
+      ['name', '姓名', !f.name.trim()], ['birthDate', '出生年月日', !f.birthDate],
+      ['phone', '联系电话', !f.phone.trim()], ['heightCm', '身高', !f.heightCm],
+      ['weightKg', '体重', !f.weightKg], ['region', '省 / 市', !f.province.trim() || !f.city.trim()]
+    ] : step === 2 ? [
+      ['cleanBodyGoals', '清体目的', !f.cleanBodyGoals.length], ['dietPreference', '日常饮食偏好', !f.dietPreference],
+      ['waterIntakeMl', '每日饮水量', f.waterIntakeMl === ''], ['wakeTime', '起床时间', !f.wakeTime],
+      ['sleepTime', '睡觉时间', !f.sleepTime], ['bowelStatus', '排便情况', !f.bowelStatus],
+      ['energyStatus', '精力状态', !f.energyStatus], ['exerciseStatus', '运动情况', !f.exerciseStatus]
+    ] : step === 3 ? [
+      ['emotionalStatus', '近期情绪状态', !f.emotionalStatus.length], ['healthConditions', '近半年身体情况', !f.healthConditions.length]
+    ] : []
+    const missing = required.find(item => item[2])
+    if (missing) return { target: 'friend-' + missing[0], message: '请填写或选择' + missing[1] }
+    if (step === 1 && (Number(f.heightCm) < 80 || Number(f.heightCm) > 250)) return { target: 'friend-heightCm', message: '请检查身高范围（80–250 cm）' }
+    if (step === 1 && (Number(f.weightKg) < 20 || Number(f.weightKg) > 300)) return { target: 'friend-weightKg', message: '请检查体重范围（20–300 kg）' }
+    if (step === 3 && f.healthConditions.includes('其他') && !f.otherHealthCondition.trim()) return { target: 'friend-otherHealthCondition', message: '请补充说明其他身体情况' }
+    if (step === 4 && !f.referralSource.trim()) return { target: 'friend-referralSource', message: '请填写了解轻生活的途径' }
+    return null
   },
-  next() { const error=this.validate(this.data.step);if(error)return wx.showToast({title:error,icon:'none'});this.setData({step:this.data.step+1});this.saveDraft() },
-  previous() { if(this.data.step>1)this.setData({step:this.data.step-1}) },
+  next() {
+    const error = this.validate(this.data.step)
+    if (error) return formFeedback.showError(this, wx, error)
+    formFeedback.changeStep(this, wx, { step: this.data.step + 1 })
+    this.saveDraft()
+  },
+  previous() { if (this.data.step > 1) formFeedback.changeStep(this, wx, { step: this.data.step - 1 }) },
+  onUnload() { formFeedback.cancel(this) },
   async submit() {
     if(this.data.submitting)return
-    const error=this.validate(4);if(error)return wx.showToast({title:error,icon:'none'})
-    if(!this.data.form.sensitiveConsent)return wx.showToast({title:'请先阅读并同意敏感个人信息授权',icon:'none'})
-    for (let step = 1; step < 4; step++) { const issue = this.validate(step); if (issue) { this.setData({ step }); return wx.showToast({ title: issue, icon: 'none' }) } }
+    const error=this.validate(4);if(error)return formFeedback.showError(this, wx, error)
+    if(!this.data.form.sensitiveConsent)return formFeedback.showError(this, wx, { target: 'friend-sensitiveConsent', message: '请先阅读并同意敏感个人信息授权' })
+    for (let step = 1; step < 4; step++) { const issue = this.validate(step); if (issue) return formFeedback.showError(this, wx, issue, { step }) }
+    formFeedback.clearError(this)
     this.setData({submitting:true})
     try {
       const profile = await business.friendProfile()
@@ -163,11 +185,11 @@ Page({
       const result = editing ? await business.amendFriendAssessment(this.data.editingId, payload) : await business.submitFriendAssessment(payload)
       if (!editing && this.draftKey) wx.removeStorageSync(this.draftKey)
       this.setData({ submitted:true, editingId:'', wasEditing:editing, savedDeadline:result.editableUntil || '', assessmentCount:Number(result.assessmentCount || this.data.assessmentCount + (editing ? 0 : 1)) })
-    } catch(error) { wx.showToast({title:error.message||'提交失败，请重试',icon:'none'}) }
+    } catch(error) { formFeedback.showError(this, wx, { target: 'friend-submit-error', message: error.message || '提交失败，请重试' }) }
     finally { this.setData({submitting:false}) }
   },
   backMine() { wx.switchTab({url:'/pages/mine/index'}) },
-  registerAgain() { const form = { ...emptyForm(), ...basicProfile(this.data.form) }; this.setData({ mode:'form', submitted:false, editingId:'', wasEditing:false, step:1, form, ...selectionMaps(form) }); this.saveDraft() }
+  registerAgain() { const form = { ...emptyForm(), ...basicProfile(this.data.form) }; formFeedback.changeStep(this, wx, { mode:'form', submitted:false, editingId:'', wasEditing:false, step:1, form, ...selectionMaps(form) }); this.saveDraft() }
 })
 
 function formatDate(value) { return value ? String(value).slice(0,10) : '' }

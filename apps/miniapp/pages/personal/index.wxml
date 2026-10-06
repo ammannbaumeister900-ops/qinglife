@@ -12,7 +12,7 @@
       <view wx:if="{{!rows.length}}" class="card"><view class="card-title">还没有参与经历</view><view class="card-copy">报名后，可以在这里查看每一期的状态。</view><button class="secondary" bindtap="openCamp">看看轻体营</button></view>
     </block>
     <block wx:if="{{view !== 'experiences'}}">
-      <view wx:for="{{records}}" wx:key="id" class="card"><view class="pill">{{item.label}} · 仅自己可见</view><view class="card-title">{{item.name}}</view><view class="card-copy">{{item.note || '这一次，留下了一份状态记录。'}}</view><view wx:if="{{item.energy || item.relaxation}}" class="card-copy">精力 {{item.energy || '未填'}} · 放松 {{item.relaxation || '未填'}}</view></view>
+      <view wx:for="{{records}}" wx:key="id" class="card"><view class="pill">{{item.label}} · 仅自己可见</view><view class="card-title">{{item.name}}</view><view wx:if="{{item.recordTimeText}}" class="record-time">最近保存 · {{item.recordTimeText}}</view><view class="card-copy">{{item.note || '这一次，留下了一份状态记录。'}}</view><view wx:if="{{item.energy || item.relaxation}}" class="card-copy">精力 {{item.energy || '未填'}} · 放松 {{item.relaxation || '未填'}}</view></view>
       <view wx:if="{{!records.length}}" class="card"><view class="card-title">给下一次感受留一个位置</view><view class="card-copy">在本次活动安排中保存的个人感受，会汇集到这里。替家人报名不会看到对方的私人记录。</view></view>
     </block>
   </block>

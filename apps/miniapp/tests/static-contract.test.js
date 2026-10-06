@@ -57,7 +57,7 @@ for (const page of ['content', 'friends', 'mine', 'camp-flow', 'friend-flow', 'm
 }
 
 const articlePage = fs.readFileSync(path.join(root, 'pages/article/index.wxml'), 'utf8')
-assert.ok(articlePage.includes('article-cover') && articlePage.includes('article-actionbar'), '文章详情需使用沉浸封面与弱操作栏')
+assert.ok(!articlePage.includes('article-cover') && articlePage.includes('article-body') && articlePage.includes('article-actionbar'), '文章详情正文优先，保留收藏与分享操作栏')
 
 for (const page of app.pages) {
   const base = path.join(root, page)

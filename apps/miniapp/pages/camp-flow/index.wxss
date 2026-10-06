@@ -156,3 +156,5 @@
 .service-status-value { margin-top: 12rpx; color: #53624A; font-family: var(--ql-serif); font-size: 36rpx; }
 .service-status-note { margin-top: 12rpx; color: var(--ql-ink-light); font-size: 23rpx; line-height: 1.8; }
 .service-back { margin-top: 12rpx; }
+
+.camp-flow-page .form-error { margin: 12rpx 0; color: var(--ql-clay-deep); font-size: 24rpx; line-height: 1.6; }

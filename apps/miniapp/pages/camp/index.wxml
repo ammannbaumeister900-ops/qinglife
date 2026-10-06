@@ -2,7 +2,7 @@
 <ql-nav-space title="轻体营" />
 <view class="page camp-page">
   <view wx:if="{{refreshing}}" class="refresh-note">正在更新…</view><view wx:if="{{loading}}" class="empty-state">正在读取…</view><view wx:if="{{loadError}}" class="empty-state">{{loadError}}<button class="text-button" bindtap="onShow">重试</button></view>
-  <block wx:if="{{!loading}}">
+  <block wx:if="{{!loading && !loadError}}">
   <view class="camp-intro"><view class="camp-intro-line"></view><view class="camp-intro-copy">让身体慢下来，也给自己一点空闲</view><view class="camp-intro-note">从一次相聚开始</view></view>
 
 

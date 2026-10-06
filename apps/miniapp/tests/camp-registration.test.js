@@ -32,7 +32,7 @@ test('new signup defaults to nickname and necessary information; explicit unchec
   await p.refresh(); await p.startRegistration(); assert.equal(p.data.draft.participants[0].name,'小禾'); assert.equal(p.data.draft.contactName,'小禾')
   p.nextStep(); assert.equal(p.data.step,2); assert.equal(p.data.draft.serviceConsent,true)
   p.toggleConsent(); p.previousStep(); p.nextStep(); await p.refresh(); assert.equal(p.data.draft.serviceConsent,false)
-  await p.submitRegistration(); assert.equal(p.data.view,'register'); assert(notices.includes('请确认参与人和必要授权'))
+  await p.submitRegistration(); assert.equal(p.data.view,'register'); assert(notices.includes('请确认服务必要信息授权'))
 })
 test('missing nickname stays blank for signup and is never replaced with the real name', async () => {
   const p=page('camp-flow',{enabled:()=>true,context:async()=>context('')})

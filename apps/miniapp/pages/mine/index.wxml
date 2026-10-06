@@ -2,7 +2,7 @@
 <ql-nav-space title="我的" />
 <view class="page mine-page editorial-page">
   <view wx:if="{{refreshing}}" class="refresh-note">正在更新…</view><view wx:if="{{loading}}" class="empty-state">正在读取…</view><view wx:if="{{loadError}}" class="empty-state">{{loadError}}<button class="text-button" bindtap="onShow">重试</button></view>
-  <block wx:if="{{!loading}}">
+  <block wx:if="{{!loading && !loadError}}">
   <view class="profile-head">
     <view class="profile-avatar">{{avatarText}}</view>
     <view class="list-main">

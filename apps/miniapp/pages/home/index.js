@@ -32,7 +32,7 @@ Page({
           view })
       } catch (error) {
         if (version !== this.requestVersion) return
-        this.setData({ loadError: error.message, ...(error.code === 401 ? { state: {}, returning: false, showHomeTask: false } : {}) })
+        this.setData({ loadError: error.message || '首页暂时无法读取，请重试', ...(error.code === 401 ? { ready: false, state: {}, returning: false, showHomeTask: false } : {}) })
       } finally {
         if (version === this.requestVersion) this.setData({ loading: false, refreshing: false })
       }
@@ -40,7 +40,7 @@ Page({
     }
     const state = store.getState()
     const view = domain.homeTask(state, demo.activities)
-    this.setData({ showHomeTask: showHomeTask(state, view), state, stories: [], storyIndex: 0, readingError: '', featuredReadings: readingSamples.slice(0, 4), ready: true,
+    this.setData({ loading: false, refreshing: false, loadError: '', showHomeTask: showHomeTask(state, view), state, stories: [], storyIndex: 0, readingError: '', featuredReadings: readingSamples.slice(0, 4), ready: true,
       returning: discovery.returning(state), featured: featuredCamp(demo.activities),
       view })
   },

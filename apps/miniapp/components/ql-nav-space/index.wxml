@@ -3,6 +3,6 @@
     <button wx:if="{{back}}" class="ql-back" style="{{controlStyle}}" aria-label="返回" bindtap="goBack">
       <view class="ql-back-arrow"></view>
     </button>
-    <view wx:if="{{title}}" class="ql-nav-title" style="{{controlStyle}}">{{title}}</view>
+    <view wx:if="{{title}}" class="ql-nav-title" style="{{controlStyle}} {{titleStyle}}">{{title}}</view>
   </view>
 </view>

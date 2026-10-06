@@ -10,8 +10,8 @@
       </view>
       <view class="field"><text class="label">留下一句话（选填）</text><textarea class="textarea" value="{{dailyNote}}" maxlength="140" placeholder="今天感觉怎么样？" bindinput="onDailyNote"/></view>
       <view class="privacy-note">默认仅自己可见，可以不写感受。</view>
-      <button class="primary" bindtap="saveDaily">保存今天</button>
-      <view wx:if="{{savedRecord}}" class="card-copy">已保存 · 仅自己可见</view>
+      <button class="primary" loading="{{dailySaving}}" disabled="{{dailySaving}}" bindtap="saveDaily">保存今天</button>
+      <view wx:if="{{savedRecord && dailyChoice === savedRecord.choice && dailyNote === savedRecord.note}}" class="card-copy">已保存 · 仅自己可见</view><view wx:elif="{{savedRecord}}" class="card-copy">有未保存的修改</view>
     </view>
     <button class="text-button" bindtap="openPlan">陪伴计划设置</button>
   </block>
@@ -22,8 +22,8 @@
   </block>
   <block wx:else>
     <view class="hero"><view class="hero-title">轻友的旧时记录</view><view class="hero-copy">这里保留旧版可访问的打卡内容、图片与原始时间，只读回看。</view></view>
-    <view wx:if="{{archiveError}}" class="empty-state"><view class="empty-title">暂时未能读取</view><view class="empty-copy">{{archiveError}}</view><button class="empty-action" bindtap="loadArchive">重试</button></view>
-    <view wx:if="{{archiveLoaded && !archiveError && !archivePosts.length}}" class="empty-state"><view class="empty-title">暂时没有可查看的历史打卡</view><view class="empty-copy">这里不会使用示例内容替代真实记录。</view></view>
+    <view wx:if="{{archiveError}}" class="empty-state"><view class="empty-title">{{archivePosts.length ? '更早的记录暂未读取' : '暂时未能读取'}}</view><view class="empty-copy">{{archiveError}}</view><button class="empty-action" bindtap="loadArchive">重试</button></view>
+    <view wx:if="{{archiveLoaded && !archiveLoading && !archiveError && !archivePosts.length}}" class="empty-state"><view class="empty-title">暂时没有可查看的历史打卡</view><view class="empty-copy">这里不会使用示例内容替代真实记录。</view></view>
     <view wx:for="{{archivePosts}}" wx:key="id" class="card">
       <view class="card-title">{{item.author}}</view><view class="section-note">{{item.time}} · {{item.tag}}</view>
       <text class="archive-text">{{item.content}}</text>

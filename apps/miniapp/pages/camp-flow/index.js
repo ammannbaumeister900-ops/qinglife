@@ -1,4 +1,5 @@
 const business = require('../../services/business-api')
+const formFeedback = require('../../utils/form-feedback')
 const demo = require('../../data/demo')
 const store = require('../../utils/store')
 const domain = require('../../utils/domain')
@@ -16,7 +17,7 @@ function currentFeelingPhase(activity, status) {
 Page({
   data: {
     view: 'detail', loading: false, loadError: '', submitting: false, feelingSaving: false, invitationCode: '', routeActivityId: '', sharePath: '', requestId: '', scales: [1,2,3,4,5], feelingPhase: '', feelingDayId: '', energy: null, relaxation: null, feelingNote: '', feelingSaved: false, inviteActivities: [],
-    step: 1,
+    step: 1, formError: null,
     activity: demo.activities[0],
     state: {},
     selectedCount: 1,
@@ -116,7 +117,6 @@ Page({
 
   async startRegistration() {
     const state = this.data.state
-    if (domain.hasRegistration(this.data.registration)) return this.openJourney()
     if (!domain.activityState(this.data.activity).canRegister) {
       return wx.showToast({ title: '请查看本期名额状态', icon: 'none' })
     }
@@ -127,14 +127,14 @@ Page({
     if (!state.phoneLinked) {
       return navigation.navigateTo({ url: '/pages/mine-flow/index?view=auth&next=register' })
     }
-    this.setData({ view: 'register', step: 1, selectedCount: this.data.draft.participants.filter(person => person.selected).length })
+    formFeedback.changeStep(this, wx, { view: 'register', step: 1, selectedCount: this.data.draft.participants.filter(person => person.selected).length })
   },
 
   openJourney() {
     this.setData({ view: 'journey' })
   },
 
-  toggleParticipant(event) {
+  toggleParticipant(event) { formFeedback.clearError(this);
     const draft = JSON.parse(JSON.stringify(this.data.draft))
     const person = draft.participants.find(item => item.id === event.currentTarget.dataset.id)
     if (person) person.selected = !person.selected
@@ -146,36 +146,57 @@ Page({
   },
 
   toggleConsent() {
+    formFeedback.clearError(this)
     this.setData({ draft: { ...this.data.draft, serviceConsent: !this.data.draft.serviceConsent } })
   },
+  registrationError(target, message, step = 1) {
+    formFeedback.showError(this, wx, { target, message }, { step })
+  },
+
+  participantError(index, message, field = 'phone') {
+    const person = this.data.draft.participants[index]
+    const target = this.data.state.backend && person.id === 'person-self' ? (field === 'name' ? 'camp-self-name' : 'camp-self-phone') : 'camp-participant-' + index
+    this.registrationError(target, '第' + (index + 1) + '位参与者（' + (person.name || person.relation || '未填写姓名') + '）：' + message)
+  },
+
   nextStep() {
-    if (this.data.step === 1 && this.data.selectedCount < 1) {
-      return wx.showToast({ title: '请至少选择一位参与者', icon: 'none' })
-    }
-    if (!this.data.draft.contactName || !/^1\d{10}$/.test(this.data.draft.contactPhone || '')) return wx.showToast({ title: '请填写可靠的主要联系人和手机号', icon: 'none' })
-    if (this.data.draft.participants.some(person => person.selected && !String(person.name || '').trim())) return wx.showToast({ title: '请填写参与者的小名或称呼', icon: 'none' })
-    const invalidPhone = this.data.draft.participants.some(person => person.selected && person.phone && !/^1\d{10}$/.test(person.phone))
-    if (invalidPhone) return wx.showToast({ title: '请检查选填的参与人手机号', icon: 'none' })
-    this.setData({ step: Math.min(2, this.data.step + 1) })
-    wx.pageScrollTo({ scrollTop: 0, duration: 0 })
+    if (this.data.step === 1 && this.data.selectedCount < 1) return this.registrationError('camp-participants', '请至少选择一位参与者')
+    if (!this.data.draft.contactName) return this.registrationError('camp-contact-name', '请填写主要联系人姓名')
+    if (!/^1\d{10}$/.test(this.data.draft.contactPhone || '')) return this.registrationError('camp-contact-phone', '请填写正确的主要联系人手机号')
+    const missingName = this.data.draft.participants.findIndex(person => person.selected && !String(person.name || '').trim())
+    if (missingName >= 0) return this.participantError(missingName, '请填写参与者的小名或称呼', 'name')
+    const invalidPhone = this.data.draft.participants.findIndex(person => person.selected && person.phone && !/^1\d{10}$/.test(person.phone))
+    if (invalidPhone >= 0) return this.participantError(invalidPhone, '请检查选填的本人手机号')
+    if (this.data.step < 2) formFeedback.changeStep(this, wx, { step: this.data.step + 1 })
   },
 
   previousStep() {
-    this.setData({ step: Math.max(1, this.data.step - 1) })
-    wx.pageScrollTo({ scrollTop: 0, duration: 0 })
+    if (this.data.step > 1) formFeedback.changeStep(this, wx, { step: this.data.step - 1 })
   },
+
+  onUnload() { formFeedback.cancel(this) },
 
   async submitRegistration() {
     if (this.data.submitting) return
     if (business.enabled()) {
       const participants = this.data.draft.participants.filter(person => person.selected)
-      if (!this.data.draft.serviceConsent || !participants.length) return wx.showToast({ title: '请确认参与人和必要授权', icon: 'none' })
-      if (!this.data.draft.contactName || !/^1\d{10}$/.test(this.data.draft.contactPhone || '')) return wx.showToast({ title: '请填写主要联系人和手机号', icon: 'none' })
-      const phones = participants.map(person => String(person.phone || '').trim()).filter(Boolean)
-      if (phones.some(phone => !/^1\d{10}$/.test(phone))) return wx.showToast({ title: '请检查选填的参与人手机号', icon: 'none' })
-      if (new Set(phones).size !== phones.length) return wx.showToast({ title: '不能把同一手机号填给多名参与者', icon: 'none' })
-      if (participants.some(person => person.id !== 'person-self' && String(person.phone || '').trim() === this.data.draft.contactPhone.trim())) return wx.showToast({ title: '同行参与者没有本人号码可留空', icon: 'none' })
+      if (!this.data.draft.serviceConsent) return this.registrationError('camp-service-consent', '请确认服务必要信息授权', 2)
+      if (!participants.length) return this.registrationError('camp-participants', '请至少选择一位参与者')
+      if (!this.data.draft.contactName) return this.registrationError('camp-contact-name', '请填写主要联系人姓名')
+      if (!/^1\d{10}$/.test(this.data.draft.contactPhone || '')) return this.registrationError('camp-contact-phone', '请填写正确的主要联系人手机号')
+      const all = this.data.draft.participants
+      const phoneOf = person => String(person.phone || '').trim()
+      const invalidPhone = all.findIndex(person => person.selected && phoneOf(person) && !/^1\d{10}$/.test(phoneOf(person)))
+      if (invalidPhone >= 0) return this.participantError(invalidPhone, '请检查选填的本人手机号')
+      const duplicate = all.findIndex((person, index) => person.selected && phoneOf(person) && all.slice(0, index).some(other => other.selected && phoneOf(other) === phoneOf(person)))
+      if (duplicate >= 0) {
+        const first = all.findIndex(person => person.selected && phoneOf(person) === phoneOf(all[duplicate]))
+        return this.participantError(duplicate, '手机号与第' + (first + 1) + '位参与者（' + (all[first].name || all[first].relation || '未填写姓名') + '）重复，不能共用同一手机号')
+      }
+      const contactReuse = all.findIndex(person => person.selected && person.id !== 'person-self' && phoneOf(person) === this.data.draft.contactPhone.trim())
+      if (contactReuse >= 0) return this.participantError(contactReuse, '请勿复制主要联系人手机号，没有本人号码可留空')
       if (!this.data.requestId) this.setData({ requestId: 'registration-' + Date.now() + '-' + Math.random().toString(36).slice(2) })
+      formFeedback.clearError(this)
       this.setData({ submitting: true })
       try {
         await business.register({ sessionId: this.data.activity.id, clientRequestId: this.data.requestId, invitationCode: this.data.invitationCode || null, serviceConsent: true, motivation: this.data.draft.motivation || null, contactName: this.data.draft.contactName.trim(), contactPhone: this.data.draft.contactPhone.trim(),
@@ -183,16 +204,16 @@ Page({
         this.setData({ view: 'journey' })
         await this.refresh()
         wx.showToast({ title: '报名已收到', icon: 'none' })
-      } catch (error) { wx.showToast({ title: error.message, icon: 'none' }) }
+      } catch (error) { formFeedback.showError(this, wx, { target: 'camp-submit-error', message: error.message || '报名提交失败，请重试' }) }
       finally { this.setData({ submitting: false }) }
       return
     }
     if (!this.data.state.phoneLinked) return navigation.navigateTo({ url: '/pages/mine-flow/index?view=auth&next=register' })
-    if (!this.data.draft.participants.some(person => person.selected)) return wx.showToast({ title: '请至少选择一位参与者', icon: 'none' })
+    if (!this.data.draft.participants.some(person => person.selected)) return this.registrationError('camp-participants', '请至少选择一位参与者')
     if (!this.data.draft.serviceConsent) {
-      return wx.showToast({ title: '请先同意服务必要信息处理', icon: 'none' })
+      return this.registrationError('camp-service-consent', '请先同意服务必要信息处理', 2)
     }
-    if (!domain.activityState(this.data.activity).canRegister) return wx.showToast({ title: '本期暂不能报名', icon: 'none' })
+    if (!domain.activityState(this.data.activity).canRegister) return this.registrationError('camp-submit-error', '本期暂不能报名', this.data.step)
     const status = this.data.activity.status === '候补中' ? 'waitlist' : domain.registrationStatus(this.data.activity)
     store.updateState((state) => {
       state.registrations = state.registrations || {}
@@ -205,6 +226,7 @@ Page({
       if (status === 'confirmed') state.stage = 'journey'
       return state
     })
+    formFeedback.clearError(this)
     this.setData({ view: 'journey' })
     wx.showToast({ title: status === 'pending' ? '报名已收到，等待确认' : status === 'waitlist' ? '候补申请已收到' : '报名已确认', icon: 'none' })
     this.refresh()
@@ -223,7 +245,7 @@ Page({
     wx.showToast({ title: '已记录，现场仍需核验', icon: 'none' })
   },
   toggleDay(event) { const id = event.currentTarget.dataset.id; this.setData({ expandedDay: this.data.expandedDay === id ? '' : id }) },
-  onReviewInput(event) { this.setData({ reviewNote: event.detail.value }) },
+  onReviewInput(event) { this.setData({ reviewNote: event.detail.value, reviewSaved: false }) },
   async saveReview() {
     if (business.enabled()) { this.setData({ feelingNote: this.data.reviewNote }); return this.saveFeeling() }
     if (!this.data.canReview) return
@@ -233,34 +255,39 @@ Page({
     wx.showToast({ title: '感受已保存', icon: 'none' })
   },
   showAddPerson() { this.setData({ addingPerson: !this.data.addingPerson }) },
-  onSelfPhone(event) { const draft = JSON.parse(JSON.stringify(this.data.draft)); const self = draft.participants.find(p => p.id === 'person-self'); if (self) self.phone = event.detail.value; if (!draft.contactPhone) draft.contactPhone = event.detail.value; this.setData({ draft }) },
-  onSelfName(event) { const draft = JSON.parse(JSON.stringify(this.data.draft)); const self = draft.participants.find(p => p.id === 'person-self'); if (self) self.name = event.detail.value; if (!draft.contactName) draft.contactName = event.detail.value; this.setData({ draft }) },
-  onContactName(event) { this.setData({ draft: { ...this.data.draft, contactName: event.detail.value } }) },
-  onContactPhone(event) { this.setData({ draft: { ...this.data.draft, contactPhone: event.detail.value } }) },
-  onPersonName(event) { this.setData({ personName: event.detail.value }) },
-  onPersonPhone(event) { this.setData({ personPhone: event.detail.value }) },
-  onPersonRelation(event) { this.setData({ personRelation: event.detail.value }) },
+  onSelfPhone(event) { formFeedback.clearError(this); const draft = JSON.parse(JSON.stringify(this.data.draft)); const self = draft.participants.find(p => p.id === 'person-self'); if (self) self.phone = event.detail.value; if (!draft.contactPhone) draft.contactPhone = event.detail.value; this.setData({ draft }) },
+  onSelfName(event) { formFeedback.clearError(this); const draft = JSON.parse(JSON.stringify(this.data.draft)); const self = draft.participants.find(p => p.id === 'person-self'); if (self) self.name = event.detail.value; if (!draft.contactName) draft.contactName = event.detail.value; this.setData({ draft }) },
+  onContactName(event) { formFeedback.clearError(this); this.setData({ draft: { ...this.data.draft, contactName: event.detail.value } }) },
+  onContactPhone(event) { formFeedback.clearError(this); this.setData({ draft: { ...this.data.draft, contactPhone: event.detail.value } }) },
+  onPersonName(event) { formFeedback.clearError(this); this.setData({ personName: event.detail.value }) },
+  onPersonPhone(event) { formFeedback.clearError(this); this.setData({ personPhone: event.detail.value }) },
+  onPersonRelation(event) { formFeedback.clearError(this); this.setData({ personRelation: event.detail.value }) },
   toggleMinor() { this.setData({ personMinor: !this.data.personMinor }) },
   addPerson() {
     const name = this.data.personName.trim(), phone = this.data.personPhone.trim(), relation = this.data.personRelation.trim()
-    if (!name || !relation || phone && !/^1\d{10}$/.test(phone)) return wx.showToast({ title: '请填写姓名和关系，并检查选填手机号', icon: 'none' })
+    if (!name) return this.registrationError('camp-person-name', '请填写新增参与者的姓名或称呼')
+    if (!relation) return this.registrationError('camp-person-relation', '请填写新增参与者与你的关系')
+    if (phone && !/^1\d{10}$/.test(phone)) return this.registrationError('camp-person-phone', '请检查新增参与者选填的本人手机号')
     const draft = JSON.parse(JSON.stringify(this.data.draft))
     draft.participants.push({ id: 'person-' + Date.now(), name, phone, relation, minor: this.data.personMinor, selected: true })
     this.setData({ draft })
+    formFeedback.clearError(this)
     this.setData({ addingPerson: false, personName: '', personPhone: '', personRelation: '', personMinor: false })
     this.refresh()
   },
   openReflection() { navigation.navigateTo({ url: '/pages/camp-reflection/index?id=' + encodeURIComponent(this.data.activity.id) }) },
   openFeeling() { this.setData({ view: 'feeling' }) },
   chooseScale(event) { const { field, value } = event.currentTarget.dataset; if (['energy','relaxation'].includes(field)) this.setData({ [field]: this.data[field] === Number(value) ? null : Number(value) }) },
-  onFeelingInput(event) { this.setData({ feelingNote: event.detail.value }) },
+  onFeelingInput(event) { this.setData({ feelingNote: event.detail.value, feelingSaved: false, reviewSaved: false }) },
   async saveFeeling() {
     if (this.data.feelingSaving || !this.data.canRecordFeeling) return
+    const note = this.data.feelingNote, phase = this.data.feelingPhase
     this.setData({ feelingSaving: true })
     try {
-      await business.saveExperience({ registrationId: this.data.feelingRegistrationId, phase: this.data.feelingPhase, sessionDayId: null, energy: null, relaxation: null, note: this.data.feelingNote })
-      this.setData({ feelingSaved: true, reviewSaved: this.data.feelingPhase === 'after' })
-      wx.showToast({ title: '感受已保存，仅自己可见', icon: 'none' })
+      await business.saveExperience({ registrationId: this.data.feelingRegistrationId, phase, sessionDayId: null, energy: null, relaxation: null, note })
+      this.setData({ feelingSaved: this.data.feelingNote === note, reviewSaved: phase === 'after' && this.data.reviewNote === note })
+      const draftChanged = this.data.view === 'experience' ? this.data.reviewNote !== note : this.data.feelingNote !== note
+      wx.showToast({ title: draftChanged ? '提交内容已保存，新修改未保存' : '感受已保存，仅自己可见', icon: 'none' })
     } catch (error) { wx.showToast({ title: error.message, icon: 'none' }) }
     finally { this.setData({ feelingSaving: false }) }
   },

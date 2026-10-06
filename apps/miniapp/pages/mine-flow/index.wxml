@@ -26,19 +26,19 @@
     <soft-loading wx:if="{{collectionsLoading}}" text="正在读取收藏…" />
     <view wx:if="{{collectionsError}}" class="empty-state"><view class="empty-copy">{{collectionsError}}</view><button class="empty-action" bindtap="loadCollections">重试</button></view>
     <view wx:if="{{!collectionsLoading && !collectionsError && !collections.length}}" class="empty-state"><view class="empty-title">还没有收藏内容</view><view class="empty-copy">在轻读遇见想慢慢读的文章，可以先收进这里。</view><button class="empty-action" bindtap="openReading">去轻读看看</button></view>
-    <view wx:for="{{collections}}" wx:key="id" class="card" data-id="{{item.id}}" data-title="{{item.title}}" bindtap="openArticle"><view class="pill">{{item.category}}</view><view class="card-title">{{item.title}}</view><view class="card-copy">{{item.summary}}</view></view>
+    <view wx:for="{{collections}}" wx:key="favoriteKey" class="card" data-id="{{item.id}}" data-title="{{item.title}}" data-source="{{item.source}}" bindtap="openArticle"><view class="pill">{{item.category}}</view><view class="card-title">{{item.title}}</view><view class="card-copy">{{item.summary}}</view></view>
   </block>
 
   <block wx:elif="{{view === 'privacy'}}">
-    <view class="hero"><view class="hero-title">设置与隐私</view><view class="hero-copy">账号与不同用途的授权分别管理。</view></view>
+    <view class="hero"><view class="hero-title">设置与隐私</view><view class="hero-copy">下方开关仅保存本机偏好，不会同步或更改已提交的授权。</view></view>
     <button class="text-button" bindtap="openAccount">{{state.phoneLinked ? '查看账号信息' : '登录并关联手机号'}}</button>
     <view class="card">
       <view class="list-row"><view class="list-main"><text class="list-title">服务必要信息</text><text class="list-note">用于报名、签到与履约</text></view><view class="pill">{{state.registration.serviceConsent ? '已同意' : '使用服务时确认'}}</view></view>
-      <view class="list-row" data-key="operationConsent" bindtap="togglePrivacy"><view class="list-main"><text class="list-title">运营联系</text><text class="list-note">接收后续活动介绍，可以关闭；不影响必要的履约联系。</text></view><switch checked="{{state.operationConsent}}" color="#A6B6A2"/></view>
-      <view wx:if="{{state.aiConsent}}" class="list-row" data-key="aiConsent" bindtap="togglePrivacy"><view class="list-main"><text class="list-title">个性化分析</text><text class="list-note">需单独授权</text></view><switch checked="{{state.aiConsent}}" color="#A6B6A2"/></view>
-      <view class="list-row" bindtap="toggleSubscription"><view class="list-main"><text class="list-title">微信订阅消息</text><text class="list-note">独立于运营联系；当前仅保存本机偏好，正式订阅尚未接通。</text></view><switch checked="{{state.subscriptionEnabled}}" color="#A6B6A2"/></view>
+      <view class="list-row" data-key="operationConsent" bindtap="togglePrivacy"><view class="list-main"><text class="list-title">运营联系偏好（本机）</text><text class="list-note">仅记录是否希望接收活动介绍，不会更改服务端授权或联系安排。</text></view><switch checked="{{state.operationConsent}}" color="#A6B6A2"/></view>
+      <view wx:if="{{state.aiConsent}}" class="list-row" data-key="aiConsent" bindtap="togglePrivacy"><view class="list-main"><text class="list-title">个性化分析偏好（本机）</text><text class="list-note">仅保存本机偏好，不会开启分析或撤回已提交的授权。</text></view><switch checked="{{state.aiConsent}}" color="#A6B6A2"/></view>
+      <view class="list-row" bindtap="toggleSubscription"><view class="list-main"><text class="list-title">提醒偏好（本机）</text><text class="list-note">仅记录是否希望接收提醒；微信订阅尚未接通，当前不会发送提醒消息。</text></view><switch checked="{{state.subscriptionEnabled}}" color="#A6B6A2"/></view>
     </view>
-    <view class="privacy-note">私人记录不会因开启运营联系或订阅消息而公开。</view>
+    <view class="privacy-note">这些本机偏好不会改变私人记录的可见范围。</view>
   </block>
 
   <block wx:elif="{{view === 'experiences'}}">

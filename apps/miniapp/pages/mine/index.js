@@ -52,6 +52,7 @@ Page({
     try {
       await business.login()
       await this.refresh()
+      if (this.data.loadError) return wx.showToast({ title: '个人信息读取失败，请重试', icon: 'none' })
       await this.refreshStaffAccess()
       wx.showToast({ title: '登录成功', icon: 'success' })
     } catch (error) {
@@ -67,15 +68,15 @@ Page({
       try {
         const { state } = await business.context()
         const passConsumptions=(state.passLedger||[]).filter(item=>item.entryType==='consume').slice(0,3)
-        this.setData({ state, passConsumptions, avatarText: state.loggedIn ? (state.profile.nickname || '轻').slice(0,1) : '登录' })
-      } catch (error) { this.setData({ loadError: error.message, ...(error.code === 401 ? { state: {}, passConsumptions: [] } : {}) }) }
-      finally { this.setData({ loading: false, refreshing: false, ready: true }) }
+        this.setData({ ready: true, state, passConsumptions, avatarText: state.loggedIn ? (state.profile.nickname || '轻').slice(0,1) : '登录' })
+      } catch (error) { this.setData({ loadError: error.message || '暂时无法读取，请重试', ...(error.code === 401 ? { ready: false, state: {}, passConsumptions: [] } : {}) }) }
+      finally { this.setData({ loading: false, refreshing: false }) }
       return
     }
     const state = store.getState()
     const name = state.profile.nickname || '轻'
     this.setData({
-      state,
+      state, loading: false, refreshing: false, loadError: '', ready: true,
       avatarText: state.loggedIn ? name.slice(0, 1) : '登录',
       passConsumptions: []
     })

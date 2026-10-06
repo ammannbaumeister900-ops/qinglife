@@ -5,7 +5,7 @@ function page(api, storage = new Map()) {
   let result
   const toasts = []
   const wx = { getStorageSync: key => storage.get(key), setStorageSync: (key, value) => storage.set(key, JSON.parse(JSON.stringify(value))), removeStorageSync: key => storage.delete(key), showToast: value => toasts.push(value.title), navigateBack() {} }
-  vm.runInNewContext(fs.readFileSync(path.resolve(__dirname, '../pages/friend-registration/index.js'), 'utf8'), { require: () => api, Page: value => { result = value }, wx, Date, Math, console })
+  vm.runInNewContext(fs.readFileSync(path.resolve(__dirname, '../pages/friend-registration/index.js'), 'utf8'), { require: id => id.includes('business-api') ? api : require(path.resolve(__dirname, '../pages/friend-registration', id)), Page: value => { result = value }, wx, Date, Math, console })
   result.data = JSON.parse(JSON.stringify(result.data))
   result.setData = patch => { for (const [key, value] of Object.entries(patch)) { const parts = key.split('.'); if (parts.length === 2) result.data[parts[0]][parts[1]] = value; else result.data[key] = value } }
   return { result, toasts, storage }
@@ -18,7 +18,7 @@ test('province/city picker replaces free text and keeps the two structured value
   assert.ok(p.validate(1))
   p.pickRegion({ detail: { value: ['浙江省', '杭州市', '西湖区'] } })
   assert.equal(p.data.form.province, '浙江省'); assert.equal(p.data.form.city, '杭州市')
-  assert.equal(p.validate(1), '')
+  assert.equal(p.validate(1), null)
   p.pickRegion({ detail: { value: [] } })
   assert.equal(p.data.form.city, '杭州市')
 })

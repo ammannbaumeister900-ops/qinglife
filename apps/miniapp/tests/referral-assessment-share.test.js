@@ -3,7 +3,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
 function page(file,api,storage=new Map()) {
   let p;const toasts=[]
   const wx={getStorageSync:k=>storage.get(k),setStorageSync:(k,v)=>storage.set(k,JSON.parse(JSON.stringify(v))),removeStorageSync:k=>storage.delete(k),showToast:r=>toasts.push(r.title),switchTab:()=>{}}
-  vm.runInNewContext(fs.readFileSync(path.resolve(__dirname,'../'+file),'utf8'),{Page:v=>p=v,require:name=>name.includes('discovery')?{activities:list=>list}:name.includes('invitation-presets')?require('../utils/invitation-presets'):api,wx,Date,Math,console,decodeURIComponent})
+  vm.runInNewContext(fs.readFileSync(path.resolve(__dirname,'../'+file),'utf8'),{Page:v=>p=v,require:name=>name.includes('form-feedback')?require('../utils/form-feedback'):name.includes('discovery')?{activities:list=>list}:name.includes('invitation-presets')?require('../utils/invitation-presets'):api,wx,Date,Math,console,decodeURIComponent})
   p.data=JSON.parse(JSON.stringify(p.data));p.setData=patch=>{for(const [key,val] of Object.entries(patch)){const parts=key.split('.');if(parts.length===2)p.data[parts[0]][parts[1]]=val;else p.data[key]=val}}
   return {p,storage,toasts}
 }
