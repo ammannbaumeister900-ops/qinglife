@@ -1,137 +1,48 @@
-.profile-head {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 26rpx;
-  margin-bottom: 36rpx;
-  padding: 40rpx 70rpx 40rpx 40rpx;
-  border: 1rpx solid rgba(255, 255, 255, 0.66);
-  border-radius: var(--ql-radius-card);
-  background:
-    radial-gradient(circle at 96% 0%, rgba(228, 209, 194, 0.5), transparent 34%),
-    rgba(255, 252, 247, 0.86);
-  box-shadow: var(--ql-shadow-card);
-}
-.profile-avatar {
-  display: flex;
-  width: 96rpx;
-  height: 96rpx;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  background: var(--ql-clay);
-  color: var(--ql-surface);
-  font-family: var(--ql-serif);
-  font-size: 38rpx;
-  flex-shrink: 0;
-}
-.profile-title {
-  font-family: var(--ql-serif);
-  font-size: 36rpx;
-  line-height: 1.5;
-}
-.profile-login {
-  width: 220rpx;
-  min-height: 76rpx;
-  margin: 20rpx 0 0;
-  padding: 0 24rpx;
-  line-height: 76rpx;
-}
-.profile-side {
-  position: absolute;
-  top: 34rpx;
-  right: 24rpx;
-  color: var(--ql-clay);
-  font-size: 23rpx;
-}
-
-/* 目录式服务列表：发丝线分隔 */
-.asset-list {
-  padding: 4rpx 6rpx 0;
-  border-top: 1rpx solid rgba(74, 61, 49, 0.14);
-}
-.asset {
-  display: flex;
-  align-items: center;
-  gap: 24rpx;
-  width: 100%;
-  margin: 0;
-  padding: 30rpx 0;
-  border-bottom: 1rpx solid rgba(74, 61, 49, 0.14);
-  border-radius: 0;
-  background: transparent;
-  text-align: left;
-  line-height: 1.4;
-}
-.asset:active { opacity: 0.7; }
-.asset-name {
-  flex: 1;
-  font-size: 28rpx;
-  font-weight: 500;
-}
-.asset-chevron { color: var(--ql-ink-ghost); font-size: 32rpx; }
-.asset-icon {
-  display: flex;
-  width: 68rpx;
-  height: 68rpx;
-  align-items: center;
-  justify-content: center;
-  border-radius: 20rpx;
-  font-family: var(--ql-serif);
-  font-size: 30rpx;
-  flex-shrink: 0;
-}
-.sage-bg { background: var(--ql-tint-sage); color: var(--ql-sage-deep); }
-.clay-bg { background: var(--ql-tint-clay); color: var(--ql-clay-deep); }
-.mist-bg { background: var(--ql-tint-mist); color: #5F7580; }
-.lavender-bg { background: var(--ql-tint-lavender); color: #7A6A7C; }
-
-.history-entry { margin-top: 40rpx; color: var(--ql-ink-light); font-size: 26rpx; }
-
+.mine-page { padding: 28rpx 40rpx calc(180rpx + env(safe-area-inset-bottom)); background: var(--ql-bg); }
+.mine-page::before { display: none; }
+.profile-head { display: flex; align-items: center; gap: 24rpx; padding: 12rpx 0 32rpx; }
+.profile-avatar { display: flex; flex: none; align-items: center; justify-content: center; width: 80rpx; height: 80rpx; border-radius: 10rpx; background: var(--ql-bg-deep); color: var(--ql-ink); font-size: 30rpx; }
+.profile-title { font-size: 32rpx; font-weight: 500; line-height: 1.6; overflow-wrap: anywhere; }
+.mine-page button.profile-nickname-entry { min-height: 44px; margin: 0; padding: 8rpx 0; border-radius: 0; background: transparent; color: var(--ql-ink); text-align: left; white-space: normal; }
+.mine-page .primary, .mine-page .secondary, .mine-page .text-button { min-height: 44px; padding: 16rpx 24rpx; border-radius: 10rpx; font-size: 28rpx; line-height: 1.5; }
+.mine-page .profile-login { width: auto; min-height: 48px; margin: 16rpx 0 0; }
+.asset-list { border-top: 1rpx solid var(--ql-border); }
+.mine-page .asset { display: flex; align-items: center; gap: 24rpx; width: 100%; min-height: 44px; margin: 0; padding: 24rpx 0; border-bottom: 1rpx solid var(--ql-border); border-radius: 0; background: transparent; color: var(--ql-ink); text-align: left; line-height: 1.6; white-space: normal; }
 .asset-main { flex: 1; min-width: 0; }
-.asset-description { font-size: 23rpx; color: var(--ql-ink-light); margin-top: 10rpx; }
-.profile-head { padding: 32rpx; }
-.profile-title { font-size: 32rpx; }
-
-.mine-page .asset { width: 100%; margin: 0; text-align: left; }
-
-.staff-entry{background:#465d49;color:#fff;padding:44rpx 40rpx;border-radius:28rpx;margin:32rpx 0}
-.staff-entry-top{display:flex;justify-content:space-between;align-items:center}
-.staff-entry-tag{font-size:22rpx;padding:8rpx 22rpx;border-radius:999rpx;background:rgba(255,255,255,.13);color:#edf3e7;letter-spacing:2rpx}
-.staff-entry-arrow{color:#d5decd;font-size:34rpx}
-.staff-entry-title{font-family:var(--ql-serif);font-size:44rpx;margin:30rpx 0 12rpx}
-.staff-entry-desc{color:#d5decd;font-size:25rpx;line-height:1.7}
-.staff-entry-btn{margin-top:36rpx;background:#f8f3e8;color:#354c3a;min-height:92rpx;display:flex;align-items:center;justify-content:center;font-weight:600;border-radius:20rpx}
-.staff-entry-btn::after{border:0}
-.contact-card { margin-top: 28rpx; padding: 30rpx 28rpx; border: 1rpx solid var(--ql-border); border-radius: var(--ql-radius-card); background: rgba(255,255,255,.58); }
-.contact-top { display: flex; align-items: center; justify-content: space-between; gap: 18rpx; }
+.asset-name { font-size: 30rpx; font-weight: 500; overflow-wrap: anywhere; }
+.asset-description { margin-top: 6rpx; color: var(--ql-ink-light); font-size: 28rpx; line-height: 1.6; overflow-wrap: anywhere; }
+.asset-chevron { flex: none; color: var(--ql-ink-light); font-size: 32rpx; }
+.pass-ledger { margin-top: 32rpx; padding-bottom: 24rpx; border-bottom: 1rpx solid var(--ql-border); }
+.pass-balance-row, .pass-summary { display: flex; flex-wrap: wrap; align-items: baseline; gap: 16rpx; }
+.pass-balance-row { justify-content: space-between; margin-bottom: 20rpx; }
+.pass-label { font-size: 30rpx; font-weight: 500; }
+.pass-caption, .pass-unit, .pass-record-label, .pass-record-date { color: var(--ql-ink-light); font-size: 28rpx; line-height: 1.6; }
+.pass-balance { color: var(--ql-ink); font-size: 36rpx; font-weight: 500; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.pass-record { display: flex; align-items: flex-start; justify-content: space-between; gap: 20rpx; padding: 16rpx 0; font-size: 28rpx; line-height: 1.6; }
+.pass-record-main { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.pass-record-date { margin-top: 4rpx; }
+.pass-record-amount { flex: none; text-align: right; font-variant-numeric: tabular-nums; }
+.utility-list { margin-top: 24rpx; }
+.mine-page .utility-entry { display: flex; align-items: center; gap: 24rpx; width: 100%; min-height: 44px; margin: 0; padding: 20rpx 0; border-radius: 0; background: transparent; color: var(--ql-ink-light); font-size: 28rpx; text-align: left; line-height: 1.6; white-space: normal; }
+.utility-name { flex: 1; }
+.contact-section { margin-top: 24rpx; padding: 28rpx 0; border-top: 1rpx solid var(--ql-border); }
+.contact-label { color: var(--ql-ink-light); font-size: 28rpx; }
+.contact-top { display: flex; align-items: center; gap: 20rpx; margin-top: 12rpx; }
 .contact-main { flex: 1; min-width: 0; }
-.contact-wechat { font-size: 29rpx; letter-spacing: 1rpx; color: #58634b; }
-.contact-hint { margin-top: 24rpx; font-size: 23rpx; line-height: 1.6; color: var(--ql-ink-light); }
-.contact-title { margin: 8rpx 0; font-family: var(--ql-serif); font-size: 34rpx; }
-.mine-page button.contact-copy { flex-shrink: 0; width: auto; min-width: 0; margin: 0; padding: 0 24rpx; font-size: 25rpx; line-height: 76rpx; min-height: 76rpx; }
-
-.mine-page { background: linear-gradient(180deg,#F1F1EA,#F6F1E8 900rpx); }
-
-button.profile-nickname-entry { margin: 0; padding: 8rpx 0; min-height: 88rpx; background: transparent; color: #876750; text-align: left; font-weight: 400; white-space: normal; }
-
-.mine-page button.invite-entry { display: flex; justify-content: space-between; align-items: center; width: 100%; box-sizing: border-box; margin: 0 0 40rpx; padding: 36rpx; border: 1rpx solid #ddc5be; border-radius: 24rpx; background: linear-gradient(125deg,#f5e5de,#ede5dc); color: #604a41; text-align: left; line-height: 1.5; overflow: hidden; }
-.invite-entry::after { border: 0; }
-.invite-entry-copy { min-width: 0; flex: 1; }
-.invite-kicker { font-size: 22rpx; letter-spacing: 2rpx; color: #99796b; }
-.invite-title { margin: 12rpx 0 8rpx; font-family: var(--ql-serif); font-size: 42rpx; letter-spacing: 4rpx; }
-.invite-subtitle { font-size: 24rpx; color: #8a7062; }
-.invite-action { display: inline-flex; gap: 26rpx; align-items: center; margin-top: 28rpx; padding: 12rpx 24rpx; border: 1rpx solid #bca194; border-radius: 999rpx; font-size: 25rpx; }
-.invite-still-life { position: relative; width: 120rpx; height: 190rpx; margin-left: 18rpx; flex-shrink: 0; overflow: hidden; border-radius: 70rpx; }
-.invite-produce { position: absolute; width: 360rpx; height: 288rpx; right: -12rpx; top: -62rpx; }
-.pass-ledger { margin: 0 0 40rpx; padding: 28rpx 6rpx; border-top: 1rpx solid #d7d6cb; border-bottom: 1rpx solid #d7d6cb; }
-.pass-balance-row { display: flex; align-items: center; justify-content: space-between; gap: 24rpx; margin-bottom: 28rpx; }
-.pass-label { font-size: 28rpx; color: #53604e; }
-.pass-caption { font-size: 23rpx; line-height: 1.6; color: #8c8d7e; margin-top: 8rpx; }
-.pass-balance { font-family: var(--ql-serif); font-size: 72rpx; line-height: 1.2; color: #59644f; }
-.pass-unit { font-size: 25rpx; }
-.pass-record-label { font-size: 22rpx; color: #949182; margin-bottom: 6rpx; }
-.pass-record { display: flex; justify-content: space-between; align-items: center; gap: 24rpx; padding: 20rpx 0; font-size: 25rpx; }
-.pass-record-main { min-width: 0; }
-.pass-record-date { margin-top: 6rpx; font-size: 21rpx; color: #999184; }
-.pass-record-amount { text-align: right; flex-shrink: 0; color: #6c7462; }
+.contact-title { color: var(--ql-ink); font-size: 30rpx; line-height: 1.6; overflow-wrap: anywhere; }
+.contact-wechat { color: var(--ql-ink); font-size: 28rpx; line-height: 1.6; overflow-wrap: anywhere; }
+.mine-page button.contact-copy { flex: none; width: auto; margin: 0; background: transparent; }
+.contact-hint { margin-top: 12rpx; color: var(--ql-ink-light); font-size: 28rpx; line-height: 1.6; }
+.mine-page .staff-entry { padding-top: 24rpx; border-top: 1rpx solid var(--ql-border); }
+.mine-page .empty-state { margin: 0; padding: 32rpx 0; border: none; border-radius: 0; background: transparent; color: var(--ql-ink-light); font-size: 28rpx; text-align: left; overflow-wrap: anywhere; }
+.mine-page .refresh-note { position: static; margin: 0 0 12rpx; padding: 0; border-radius: 0; background: transparent; color: var(--ql-ink-light); font-size: 28rpx; }
+.mine-page button:active { opacity: .8; transform: none; }
+@media (max-width: 350px) {
+  .profile-title { font-size: 16px; }
+  .asset-name, .pass-label, .contact-title { font-size: 15px; }
+  .profile-avatar { font-size: 14px; }
+  .asset-description, .pass-caption, .pass-unit, .pass-record-label, .pass-record-date, .pass-record,
+  .mine-page .utility-entry, .contact-label, .contact-wechat, .contact-hint, .mine-page .empty-state,
+  .mine-page .refresh-note, .mine-page .primary, .mine-page .secondary, .mine-page .text-button { font-size: 14px; }
+}
+@media (prefers-reduced-motion: reduce) { .mine-page button { transition: none; } }
