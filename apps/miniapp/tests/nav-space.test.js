@@ -110,7 +110,7 @@ test('navigation stays fixed to the viewport while the spacer remains in documen
   assert.ok(wxml.includes('wx:if="{{title}}"'))
 })
 
-test('article, camp-flow and all other consumers keep their shared component configuration and existing modes', () => {
+test('article, camp-flow and all other consumers keep their shared component configuration and appropriate content spacers', () => {
   const app = JSON.parse(fs.readFileSync(path.join(root, 'app.json'), 'utf8'))
   const users = []
   for (const route of app.pages) {
@@ -125,7 +125,8 @@ test('article, camp-flow and all other consumers keep their shared component con
   const article = fs.readFileSync(path.join(root, 'pages/article/index.wxml'), 'utf8')
   assert.match(article, /<ql-nav-space back(?: immersive)?\s*\/>/)
   const camp = fs.readFileSync(path.join(root, 'pages/camp-flow/index.wxml'), 'utf8')
-  assert.ok(camp.includes('back immersive="{{view === \'detail\'}}"'))
+  assert.match(camp, /<ql-nav-space title="[^"]*" back\s*\/>/)
+  assert.ok(!camp.includes('back immersive='), 'decision-first camp detail must retain the measured content spacer')
   assert.deepEqual(app.tabBar.list.map(item => item.pagePath), ['pages/home/index', 'pages/camp/index', 'pages/content/index', 'pages/mine/index'])
   assert.equal(app.tabBar.custom, true)
   assert.equal(JSON.parse(fs.readFileSync(path.join(componentRoot, 'index.json'), 'utf8')).component, true)
