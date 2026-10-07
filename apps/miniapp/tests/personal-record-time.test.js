@@ -13,7 +13,7 @@ function fixture(records = [], options = {}) {
     activities: [{ id: 'session-1', name: '同一期活动' }, { id: 'session-2', name: '另一期活动' }],
     overview: { experienceRecords: records, registrations: options.registrations || [{ registrationId: 'self', isSelf: 1, sessionId: 'session-1' }] }
   }
-  const writes = [], business = {
+  const writes = [], links = [], business = {
     enabled: () => options.backend !== false, context: async () => context,
     saveExperience: () => { throw new Error('Display must not write records') }
   }
@@ -21,12 +21,12 @@ function fixture(records = [], options = {}) {
   let page
   vm.runInNewContext(fs.readFileSync(path.join(root, 'pages/personal/index.js'), 'utf8'), {
     Page: value => { page = value }, require: name => ({ '../../services/business-api': business, '../../utils/store': store,
-      '../../data/demo': { activities: context.activities }, '../../utils/navigation': {} })[name]
+      '../../data/demo': { activities: context.activities }, '../../utils/navigation': { navigateTo: x => links.push(x.url), switchTab: x => links.push(x.url) } })[name]
   })
   page.data = plain(page.data)
   page.setData = patch => Object.assign(page.data, patch)
   page.onLoad({ view: 'records', id: options.sessionId || '' })
-  return { page, business, context, writes }
+  return { page, business, context, writes, links }
 }
 const record = (id, updatedAt, extra = {}) => ({ id, registrationId: 'self', phase: 'during', note: '私人正文 ' + id, visibility: 'private', updatedAt, ...extra })
 
@@ -112,5 +112,117 @@ test('time is conditional secondary metadata and does not replace the stage or p
   assert.ok(wxml.includes('{{item.label}} · 仅自己可见'))
   assert.ok(wxml.includes('wx:if="{{item.recordTimeText}}" class="record-time">最近保存 · {{item.recordTimeText}}'))
   assert.ok(wxml.includes("{{item.note || '这一次，留下了一份状态记录。'}}"))
-  assert.match(css, /\.record-time\s*\{[^}]*color:\s*var\(--ql-ink-ghost\);[^}]*font-size:\s*22rpx/)
+  assert.match(css, /\.record-time[^}]*font-size:\s*28rpx/)
+  assert.ok(wxml.indexOf('class="record-body"') < wxml.indexOf('class="record-time"'))
 })
+
+// Evaluate the current WXML so feedback tests assert visible content, not just page data.
+function parse(xml = fs.readFileSync(path.join(root, 'pages/personal/index.wxml'), 'utf8')) {
+  const tree = { children: [] }, stack = [tree]
+  for (const token of xml.match(/<(?:[^<>"']|"[^"]*"|'[^']*')+>|[^<]+/g) || []) {
+    if (token.startsWith('</')) { assert.equal(stack.pop().tag, token.match(/^<\/([\w-]+)/)[1]); continue }
+    if (!token.startsWith('<')) { stack.at(-1).children.push({ text: token }); continue }
+    const tag = token.match(/^<([\w-]+)/)[1], attrs = {}
+    for (const a of token.slice(tag.length + 1).replace(/\/?\s*>$/, '').matchAll(/([\w:-]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'))?/g)) attrs[a[1]] = a[2] ?? a[3] ?? true
+    const node = { tag, attrs, children: [] }; stack.at(-1).children.push(node)
+    if (!token.endsWith('/>')) stack.push(node)
+  }
+  assert.equal(stack.length, 1); return tree
+}
+function value(template, scope) {
+  if (template === true) return true
+  const evaluate = code => { try { return vm.runInNewContext(code, scope) } catch (e) { if (e.name === 'ReferenceError' || e.name === 'TypeError') return undefined; throw e } }
+  const binding = template.match(/^{{([\s\S]*?)}}$/)
+  if (binding && !binding[1].includes('}}')) return evaluate(binding[1])
+  return template.replace(/{{([\s\S]*?)}}/g, (_, code) => evaluate(code) ?? '')
+}
+function render(children, scope) {
+  const nodes = []; let branch = false
+  for (const node of children) {
+    if ('text' in node) { nodes.push({ text: String(value(node.text, scope) ?? '') }); continue }
+    const a = node.attrs
+    const scopes = a['wx:for'] ? (value(a['wx:for'], scope) || []).map((item, index) => ({ ...scope, item, index })) : [scope]
+    for (const current of scopes) {
+      let visible = true
+      if ('wx:if' in a) { visible = !!value(a['wx:if'], current); branch = visible }
+      else if ('wx:elif' in a) { visible = !branch && !!value(a['wx:elif'], current); branch ||= visible }
+      else if ('wx:else' in a) { visible = !branch; branch = true }
+      else branch = false
+      if (visible) nodes.push({ tag: node.tag, attrs: Object.fromEntries(Object.entries(a).filter(([k]) => !k.startsWith('wx:')).map(([k,v]) => [k,value(v,current)])), children: render(node.children,current) })
+    }
+  }
+  return nodes
+}
+const flatten = nodes => nodes.flatMap(n => [n, ...flatten(n.children || [])])
+const has = (node, name) => String(node.attrs?.class || '').split(' ').includes(name)
+const text = node => flatten([node]).filter(n => 'text' in n).map(n => n.text).join('').trim()
+const visible = page => flatten(render(parse().children,page.data))
+
+test('rendered records retain individual stage, complete multiline body and conditional save times', async () => {
+  const f = fixture([record('one', '2026-10-06 09:10:01', { note: '第一段感受\n第二段感受', energy: 3 }),record('two','2026-10-06 09:10:02'),record('old',null)])
+  await f.page.refresh()
+  const rows = visible(f.page).filter(n => has(n,'record-row'))
+  assert.equal(rows.length,3)
+  for (const row of rows) assert(text(row).includes('活动期间 · 仅自己可见'))
+  assert.equal(text(flatten([rows[0]]).find(n => has(n,'record-body'))),'第一段感受\n第二段感受')
+  assert(text(rows[0]).includes('精力 3 · 放松 未填'))
+  assert(text(rows[0]).includes('09:10:01')); assert(text(rows[1]).includes('09:10:02'))
+  assert(!flatten([rows[2]]).some(n => has(n,'record-time')))
+})
+
+test('participation renders registration and settlement independently and preserves the session action', async () => {
+  const f = fixture()
+  f.page.onLoad({view:'experiences'})
+  f.context.state.registrations = { first: {activityId:'session-1',status:'pending',participants:[{name:'自己'},{name:'家人'}],settlementStatus:'confirmed',settlementType:'cash',paymentStatus:'paid'} }
+  await f.page.refresh()
+  const nodes=visible(f.page), rows=nodes.filter(n=>has(n,'participation-state'))
+  assert.deepEqual(rows.map(text),['报名待确认','结算现金已收款'])
+  assert(!nodes.some(n=>has(n,'record-row')))
+  const action=nodes.find(n=>n.attrs?.bindtap==='openSession')
+  assert.equal(action.attrs['data-id'],'session-1')
+  f.page.openSession({currentTarget:{dataset:{id:'session & 2'}}})
+  assert.equal(f.links[0],'/pages/camp-flow/index?view=journey&id=session%20%26%202')
+  f.context.state.registrations.first.status='completed'
+  f.context.state.registrations.first.settlementType='pass'
+  await f.page.refresh()
+  assert.deepEqual(visible(f.page).filter(n=>has(n,'participation-state')).map(text),['报名已完成','结算卡次已使用'])
+})
+
+test('loading, error and logged-out branches never expose private rows or false empty states', async () => {
+  const f=fixture([record('private','2026-10-06 09:00:01')])
+  await f.page.refresh()
+  for(const patch of [{loading:true},{loading:false,error:'offline'},{error:'',loggedIn:false}]) {
+    f.page.setData(patch)
+    const nodes=visible(f.page)
+    assert(!nodes.some(n=>has(n,'record-row')||has(n,'experience-row')))
+    assert(!nodes.some(n=>n.text?.includes('还没有私人记录')))
+    if(patch.error) assert(nodes.some(n=>n.attrs?.bindtap==='refresh'))
+    if(patch.loggedIn===false) assert(nodes.some(n=>n.attrs?.bindtap==='login'))
+  }
+  await f.page.refresh()
+  assert.equal(visible(f.page).filter(n=>has(n,'record-row')).length,1)
+  f.page.onHide(); assert(!visible(f.page).some(n=>has(n,'record-row')))
+})
+
+test('empty views remain specific, keep privacy explanation and preserve the camp recovery action', async () => {
+  const f=fixture([])
+  await f.page.refresh()
+  assert(visible(f.page).some(n=>n.text?.includes('还没有私人记录')))
+  assert(visible(f.page).some(n=>n.text?.includes('替家人报名不会看到对方的私人记录')))
+  f.page.onLoad({view:'experiences'})
+  assert(visible(f.page).some(n=>n.attrs?.bindtap==='openCamp'))
+  f.page.openCamp(); assert.equal(f.links[0],'/pages/camp/index')
+  assert(!visible(f.page).some(n=>n.text?.includes('还没有私人记录')))
+})
+
+test('combined session view distinguishes arrangements from records without adding headings to single-purpose views', async () => {
+  const f=fixture([record('one','2026-10-06 09:00:01')])
+  await f.page.refresh()
+  assert(!visible(f.page).some(n=>has(n,'personal-section-title')))
+  f.page.onLoad({view:'experience'})
+  assert.deepEqual(visible(f.page).filter(n=>has(n,'personal-section-title')).map(text),['参与安排','私人记录'])
+  f.page.onLoad({view:'experiences'})
+  assert(!visible(f.page).some(n=>has(n,'personal-section-title')))
+})
+
+module.exports={parse,render,flatten,fixture,has,text}
