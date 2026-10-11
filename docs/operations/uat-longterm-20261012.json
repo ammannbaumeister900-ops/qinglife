@@ -36,8 +36,8 @@
       ]
     }
   },
-  "githubCommit": null,
-  "githubStatus": "pending explicit consent",
+  "githubCommit": "1a9b8e59ab7387636a0f538226df87a52032104b",
+  "githubStatus": "source snapshot pushed with explicit user approval",
   "trialAssignmentEvidence": "Administrator confirmed version, members and legal domains in this conversation on 2026-10-12",
   "trialVersionPhysicalDeviceVerified": false,
   "verification": {
@@ -88,11 +88,14 @@
       "syntheticAccountsDisabled": true
     },
     "domainDownload": {
-      "wxDownloadFileToUat": false,
-      "ok": false,
-      "error": "downloadFile:fail createDownloadTask:fail url not in domain list",
+      "wxDownloadFileToUat": true,
+      "ok": true,
+      "status": 200,
       "physicalTrialScanVerified": false
-    }
+    },
+    "domainConfigurationReloaded": true
   },
-  "miniappArchiveSha256": "93d27d83143616004fd9bded0fefd848002bcf895ec6bba6cf4e427cd9b4aa44"
+  "miniappArchiveSha256": "93d27d83143616004fd9bded0fefd848002bcf895ec6bba6cf4e427cd9b4aa44",
+  "githubBranch": "uat/20261012-longterm",
+  "githubSourceUrl": "https://github.com/ammannbaumeister900-ops/qinglife/tree/uat/20261012-longterm"
 }
