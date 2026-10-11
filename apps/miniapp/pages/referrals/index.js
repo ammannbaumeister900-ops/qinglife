@@ -4,8 +4,19 @@ const presets = require('../../utils/invitation-presets')
 const statusText = { pending:'待确认', confirmed:'已确认', waitlisted:'候补中', cancelled:'已取消', completed:'已完成' }
 Page({
   data: { loading:true, error:'', eligible:false, sessions:[], records:[], sharePath:'', preparing:false, presets, selectedPreset:presets[0], selectedSessionId:'' },
-  onShow() { return this.refresh() },
-  onUnload() { this.requestVersion = (this.requestVersion || 0) + 1 },
+  onShow() { this.bindIdentity(); return this.refresh() },
+  bindIdentity() {
+    if (business.identityScope) business.identityScope()
+    if (!this.unwatchIdentity && business.watchIdentity) this.unwatchIdentity = business.watchIdentity(() => this.clearInvitation('身份已变化，请重新读取'))
+  },
+  clearInvitation(error = '') {
+    this.requestVersion = (this.requestVersion || 0) + 1
+    this.scope = null
+    if (wx.hideShareMenu) wx.hideShareMenu()
+    this.setData({ eligible:false, sharePath:'', records:[], preparing:false, loading:false, error })
+  },
+  onHide() { this.clearInvitation(); if (this.unwatchIdentity) this.unwatchIdentity(); this.unwatchIdentity = null },
+  onUnload() { this.onHide() },
   async refresh() {
     const version = this.requestVersion = (this.requestVersion || 0) + 1
     if (wx.hideShareMenu) wx.hideShareMenu()
@@ -13,8 +24,9 @@ Page({
     try {
       const [{state,activities},records] = await Promise.all([business.context(),business.myReferrals()])
       if (version !== this.requestVersion) return
+      this.scope = business.identityScope ? business.identityScope() : null
       const sessions = discovery.activities(activities).filter(s=>s.canRegister)
-      this.setData({ eligible:!!state.loggedIn && !!state.invitationEligible, sessions, selectedSessionId:sessions.length?sessions[0].id:'', records:records.map(r=>({...r,statusText:statusText[r.registrationStatus]||r.registrationStatus})) })
+      this.setData({ eligible:!!state.loggedIn && state.invitationEligible === true && !state.profile?.minor, sessions, selectedSessionId:sessions.length?sessions[0].id:'', records:records.map(r=>({...r,statusText:statusText[r.registrationStatus]||r.registrationStatus})) })
     } catch (e) {
       if (version === this.requestVersion) this.setData({error:e.message||'暂时无法读取邀请记录'})
     } finally {
@@ -36,11 +48,20 @@ Page({
     if(this.data.preparing || !this.data.eligible || this.data.loading) return
     const id=e && e.currentTarget && e.currentTarget.dataset.id || this.data.selectedSessionId
     const session=this.data.sessions.find(s=>s.id===id)
-    if (!session) return wx.showToast({title:'请先选择一期轻体营',icon:'none'})
-    const version=this.requestVersion
+    if (!session) return wx.showToast({title:'请先选择一期清体营',icon:'none'})
+    const version=this.requestVersion, scope=this.scope
     this.setData({preparing:true,sharePath:''})
     try {
-      const invitation=await business.createInvitation(id)
+      if (business.privateOverview) {
+        const {overview}=await business.privateOverview(scope)
+        if (version !== this.requestVersion) return
+        if (overview.invitationEligible !== true || overview.profile?.minor) {
+          this.setData({eligible:false})
+          throw new Error('轻友邀请暂未开放，请联系工作人员')
+        }
+      }
+      if (business.assertIdentity) business.assertIdentity(scope)
+      const invitation=await business.createInvitation(id, scope)
       if (version !== this.requestVersion) return
       this.setData({sharePath:invitation.path,selectedSessionNumber:session.sessionNumber,selectedSessionId:id})
       if (wx.showShareMenu) wx.showShareMenu({menus:['shareAppMessage']})
@@ -51,6 +72,6 @@ Page({
     }
   },
   onShareAppMessage() {
-    return {title:this.data.sharePath?this.data.selectedPreset.title+' · 第 '+this.data.selectedSessionNumber+' 期轻体营':'轻生活',path:this.data.sharePath||'/pages/home/index',imageUrl:this.data.selectedPreset.image}
+    return {title:this.data.sharePath?this.data.selectedPreset.title+' · 第 '+this.data.selectedSessionNumber+' 期清体营':'轻生活',path:this.data.sharePath||'/pages/home/index',imageUrl:this.data.selectedPreset.image}
   }
 })

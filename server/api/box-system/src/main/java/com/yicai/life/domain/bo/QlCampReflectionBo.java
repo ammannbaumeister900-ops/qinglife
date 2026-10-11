@@ -9,6 +9,8 @@ public class QlCampReflectionBo {
  @NotNull @Size(max=300) private String note;
  @NotBlank @Pattern(regexp="private|submit") private String action;
  private Boolean shareConsent;
- // Missing in older clients, which only support anonymous sharing.
+ // New public requests must explicitly use the authenticated nickname.
  private Boolean anonymous;
+ @Size(max=64) private String originalVersion;
+ @Pattern(regexp="experience|reflection|new") private String source;
 }

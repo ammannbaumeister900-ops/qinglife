@@ -1,9 +1,8 @@
 {
-  "navigationBarTitleText": "轻体营",
+  "navigationBarTitleText": "清体营",
   "navigationStyle": "custom",
   "usingComponents": {
     "launch-splash": "/components/launch-splash/index",
-    "ql-nav-space": "/components/ql-nav-space/index",
-    "camp-voices": "/components/camp-voices/index"
+    "ql-nav-space": "/components/ql-nav-space/index"
   }
 }

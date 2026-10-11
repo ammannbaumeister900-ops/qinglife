@@ -31,3 +31,23 @@
 .past-shares { border-top: 1rpx solid #DDD9CA; margin-top: 28rpx; padding-top: 28rpx; }
 .past-shares-title { font-size: 25rpx; color: #6B725D; }
 .past-share-note { white-space: pre-wrap; font-size: 25rpx; line-height: 1.8; color: #777063; margin-top: 18rpx; }
+
+/* A writing sheet and prior original text share a quiet reading surface. */
+.reflection-page { background: var(--ql-bg); padding: 28rpx 40rpx calc(72rpx + env(safe-area-inset-bottom)); }
+.reflection-page::before { display: none; }
+.reflection-period { font-size: 26rpx; color: var(--ql-ink-light); }
+.reflection-session-name { margin-top: 8rpx; font-size: 30rpx; line-height: 1.6; overflow-wrap: anywhere; }
+.reflection-title { margin: 32rpx 0 24rpx; font-size: 42rpx; color: var(--ql-ink); letter-spacing: 0; }
+.reflection-paper { padding: 24rpx; border-radius: 8rpx; background: var(--ql-surface); }
+.reflection-input { font-size: 32rpx; line-height: 1.85; }
+.reflection-count, .reflection-copy, .reflection-status, .reflection-disclosure { font-size: 26rpx; line-height: 1.7; color: var(--ql-ink-light); }
+.reflection-tools { flex-wrap: wrap; }
+.reflection-page button.reflection-reset, .reflection-page button.voice-hold, .reflection-page button.voice-cancel, .reflection-page button.voice-setting, .reflection-page button.reflection-anonymous { min-height: 44px; font-size: 26rpx; }
+.reflection-author { font-size: 28rpx; color: var(--ql-ink); }
+.reflection-disclosure { margin: 12rpx 0; }
+.reflection-page .reflection-submit { min-height: 48px; border-radius: 10rpx; font-size: 28rpx; }
+.past-shares-title { font-size: 28rpx; color: var(--ql-ink-light); }
+.past-share { padding: 20rpx 0; }
+.past-share + .past-share { border-top: 1rpx solid var(--ql-border); }
+.past-share-note { margin-top: 0; font-size: 32rpx; color: var(--ql-ink); }
+@media (max-width: 350px) { .reflection-count, .reflection-copy, .reflection-status, .reflection-disclosure { font-size: 13px; } .reflection-input, .past-share-note { font-size: 16px; } }

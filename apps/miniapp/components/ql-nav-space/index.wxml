@@ -1,5 +1,6 @@
 <view class="ql-nav-space {{immersive ? 'immersive' : ''}}" style="{{spaceStyle}}">
-  <view class="ql-nav-layer {{immersive ? 'overlay' : ''}}" style="{{barStyle}}">
+  <view class="ql-nav-layer {{immersive ? 'overlay' : ''}} {{brand ? 'ql-nav-brand' : ''}}" style="{{barStyle}}">
+    <image wx:if="{{brand}}" class="ql-brand-logo" src="/assets/brand/logo-sage.png" mode="aspectFit" aria-label="轻生活品牌 Logo" />
     <button wx:if="{{back}}" class="ql-back" style="{{controlStyle}}" aria-label="返回" bindtap="goBack">
       <view class="ql-back-arrow"></view>
     </button>

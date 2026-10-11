@@ -1,52 +1,91 @@
-.camp-page { padding: 28rpx 40rpx calc(184rpx + env(safe-area-inset-bottom)); background: var(--ql-bg); }
+.camp-page { --camp-ink: #293327; --camp-muted: #60685A; --camp-green: #4B6042; --camp-line: #D0D3C4; min-height: 0; padding: 24px 24px calc(110px + env(safe-area-inset-bottom)); background: #F6F1E8; color: var(--camp-ink); }
 .camp-page::before { display: none; }
-.camp-page .refresh-note { position: static; margin: 0 0 16rpx; text-align: left; }
-.camp-page .empty-state .text-button { min-height: 44px; }
-.camp-intro { margin: 8rpx 0 32rpx; color: var(--ql-ink-light); font-size: 28rpx; line-height: 1.7; }
-.camp-section-title { color: var(--ql-ink); font-size: 32rpx; font-weight: 600; line-height: 1.5; }
-.my-arrangements { margin-bottom: 32rpx; }
-.camp-page button.arrangement-row { display: flex; align-items: center; justify-content: space-between; gap: 20rpx; width: 100%; min-height: 48px; margin: 0; padding: 24rpx 0; border-radius: 0; border-bottom: 1rpx solid var(--ql-border); background: transparent; color: var(--ql-ink); text-align: left; white-space: normal; line-height: 1.5; }
-.arrangement-copy { flex: 1; min-width: 0; }
-.arrangement-top { display: flex; flex-wrap: wrap; gap: 8rpx 20rpx; color: var(--ql-ink-light); font-size: 28rpx; line-height: 1.5; }
-.arrangement-status { color: var(--ql-clay-deep); }
-.arrangement-name { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; margin-top: 8rpx; font-size: 34rpx; font-weight: 600; line-height: 1.5; overflow-wrap: break-word; }
-.arrangement-date { margin-top: 8rpx; color: var(--ql-ink-light); font-size: 28rpx; line-height: 1.6; overflow-wrap: break-word; }
-.arrangement-action { flex: none; color: var(--ql-ink-light); font-size: 28rpx; line-height: 1.5; white-space: nowrap; }
-.camp-page button.past-camp-entry { display: flex; align-items: center; justify-content: flex-start; width: auto; min-height: 44px; margin: 12rpx 0 0; padding: 8rpx 0; border-radius: 0; background: transparent; color: var(--ql-ink-light); font-size: 28rpx; line-height: 1.5; }
-.public-camp-heading { margin-bottom: 8rpx; }
-.activity-card { margin: 0 0 32rpx; padding: 24rpx 0 32rpx; border-bottom: 1rpx solid var(--ql-border); }
-.activity-heading { display: flex; align-items: flex-start; gap: 24rpx; }
+.camp-page .refresh-note { position: static; margin: 0 0 16px; text-align: left; }
+.camp-page .empty-state .text-button, .camp-page .camp-reset { min-height: 44px; }
+.public-camp-heading { display: flex; justify-content: space-between; align-items: baseline; gap: 18px; margin-bottom: 18px; }
+.public-camp-title { font-family: var(--ql-serif); font-size: 29px; font-weight: 400; line-height: 1.5; }
+.public-camp-count { flex: none; color: var(--camp-muted); font-size: 14px; }
+.camp-filters { margin-bottom: 25px; border-bottom: 1px solid var(--camp-line); white-space: nowrap; }
+.camp-filters-inner { display: inline-flex; min-width: 100%; gap: 20px; }
+.camp-page button.camp-filter { flex: none; display: inline-flex; align-items: center; width: auto; min-height: 44px; margin: 0; padding: 0 0 11px; border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: transparent; color: var(--camp-muted); font-size: 14px; line-height: 1.65; }
+.camp-page button.camp-filter.selected { color: var(--camp-ink); border-bottom-color: var(--camp-green); font-weight: 600; }
+.camp-filter-summary { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 21px; color: var(--camp-muted); font-size: 14px; }
+.camp-page button.camp-reset { width: auto; margin: 0; padding: 0; border-radius: 0; background: transparent; color: var(--camp-green); font-size: 14px; text-decoration: underline; line-height: 1.6; }
+.camp-page .activity-card { margin: 0 0 27px; padding: 0 0 27px; border-bottom: 1px solid var(--camp-line); }
+.camp-page .activity-card.last { margin-bottom: 0; padding-bottom: 0; border-bottom: 0; }
+.activity-meta { display: flex; justify-content: space-between; align-items: flex-start; gap: 18px; margin-bottom: 12px; color: var(--camp-muted); font-size: 14px; line-height: 1.6; }
+.activity-meta > text:first-child { min-width: 0; overflow-wrap: anywhere; }
+.activity-status { flex: none; max-width: 55%; text-align: right; }
+.activity-status.open { color: #426038; font-weight: 500; }
+.activity-status.warning { color: #825623; }
+.activity-status.cancelled { color: #796454; }
+.activity-heading { display: flex; align-items: flex-start; gap: 20px; margin-bottom: 14px; }
 .activity-heading-copy { flex: 1; min-width: 0; }
-.activity-meta { display: flex; flex-wrap: wrap; gap: 8rpx 20rpx; color: var(--ql-ink-light); font-size: 28rpx; line-height: 1.5; }
-.activity-status.warning { color: #8B602B; }
-.activity-status.unavailable { color: var(--ql-ink-light); }
-.activity-name { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; margin-top: 10rpx; color: var(--ql-ink); font-size: 34rpx; font-weight: 500; line-height: 1.5; overflow-wrap: break-word; }
-.activity-theme { margin-top: 8rpx; color: var(--ql-ink-light); font-size: 28rpx; line-height: 1.6; overflow-wrap: break-word; }
-.activity-cover { display: block; flex: none; width: 152rpx; height: 152rpx; border-radius: 6rpx; }
-.activity-details { margin-top: 20rpx; }
-.activity-detail { display: flex; align-items: flex-start; gap: 20rpx; margin-top: 8rpx; font-size: 28rpx; line-height: 1.65; }
-.activity-detail-label { flex: none; color: var(--ql-ink-light); }
-.activity-detail-value { flex: 1; min-width: 0; color: var(--ql-ink); overflow-wrap: break-word; }
-.activity-prices { display: flex; flex-wrap: wrap; align-items: baseline; gap: 12rpx 28rpx; margin-top: 20rpx; }
-.price-tier { display: inline-flex; align-items: baseline; flex-wrap: wrap; gap: 4rpx; min-width: 0; color: var(--ql-ink); line-height: 1.5; }
-.price-label { margin-right: 10rpx; color: var(--ql-ink-light); font-size: 28rpx; }
-.price-currency { font-size: 28rpx; }
-.price-value { font-size: 34rpx; font-weight: 600; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
-.price-unit { color: var(--ql-ink-light); font-size: 28rpx; }
-.settlement-note { margin-top: 10rpx; color: var(--ql-ink-light); font-size: 28rpx; line-height: 1.65; }
-.activity-actions { display: flex; align-items: center; gap: 24rpx; margin-top: 18rpx; }
-.camp-page button.camp-signup { display: flex; align-items: center; justify-content: center; width: auto; min-width: 140rpx; min-height: 44px; margin: 0; padding: 14rpx 24rpx; border-radius: 10rpx; background: var(--ql-tint-sage); color: var(--ql-ink); font-size: 28rpx; font-weight: 500; line-height: 1.5; }
-.camp-page button.camp-signup[disabled] { background: var(--ql-bg-deep); color: var(--ql-ink-light); font-weight: 400; }
-.camp-page button.camp-details,
-.camp-page button.reflection-link { display: flex; align-items: center; justify-content: flex-start; width: auto; min-height: 44px; margin: 0; padding: 8rpx 0; border-radius: 0; background: transparent; color: var(--ql-ink-light); font-size: 28rpx; line-height: 1.5; }
-.camp-reflection-entry { margin-top: 12rpx; }
-.camp-page button.arrangement-row:active,
-.camp-page button.camp-signup:active,
-.camp-page button.camp-details:active,
-.camp-page button.reflection-link:active { opacity: .75; }
-@media (max-width: 350px) {
-  .camp-intro, .arrangement-top, .arrangement-date, .arrangement-action, .activity-meta,
-  .activity-theme, .activity-detail, .price-label, .price-currency, .price-unit, .settlement-note,
-  .camp-page button.camp-signup, .camp-page button.camp-details, .camp-page button.reflection-link,
-  .camp-page button.past-camp-entry { font-size: 14px; }
-}
+.camp-page .activity-name { display: block; width: 100%; margin: 0; color: var(--camp-ink); font-family: var(--ql-serif); font-size: 24px; font-weight: 400; line-height: 1.55; text-align: left; white-space: normal; overflow-wrap: anywhere; }
+.activity-theme { margin-top: 9px; color: var(--camp-muted); font-size: 14px; line-height: 1.7; overflow-wrap: anywhere; }
+.camp-template-cover { position: relative; display: flex; flex: none; flex-direction: column; align-items: center; justify-content: center; width: 118px; min-height: 88px; padding: 24px 10px 19px; box-sizing: border-box; background: #E6EBDD; color: #435B46; }
+.camp-cover-brand { position: absolute; top: 7px; left: 9px; right: 9px; text-align: left; font-size: 10px; line-height: 1.5; }
+.camp-cover-number { display: block; width: 100%; font-family: Georgia, var(--ql-serif); font-size: 32px; font-weight: 500; line-height: 1.15; text-align: center; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; word-break: break-all; }
+.camp-cover-unit { position: absolute; right: 9px; bottom: 5px; font-size: 12px; }
+.camp-template-cover.medium .camp-cover-number { font-size: 23px; }
+.camp-template-cover.long .camp-cover-number { font-size: 17px; }
+.camp-template-cover.very-long .camp-cover-number { font-size: 14px; }
+.featured .activity-heading { flex-direction: column; gap: 14px; margin-bottom: 16px; }
+.featured .activity-heading-copy { width: 100%; }
+.camp-page .featured .activity-name { font-size: 29px; }
+.featured .camp-template-cover { width: 100%; min-height: 124px; padding: 29px 18px 23px; }
+.featured .camp-cover-brand { top: 10px; left: 16px; right: 16px; font-size: 12px; }
+.featured .camp-cover-number { font-size: 62px; }
+.featured .camp-cover-unit { right: 16px; bottom: 8px; font-size: 14px; }
+.featured .camp-template-cover.medium .camp-cover-number { font-size: 42px; }
+.featured .camp-template-cover.long .camp-cover-number { font-size: 30px; }
+.featured .camp-template-cover.very-long .camp-cover-number { font-size: 22px; }
+.activity-details { margin-top: 11px; }
+.activity-date { font-size: 16px; font-weight: 500; line-height: 1.7; font-variant-numeric: tabular-nums; }
+.featured .activity-date { font-size: 17px; }
+.activity-place { margin-top: 4px; font-size: 15px; line-height: 1.75; overflow-wrap: anywhere; }
+.activity-prices { display: flex; flex-wrap: wrap; align-items: baseline; gap: 5px 19px; margin-top: 17px; }
+.price-tier { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 4px; min-width: 0; font-size: 14px; line-height: 1.65; }
+.price-label { margin-right: 4px; }
+.price-value { font-size: 18px; font-weight: 500; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.price-currency, .price-unit, .price-pending { font-size: 14px; }
+.settlement-note { margin-top: 6px; color: var(--camp-muted); font-size: 14px; line-height: 1.7; }
+.activity-actions { display: flex; align-items: center; justify-content: space-between; gap: 15px; margin-top: 12px; }
+.camp-page button.camp-action { display: flex; align-items: center; gap: 35px; width: auto; min-height: 44px; margin: 0; padding: 0; border-radius: 0; background: transparent; color: var(--camp-green); font-size: 15px; font-weight: 500; line-height: 1.6; }
+.camp-action text { font-size: 23px; font-weight: 400; }
+.camp-voice { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--camp-line); }
+.camp-voice-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 7px; color: var(--camp-muted); font-size: 14px; line-height: 1.7; }
+.camp-voice-count { font-variant-numeric: tabular-nums; }
+.camp-voices-panel { height: 220px; }
+.camp-voice-note { color: var(--camp-ink); font-size: 15px; line-height: 1.85; white-space: pre-wrap; overflow-wrap: anywhere; }
+.camp-voice-author { margin-top: 8px; color: var(--camp-muted); font-size: 14px; line-height: 1.7; }
+.camp-voice-actions { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0 12px; }
+.camp-voice-switch { display: flex; gap: 18px; margin-left: auto; }
+.camp-page button.camp-voice-toggle, .camp-page button.camp-voice-prev, .camp-page button.camp-voice-next, .camp-page button.reflection-link { width: auto; min-height: 44px; margin: 0; padding: 9px 0; border-radius: 0; background: transparent; color: var(--camp-green); font-size: 14px; line-height: 1.7; text-align: left; }
+.camp-page button[disabled] { color: var(--camp-muted); opacity: .5; }
+.camp-reflection-entry { margin-top: 5px; }
+.camp-page button:active { opacity: .75; }
+@media (max-width: 350px) { .camp-page { padding-left: 20px; padding-right: 20px; } .camp-filters-inner { gap: 18px; } .camp-page .featured .activity-name { font-size: 27px; } .camp-page .activity-name { font-size: 23px; } .activity-heading { gap: 15px; } .camp-template-cover { width: 100px; } .camp-cover-number { font-size: 28px; } .camp-cover-brand { font-size: 9px; } .camp-page button.camp-action { gap: 22px; } }
+
+/* My arrangements: compact service facts, scoped away from the public list. */
+.camp-section-title { color: var(--ql-ink); font-size: 32rpx; font-weight: 600; line-height: 1.5; }
+.my-arrangements { margin-bottom: 28px; }
+.arrangements-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 8px; }
+.arrangements-count { color: var(--camp-muted); font-size: 14px; }
+.arrangement-group + .arrangement-group { margin-top: 18px; }
+.arrangement-group-title { padding: 8px 0 2px; color: var(--camp-muted); font-size: 14px; font-weight: 500; }
+.arrangement-item { padding-bottom: 4px; border-bottom: 1px solid var(--camp-line); }
+.arrangement-item.last { border-bottom: 0; }
+.camp-page button.arrangement-row { display: block; width: 100%; min-height: 48px; margin: 0; padding: 12px 0 0; border-radius: 0; background: transparent; color: var(--camp-ink); text-align: left; white-space: normal; line-height: 1.5; }
+.arrangement-top { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; color: var(--camp-muted); font-size: 14px; line-height: 1.6; }
+.arrangement-top > text { min-width: 0; overflow-wrap: anywhere; }
+.arrangement-status.confirmed { color: var(--camp-green); }
+.my-arrangements .attention { color: #825623; }
+.arrangement-name { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; margin-top: 6px; font-size: 17px; font-weight: 600; line-height: 1.6; overflow-wrap: anywhere; }
+.arrangement-date, .arrangement-context, .arrangement-note { margin-top: 5px; color: var(--camp-muted); font-size: 14px; line-height: 1.65; overflow-wrap: anywhere; }
+.arrangement-bottom { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0 14px; min-height: 44px; margin-top: 2px; font-size: 14px; line-height: 1.65; }
+.arrangement-payment { min-width: 0; color: var(--camp-muted); overflow-wrap: anywhere; }
+.arrangement-action { flex: none; margin-left: auto; color: var(--camp-green); white-space: nowrap; }
+.camp-page button.past-camp-entry { display: flex; align-items: center; justify-content: flex-start; width: auto; min-height: 44px; margin: 0; padding: 8px 0; border-radius: 0; background: transparent; color: var(--camp-green); font-size: 14px; line-height: 1.6; }
+
+.camp-page button.reflection-link { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; margin-top: 8px; padding: 8px 16px; border: 1px solid var(--camp-line); border-radius: 4px; }

@@ -42,7 +42,7 @@ class RegistrationReadinessIT {
     static String priorProfile,priorImagePath;
     static final Map<String,Object> access=new HashMap<>();
     @Configuration @EnableTransactionManagement
-    @Import({QlSessionServiceImpl.class,QlRegistrationPolicy.class,QlSessionAdmissionPolicy.class,QlRegistrationServiceImpl.class,QlSessionPricing.class,QlMiniAppServiceImpl.class,QlStaffWorkspaceService.class,QlAttendanceAudit.class,QlHabitPlanService.class,QlPassService.class,QlAdminSelectionService.class,QlFriendAssessmentService.class,QlCampReflectionService.class,com.yicai.system.service.AccountPagePermissionService.class})
+    @Import({QlSessionSettings.class,QlSessionServiceImpl.class,QlRegistrationPolicy.class,QlSessionAdmissionPolicy.class,QlRegistrationServiceImpl.class,QlSessionPricing.class,QlMiniAppServiceImpl.class,QlMiniAppRegistrationQuoteService.class,QlStaffWorkspaceService.class,QlAttendanceAudit.class,QlHabitPlanService.class,QlPassService.class,QlAdminSelectionService.class,QlFriendAssessmentService.class,QlCampReflectionService.class,QlExperienceOriginalService.class,com.yicai.system.service.AccountPagePermissionService.class})
     static class Config {
         @Bean DataSource dataSource() {
             String url=System.getenv("QINGLIFE_TEST_MYSQL_URL");
@@ -53,7 +53,7 @@ class RegistrationReadinessIT {
         @Bean JdbcTemplate jdbc(DataSource ds){return new JdbcTemplate(ds);}
         @Bean SqlSessionFactory factory(DataSource ds)throws Exception {
             MybatisConfiguration config=new MybatisConfiguration();config.setMapUnderscoreToCamelCase(true);
-            config.addMapper(QlRegistrationMapper.class);config.addMapper(QlSessionMapper.class);config.addMapper(QlMiniAppMapper.class);config.addMapper(QlHabitPlanMapper.class);
+            config.addMapper(QlRegistrationMapper.class);config.addMapper(QlSessionMapper.class);config.addMapper(QlMiniAppMapper.class);config.addMapper(QlExperienceOriginalMapper.class);config.addMapper(QlHabitPlanMapper.class);
             config.addMapper(QlRegistrationStatusLogMapper.class);config.addMapper(QlTransactionMapper.class);
             MybatisSqlSessionFactoryBean f=new MybatisSqlSessionFactoryBean();f.setDataSource(ds);f.setConfiguration(config);
             com.baomidou.mybatisplus.extension.plugins.MybatisPlusInterceptor pagination=new com.baomidou.mybatisplus.extension.plugins.MybatisPlusInterceptor();
@@ -66,9 +66,12 @@ class RegistrationReadinessIT {
         @Bean QlRegistrationMapper registrations(SqlSessionTemplate s){return s.getMapper(QlRegistrationMapper.class);}
         @Bean QlSessionMapper sessions(SqlSessionTemplate s){return s.getMapper(QlSessionMapper.class);}
         @Bean QlMiniAppMapper mini(SqlSessionTemplate s){return s.getMapper(QlMiniAppMapper.class);}
+        @Bean QlExperienceOriginalMapper originals(SqlSessionTemplate s){return s.getMapper(QlExperienceOriginalMapper.class);}
         @Bean QlHabitPlanMapper habits(SqlSessionTemplate s){return s.getMapper(QlHabitPlanMapper.class);}
         @Bean QlRegistrationStatusLogMapper logs(SqlSessionTemplate s){return s.getMapper(QlRegistrationStatusLogMapper.class);}
         @Bean QlTransactionMapper transactions(SqlSessionTemplate s){return s.getMapper(QlTransactionMapper.class);}
+        @Bean QlReflectionPublicationReviewService publicationReviews(JdbcTemplate db){return spy(new QlReflectionPublicationReviewService(db));}
+        @Bean QlCommunityAccessPolicy communityAccess(){return spy(new QlCommunityAccessPolicy());}
         @Bean QlReflectionVoiceService reflectionVoice(){return mock(QlReflectionVoiceService.class);}
         @Bean RedisCache redis(){return mock(RedisCache.class);}
         @Bean RedissonClient redisson(){return mock(RedissonClient.class);}
@@ -84,10 +87,16 @@ class RegistrationReadinessIT {
         registrations=context.getBean(IQlRegistrationService.class);staff=context.getBean(QlStaffWorkspaceService.class);mini=context.getBean(IQlMiniAppService.class);passes=context.getBean(QlPassService.class);
         access.put("sys_user_id",9L);access.put("can_operate",1);access.put("can_payment",1);
     }
+    // SQL mechanics only: bypass the separate evidence prerequisite, never proof of compliance.
+    void syntheticPublicationForSqlOnly(){doNothing().when(context.getBean(QlCommunityAccessPolicy.class)).requirePublicationReview();doReturn("{\"syntheticSqlOnly\":true}").when(context.getBean(QlReflectionPublicationReviewService.class)).prepare(anyMap(),any(),anyLong(),anySet(),anyString());}
+    void syntheticInvitationForSqlOnly(String customer){doReturn(true).when(context.getBean(QlCommunityAccessPolicy.class)).canInvite(customer);}
+    @AfterEach void clearSyntheticPermissions(){reset(context.getBean(QlCommunityAccessPolicy.class),context.getBean(QlReflectionPublicationReviewService.class));}
     @AfterAll static void close(){if(context!=null)context.close();com.yicai.common.config.RuoYiConfig c=new com.yicai.common.config.RuoYiConfig();c.setProfile(priorProfile);c.setImagePath(priorImagePath);}
     String customer(){String id=UUID.randomUUID().toString();db.update("INSERT INTO ql_customer(id,customer_no,nickname) VALUES(?,?,?)",id,"T"+id.replace("-","").substring(0,20),"Synthetic");return id;}
     String session(int capacity){String id=UUID.randomUUID().toString();db.update("INSERT INTO ql_session(id,session_number,name,start_date,end_date,capacity,status,standard_price,returning_price) VALUES(?,?,?,CURRENT_DATE(),DATE_ADD(CURRENT_DATE(),INTERVAL 2 DAY),?,'open',100,50)",id,++number,"Synthetic",capacity);return id;}
-    String add(String customer,String session,String status){QlRegistrationBo b=new QlRegistrationBo();b.setCustomerId(customer);b.setSessionId(session);b.setRegistrationStatus(status);registrations.insertByBo(b,9L);return db.queryForObject("SELECT id FROM ql_registration WHERE customer_id=? AND session_id=?",String.class,customer,session);}
+    // Existing receipt/withdrawal tests need pre-existing confirmed rows, not evidence of a new payment.
+    String add(String customer,String session,String status){QlRegistrationBo b=new QlRegistrationBo();b.setCustomerId(customer);b.setSessionId(session);b.setRegistrationStatus("confirmed".equals(status)?"pending":status);registrations.insertByBo(b,9L);String id=db.queryForObject("SELECT id FROM ql_registration WHERE customer_id=? AND session_id=?",String.class,customer,session);if("confirmed".equals(status))legacyConfirm(id);return id;}
+    void legacyConfirm(String id){db.update("UPDATE ql_registration SET registration_status='confirmed',confirmed_at=NOW(),confirmed_by=9 WHERE id=?",id);}
     void status(String id,String status){QlRegistrationBo b=new QlRegistrationBo();b.setId(id);b.setRegistrationStatus(status);registrations.updateByBo(b,9L);}
     QlPaymentBo payment(String state,String amount){QlPaymentBo b=new QlPaymentBo();b.setPaymentStatus(state);b.setAmount(new BigDecimal(amount));b.setPaymentMethod("cash");b.setChangeReason("Synthetic correction");return b;}
     void settle(String id,String amount){QlSettlementBo b=new QlSettlementBo();b.setFinalAmount(new BigDecimal(amount));b.setSettlementType("money");b.setNote("Synthetic settlement");registrations.confirmSettlement(id,b,9L);}
@@ -96,12 +105,12 @@ class RegistrationReadinessIT {
     String batch(String buyer,String sessionId,String... registrationIds){String id=UUID.randomUUID().toString();db.update("INSERT INTO ql_registration_batch(id,order_no,session_id,submitted_by_customer_id,source,participant_count,submitted_at,quoted_amount,payable_amount,payment_status) VALUES(?,?,?,?,'mini_program',?,NOW(),200,200,'unpaid')",id,"T"+id.replace("-","").substring(0,20),sessionId,buyer,registrationIds.length);for(String registrationId:registrationIds)db.update("UPDATE ql_registration SET batch_id=? WHERE id=?",id,registrationId);return id;}
     void revoke(String registrationId,String settlementId){registrations.revokeSettlement(registrationId,settlementId,"Synthetic settlement correction",9L);}
     @SuppressWarnings("unchecked") Map<String,Object> miniRegistration(String token,String registrationId){List<Map<String,Object>> rows=(List<Map<String,Object>>)mini.overview(token).get("registrations");return rows.stream().filter(row->registrationId.equals(row.get("registrationId"))).findFirst().orElseThrow(()->new AssertionError("Miniapp registration missing"));}
-    QlCampReflectionBo reflectionBo(String registration,String phase,int revision,String note,boolean share) { QlCampReflectionBo b=new QlCampReflectionBo();b.setRegistrationId(registration);b.setPhase(phase);b.setRevision(revision);b.setNote(note);b.setAction(share?"submit":"private");b.setShareConsent(share);return b; }
+    QlCampReflectionBo reflectionBo(String registration,String phase,int revision,String note,boolean share) { QlCampReflectionBo b=new QlCampReflectionBo();b.setRegistrationId(registration);b.setPhase(phase);b.setRevision(revision);b.setNote(note);b.setAction(share?"submit":"private");b.setShareConsent(share);b.setAnonymous(false);return b; }
     QlReflectionModerationBo moderation(int revision,String excerpt) { QlReflectionModerationBo b=new QlReflectionModerationBo();b.setRevision(revision);b.setExcerpt(excerpt);return b; }
     QlPaymentConfirmationBo confirmation(String amount,String method) { QlPaymentConfirmationBo b=new QlPaymentConfirmationBo();b.setPaymentMethod(method);b.setAmount(amount==null?null:new BigDecimal(amount));b.setNote("Synthetic confirmation");return b; }
     @Test void unifiedPaymentRequiresConfirmedRegistrationAmountAndMethodAndNeverDuplicates() {
         String s=session(1),r=add(customer(),s,"pending");QlPaymentConfirmationBo b=confirmation("88.50","cash");
-        assertThrows(CustomException.class,()->registrations.confirmPayment(r,b,9L));status(r,"confirmed");
+        assertThrows(CustomException.class,()->registrations.confirmPayment(r,b,9L));legacyConfirm(r);
         b.setAmount(null);assertThrows(CustomException.class,()->registrations.confirmPayment(r,b,9L));b.setAmount(new BigDecimal("88.50"));b.setPaymentMethod("");assertThrows(CustomException.class,()->registrations.confirmPayment(r,b,9L));b.setPaymentMethod("cash");
         assertEquals("pending",registrations.getById(r).getSettlementStatus());assertTrue(registrations.confirmPayment(r,b,9L));
         assertEquals("paid",registrations.getById(r).getPaymentStatus());assertEquals(new BigDecimal("88.50"),registrations.queryById(r).getFinalAmount());
@@ -118,7 +127,7 @@ class RegistrationReadinessIT {
     @Test void unifiedGroupCashRequiresEveryParticipantAndCreatesOnlyOneBuyerReceipt() {
         String buyer=customer(),companion=customer(),s=session(2),r1=add(buyer,s,"confirmed"),r2=add(companion,s,"pending"),order=batch(buyer,s,r1,r2);
         QlPaymentConfirmationBo b=confirmation("150","wechat_scan");assertFalse(registrations.queryById(r1).getBatchReadyForPayment());assertThrows(CustomException.class,()->registrations.confirmPayment(r1,b,9L));
-        status(r2,"confirmed");assertTrue(registrations.queryById(r1).getBatchReadyForPayment());assertTrue(registrations.confirmPayment(r2,b,9L));
+        legacyConfirm(r2);assertTrue(registrations.queryById(r1).getBatchReadyForPayment());assertTrue(registrations.confirmPayment(r2,b,9L));
         assertEquals("paid",registrations.getById(r1).getPaymentStatus());assertEquals("paid",registrations.getById(r2).getPaymentStatus());
         assertEquals(buyer,db.queryForObject("SELECT customer_id FROM ql_transaction WHERE registration_batch_id=?",String.class,order));assertEquals(new BigDecimal("150.00"),db.queryForObject("SELECT amount FROM ql_transaction WHERE registration_batch_id=?",BigDecimal.class,order));
         assertThrows(CustomException.class,()->registrations.confirmPayment(r1,b,9L));assertEquals(1,db.queryForObject("SELECT COUNT(*) FROM ql_transaction WHERE registration_batch_id=?",Integer.class,order));
@@ -216,6 +225,7 @@ class RegistrationReadinessIT {
         QlCampReflectionService voices=context.getBean(QlCampReflectionService.class);String owner=customer(),other=customer(),period=session(3),reg=add(owner,period,"confirmed");
         db.update("UPDATE ql_session SET start_date=DATE(CONVERT_TZ(UTC_TIMESTAMP(),'+00:00','+08:00')),end_date=DATE_ADD(DATE(CONVERT_TZ(UTC_TIMESTAMP(),'+00:00','+08:00')),INTERVAL 2 DAY) WHERE id=?",period);
         when(context.getBean(RedisCache.class).getCacheObject("appToken:reflection-owner")).thenReturn(81001L);when(context.getBean(QlCustomerIdentityService.class).resolve(81001L)).thenReturn(owner);
+        syntheticPublicationForSqlOnly();
         when(context.getBean(RedisCache.class).getCacheObject("appToken:reflection-other")).thenReturn(81002L);when(context.getBean(QlCustomerIdentityService.class).resolve(81002L)).thenReturn(other);
         voices.save("reflection-owner",reflectionBo(reg,"before",0,"私人草稿",false));
         assertEquals(0L,voices.list(period,null,null,1,10).get("total"));assertTrue(voices.publicVoices(period).isEmpty());
@@ -224,7 +234,7 @@ class RegistrationReadinessIT {
         voices.save("reflection-owner",reflectionBo(reg,"before",1,"期待慢下来",true));String id=db.queryForObject("SELECT id FROM ql_camp_reflection WHERE registration_id=?",String.class,reg);
         assertThrows(CustomException.class,()->voices.moderate(id,"publish",moderation(2,null),9L));assertThrows(CustomException.class,()->voices.moderate(id,"approve",moderation(1,null),9L));assertThrows(CustomException.class,()->voices.moderate(id,"approve",moderation(2,"伪造摘句"),9L));
         voices.moderate(id,"approve",moderation(2,"期待慢下来"),9L);voices.moderate(id,"publish",moderation(3,null),9L);
-        Map<String,Object> publicRow=voices.publicVoices(period).get(0);assertEquals(new HashSet<>(Arrays.asList("id","phase","excerpt","note","author")),publicRow.keySet());assertEquals("本期轻友",publicRow.get("author"));assertTrue(voices.publicVoices(session(1)).isEmpty());
+        Map<String,Object> publicRow=voices.publicVoices(period).get(0);assertEquals(new HashSet<>(Arrays.asList("id","phase","excerpt","note","author")),publicRow.keySet());assertEquals("Synthetic",publicRow.get("author"));assertTrue(voices.publicVoices(session(1)).isEmpty());
         voices.save("reflection-owner",reflectionBo(reg,"before",4,"更新后的私人文字",false));assertEquals("期待慢下来",voices.publicVoices(period).get(0).get("note"));
         voices.save("reflection-owner",reflectionBo(reg,"before",5,"新的自愿分享",true));assertTrue(voices.publicVoices(period).isEmpty());voices.moderate(id,"approve",moderation(6,null),9L);voices.moderate(id,"publish",moderation(7,null),9L);
         voices.withdraw("reflection-owner",period,"before");assertTrue(voices.publicVoices(period).isEmpty());assertEquals(0L,voices.list(period,null,null,1,10).get("total"));assertEquals("新的自愿分享",db.queryForObject("SELECT draft_note FROM ql_camp_reflection WHERE id=?",String.class,id));assertThrows(CustomException.class,()->voices.moderate(id,"publish",moderation(8,null),9L));
@@ -235,24 +245,102 @@ class RegistrationReadinessIT {
         db.update("UPDATE ql_session SET start_date=?,end_date=?,status='in_progress' WHERE id=?",java.sql.Date.valueOf(java.time.LocalDate.now(java.time.ZoneId.of("Asia/Shanghai"))),java.sql.Date.valueOf(java.time.LocalDate.now(java.time.ZoneId.of("Asia/Shanghai")).plusDays(2)),period);
         db.update("UPDATE ql_customer SET nickname='小禾',real_name='不应公开的姓名' WHERE id=?",owner);
         when(context.getBean(RedisCache.class).getCacheObject("appToken:named-owner")).thenReturn(81101L);when(context.getBean(QlCustomerIdentityService.class).resolve(81101L)).thenReturn(owner);
+        syntheticPublicationForSqlOnly();
         assertEquals("小禾",voices.mine("named-owner",period).get("authorName"));
         QlCampReflectionBo bo=reflectionBo(reg,"before",0,"以小名分享这一刻",true);bo.setAnonymous(false);voices.save("named-owner",bo);
         Map<String,Object> review=((List<Map<String,Object>>)voices.list(period,null,null,1,10).get("rows")).get(0);String id=String.valueOf(review.get("id"));assertEquals("小禾",review.get("author"));assertEquals(0,((Number)review.get("anonymous")).intValue());assertTrue(voices.publicVoices(period).isEmpty());
         voices.moderate(id,"approve",moderation(1,null),9L);voices.moderate(id,"publish",moderation(2,null),9L);assertEquals("小禾",voices.publicVoices(period).get(0).get("author"));
         db.update("UPDATE ql_customer SET nickname='小溪' WHERE id=?",owner);assertEquals("小禾",voices.publicVoices(period).get(0).get("author"));
-        bo=reflectionBo(reg,"before",3,"改为匿名分享",true);bo.setAnonymous(true);voices.save("named-owner",bo);assertTrue(voices.publicVoices(period).isEmpty());assertNull(db.queryForObject("SELECT shared_author FROM ql_camp_reflection WHERE id=?",String.class,id));
-        voices.moderate(id,"approve",moderation(4,null),9L);voices.moderate(id,"publish",moderation(5,null),9L);assertEquals("本期轻友",voices.publicVoices(period).get(0).get("author"));
-        bo=reflectionBo(reg,"before",6,"只修改自己的草稿",false);bo.setAnonymous(false);voices.save("named-owner",bo);assertEquals("本期轻友",voices.publicVoices(period).get(0).get("author"));
-        bo=reflectionBo(reg,"before",7,"再次以小名分享",true);bo.setAnonymous(false);voices.save("named-owner",bo);assertTrue(voices.publicVoices(period).isEmpty());voices.moderate(id,"approve",moderation(8,null),9L);voices.moderate(id,"publish",moderation(9,null),9L);assertEquals("小溪",voices.publicVoices(period).get(0).get("author"));voices.withdraw("named-owner",period,"before");assertTrue(voices.publicVoices(period).isEmpty());
+        QlCampReflectionBo anonymous=reflectionBo(reg,"before",3,"新匿名必须拒绝",true);anonymous.setAnonymous(true);
+        assertEquals(426,assertThrows(CustomException.class,()->voices.save("named-owner",anonymous)).getCode());assertEquals("小禾",voices.publicVoices(period).get(0).get("author"));
+        // Seed an actual historical anonymous snapshot, rather than creating a new anonymous post.
+        db.update("UPDATE ql_camp_reflection SET share_anonymous=1,shared_author=NULL WHERE id=?",id);
+        bo=reflectionBo(reg,"before",3,"只修改自己的草稿",false);voices.save("named-owner",bo);assertEquals("本期轻友",voices.publicVoices(period).get(0).get("author"));
+        bo=reflectionBo(reg,"before",4,"再次以小名分享",true);voices.save("named-owner",bo);assertTrue(voices.publicVoices(period).isEmpty());voices.moderate(id,"approve",moderation(5,null),9L);voices.moderate(id,"publish",moderation(6,null),9L);assertEquals("小溪",voices.publicVoices(period).get(0).get("author"));voices.withdraw("named-owner",period,"before");assertTrue(voices.publicVoices(period).isEmpty());
     }
     @Test void namedReflectionWithoutNicknameFailsAndLegacyColumnsDefaultAnonymous() {
         QlCampReflectionService voices=context.getBean(QlCampReflectionService.class);String owner=customer(),period=session(3),reg=add(owner,period,"confirmed");
         db.update("UPDATE ql_session SET start_date=?,end_date=? WHERE id=?",java.sql.Date.valueOf(java.time.LocalDate.now(java.time.ZoneId.of("Asia/Shanghai"))),java.sql.Date.valueOf(java.time.LocalDate.now(java.time.ZoneId.of("Asia/Shanghai")).plusDays(2)),period);db.update("UPDATE ql_customer SET nickname='' WHERE id=?",owner);
         when(context.getBean(RedisCache.class).getCacheObject("appToken:blank-name")).thenReturn(81102L);when(context.getBean(QlCustomerIdentityService.class).resolve(81102L)).thenReturn(owner);
         QlCampReflectionBo named=reflectionBo(reg,"before",0,"小名未设置",true);named.setAnonymous(false);assertThrows(CustomException.class,()->voices.save("blank-name",named));
-        voices.save("blank-name",reflectionBo(reg,"before",0,"旧客户端匿名分享",true));String id=db.queryForObject("SELECT id FROM ql_camp_reflection WHERE registration_id=?",String.class,reg);voices.moderate(id,"approve",moderation(1,null),9L);voices.moderate(id,"publish",moderation(2,null),9L);assertEquals("本期轻友",voices.publicVoices(period).get(0).get("author"));
+        QlCampReflectionBo legacy=reflectionBo(reg,"before",0,"旧客户端匿名分享",true);legacy.setAnonymous(null);assertEquals(426,assertThrows(CustomException.class,()->voices.save("blank-name",legacy)).getCode());
+        legacy.setAnonymous(true);legacy.setAction("private");legacy.setShareConsent(false);voices.save("blank-name",legacy);assertTrue(voices.publicVoices(period).isEmpty());
         assertEquals("1",db.queryForObject("SELECT COLUMN_DEFAULT FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='ql_camp_reflection' AND COLUMN_NAME='share_anonymous'",String.class));
     }
+    QlCampReflectionBo unifiedAfter(String token,String period,String reg,String note,boolean submit) {
+        Map<String,Object> current=context.getBean(QlCampReflectionService.class).mine(token,period);
+        QlCampReflectionBo bo=reflectionBo(reg,"after",0,note,submit);bo.setSource(current.get("experienceRecord")==null?"new":"experience");bo.setOriginalVersion(String.valueOf(current.get("originalVersion")));
+        @SuppressWarnings("unchecked") List<Map<String,Object>> rows=(List<Map<String,Object>>)current.get("records");
+        for(Map<String,Object> row:rows)if("after".equals(row.get("phase"))){bo.setRevision(((Number)row.get("revision")).intValue());if(current.get("experienceRecord")==null)bo.setSource("reflection");}
+        return bo;
+    }
+    @Test void afterOriginalSnapshotAndAuditLogRollbackTogetherInRealMySql() {
+        String owner=customer(),period=session(1),reg=add(owner,period,"confirmed");db.update("UPDATE ql_session SET status='completed' WHERE id=?",period);
+        when(context.getBean(RedisCache.class).getCacheObject("appToken:unified-rollback")).thenReturn(81201L);when(context.getBean(QlCustomerIdentityService.class).resolve(81201L)).thenReturn(owner);
+        syntheticPublicationForSqlOnly();
+        QlCampReflectionService voices=context.getBean(QlCampReflectionService.class);QlCampReflectionBo bo=unifiedAfter("unified-rollback",period,reg,"同一事务",true);
+        db.execute("CREATE TRIGGER ql_it_fail_reflection_snapshot BEFORE UPDATE ON ql_camp_reflection FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='synthetic snapshot failure'");
+        try{assertThrows(RuntimeException.class,()->voices.save("unified-rollback",bo));}finally{db.execute("DROP TRIGGER ql_it_fail_reflection_snapshot");}
+        assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM ql_experience_record WHERE registration_id=?",Integer.class,reg));assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM ql_camp_reflection WHERE registration_id=?",Integer.class,reg));
+        voices.save("unified-rollback",bo);assertEquals("同一事务",db.queryForObject("SELECT note FROM ql_experience_record WHERE registration_id=?",String.class,reg));assertEquals("同一事务",db.queryForObject("SELECT shared_note FROM ql_camp_reflection WHERE registration_id=?",String.class,reg));
+    }
+    @Test void unifiedAfterPreservesIdScoresBothHistoriesAndRejectsConcurrentStaleOriginal() {
+        String owner=customer(),period=session(1),reg=add(owner,period,"confirmed"),id=UUID.randomUUID().toString();db.update("UPDATE ql_session SET status='completed' WHERE id=?",period);
+        when(context.getBean(RedisCache.class).getCacheObject("appToken:unified-history")).thenReturn(81202L);when(context.getBean(QlCustomerIdentityService.class).resolve(81202L)).thenReturn(owner);
+        syntheticPublicationForSqlOnly();
+        db.update("INSERT INTO ql_experience_record(id,registration_id,customer_id,session_id,phase,node_key,energy,relaxation,note,created_at,updated_at) VALUES(?,?,?,?,'after','',4,2,?,NOW(3),NOW(3))",id,reg,owner,period,String.join("",Collections.nCopies(1000,"长")));
+        QlCampReflectionService voices=context.getBean(QlCampReflectionService.class);voices.save("unified-history",reflectionBo(reg,"after",0,"旧心声原稿",false));
+        QlCampReflectionBo first=unifiedAfter("unified-history",period,reg,"新的私人原稿",false),stale=unifiedAfter("unified-history",period,reg,"过期覆盖",true);voices.save("unified-history",first);
+        assertEquals(409,assertThrows(CustomException.class,()->voices.save("unified-history",stale)).getCode());assertEquals(id,db.queryForObject("SELECT id FROM ql_experience_record WHERE registration_id=?",String.class,reg));assertEquals(4,db.queryForObject("SELECT energy FROM ql_experience_record WHERE id=?",Integer.class,id));assertEquals(2,db.queryForObject("SELECT relaxation FROM ql_experience_record WHERE id=?",Integer.class,id));assertEquals("旧心声原稿",db.queryForObject("SELECT draft_note FROM ql_camp_reflection WHERE registration_id=?",String.class,reg));
+        voices.save("unified-history",unifiedAfter("unified-history",period,reg,"公开快照",true));voices.save("unified-history",unifiedAfter("unified-history",period,reg,"私人修改",false));assertEquals("公开快照",db.queryForObject("SELECT shared_note FROM ql_camp_reflection WHERE registration_id=?",String.class,reg));voices.withdraw("unified-history",period,"after");assertEquals("私人修改",db.queryForObject("SELECT note FROM ql_experience_record WHERE id=?",String.class,id));
+    }
+
+    QlReflectionModerationBo publicationCheck(String reg,int revision,String decision) {
+        QlReflectionModerationBo b=moderation(revision,null);
+        QlPublicationReviewBo check=new QlPublicationReviewBo();check.setVersion(1);check.setDecision(decision);
+        check.setContentSafetyConclusion("Synthetic content safety facts reviewed for this displayed text");
+        check.setIdentityConclusion("Synthetic offline participant evidence reviewed, not real identity proof");
+        check.setAuthorizationConclusion("ready".equals(decision)?"not_applicable":"insufficient");
+        check.setBasisSummary("Synthetic business evidence fixture only; not actual operational authorization acceptance");
+        if("ready".equals(decision)){QlPublicationReviewBo.Reference ref=new QlPublicationReviewBo.Reference();ref.setType("registration");ref.setId(reg);check.setReferences(Collections.singletonList(ref));}
+        b.setPublicationReview(check);return b;
+    }
+    @Test void publicationReviewAndStateAreAtomicInRealMySqlWithNoPolicyBypass() {
+        // Executed only by separately authorized mysql-it; Redis/login remain synthetic.
+        String owner=customer(),other=customer(),period=session(3),reg=add(owner,period,"confirmed"),otherReg=add(other,period,"confirmed");
+        db.update("UPDATE ql_session SET start_date=?,end_date=?,status='in_progress' WHERE id=?",java.sql.Date.valueOf(java.time.LocalDate.now(java.time.ZoneId.of("Asia/Shanghai"))),java.sql.Date.valueOf(java.time.LocalDate.now(java.time.ZoneId.of("Asia/Shanghai")).plusDays(2)),period);
+        when(context.getBean(RedisCache.class).getCacheObject("appToken:publication-atomic")).thenReturn(81210L);
+        when(context.getBean(QlCustomerIdentityService.class).resolve(81210L)).thenReturn(owner);
+        QlCampReflectionService voices=context.getBean(QlCampReflectionService.class);
+        Set<String> readable=Collections.singleton("registration");
+        voices.save("publication-atomic",reflectionBo(reg,"before",0,"Synthetic operational publication",true));
+        String id=db.queryForObject("SELECT id FROM ql_camp_reflection WHERE registration_id=?",String.class,reg);
+        voices.moderate(id,"approve",moderation(1,null),9L);
+        assertTrue(voices.publicVoices(period).isEmpty());
+        voices.moderate(id,"defer",publicationCheck(reg,2,"deferred"),9L,readable);
+        assertEquals("approved",db.queryForObject("SELECT status FROM ql_camp_reflection WHERE id=?",String.class,id));
+        assertEquals("deferred",db.queryForObject("SELECT JSON_UNQUOTE(JSON_EXTRACT(publication_review,'$.decision')) FROM ql_camp_reflection_log WHERE reflection_id=? AND action='defer'",String.class,id));
+        assertThrows(CustomException.class,()->voices.moderate(id,"publish",publicationCheck(otherReg,3,"ready"),9L,readable));
+        int logs=db.queryForObject("SELECT COUNT(*) FROM ql_camp_reflection_log WHERE reflection_id=?",Integer.class,id);
+        db.execute("CREATE TRIGGER ql_it_fail_publication_audit BEFORE INSERT ON ql_camp_reflection_log FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='synthetic publication log failure'");
+        try {assertThrows(RuntimeException.class,()->voices.moderate(id,"publish",publicationCheck(reg,3,"ready"),9L,readable));}
+        finally {db.execute("DROP TRIGGER ql_it_fail_publication_audit");}
+        assertEquals("approved",db.queryForObject("SELECT status FROM ql_camp_reflection WHERE id=?",String.class,id));
+        assertEquals(3,db.queryForObject("SELECT revision FROM ql_camp_reflection WHERE id=?",Integer.class,id));
+        assertEquals(logs,db.queryForObject("SELECT COUNT(*) FROM ql_camp_reflection_log WHERE reflection_id=?",Integer.class,id));
+        assertTrue(voices.publicVoices(period).isEmpty());
+        voices.moderate(id,"publish",publicationCheck(reg,3,"ready"),9L,readable);
+        assertEquals("ready",db.queryForObject("SELECT JSON_UNQUOTE(JSON_EXTRACT(publication_review,'$.decision')) FROM ql_camp_reflection_log WHERE reflection_id=? AND action='publish'",String.class,id));
+        assertEquals(new HashSet<>(Arrays.asList("id","phase","excerpt","note","author")),voices.publicVoices(period).get(0).keySet());
+        voices.moderate(id,"hide",moderation(4,null),9L);
+        assertThrows(CustomException.class,()->voices.moderate(id,"publish",publicationCheck(reg,3,"ready"),9L,readable));
+        voices.moderate(id,"publish",publicationCheck(reg,5,"ready"),9L,readable);
+        assertEquals(2,db.queryForObject("SELECT COUNT(*) FROM ql_camp_reflection_log WHERE reflection_id=? AND action='publish' AND publication_review IS NOT NULL",Integer.class,id));
+        voices.withdraw("publication-atomic",period,"before");
+        assertTrue(voices.publicVoices(period).isEmpty());
+        assertEquals("Synthetic operational publication",db.queryForObject("SELECT draft_note FROM ql_camp_reflection WHERE id=?",String.class,id));
+    }
+
     @Test void campReflectionPermissionsDoNotExpandFinanceOrLeaderGrants() {
         assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM sys_role_menu rm JOIN sys_role r ON r.role_id=rm.role_id WHERE rm.menu_id IN (2410,2411,2412) AND r.role_key IN ('ql_finance','ql_leader')",Integer.class));
         assertEquals(6,db.queryForObject("SELECT COUNT(*) FROM sys_role_menu rm JOIN sys_role r ON r.role_id=rm.role_id WHERE rm.menu_id IN (2410,2411,2412) AND r.role_key IN ('ql_admin','ql_operator')",Integer.class));
@@ -313,7 +401,7 @@ class RegistrationReadinessIT {
             assertEquals(expected.getValue(),actual,"attendance role-menu grants for "+expected.getKey());
         }
     }
-    @Test void pendingSeatCanConfirmWhenFullButWaitlistCannot(){String s=session(1),r=add(customer(),s,"pending"),w=add(customer(),s,"waitlisted");staff.confirm(r,access);assertThrows(CustomException.class,()->status(w,"confirmed"));assertThrows(CustomException.class,()->add(customer(),s,"pending"));}
+    @Test void unpaidPendingDoesNotReserveSeatsAndCannotConfirmWithoutTrustedPayment(){String s=session(1),r=add(customer(),s,"pending"),w=add(customer(),s,"waitlisted");assertThrows(CustomException.class,()->staff.confirm(r,access));assertThrows(CustomException.class,()->status(w,"confirmed"));assertNotNull(add(customer(),s,"pending"));assertEquals(0,context.getBean(QlMiniAppMapper.class).selectOccupiedRegistrations(s).size());}
     @Test void sharedSensitiveGrantUpgradesExistingRolesIdempotently() throws Exception {
         Path migration=Paths.get(System.getProperty("qinglife.migrations"),"V1_4_4__shared_staff_assessment_view.sql");
         try(Connection connection=context.getBean(DataSource.class).getConnection()) {
@@ -390,17 +478,17 @@ class RegistrationReadinessIT {
     }
     @Test void automaticCoverSurvivesCreateNumberChangeAndManualUploadSwitch() {
         IQlSessionService sessions=context.getBean(IQlSessionService.class);
-        QlSessionBo bo=new QlSessionBo();bo.setSessionNumber(88000);bo.setName("Synthetic automatic cover");bo.setTheme("Synthetic");bo.setStartDate(new java.util.Date());bo.setEndDate(new java.util.Date(System.currentTimeMillis()+2L*86400000));
+        QlSessionBo bo=new QlSessionBo();bo.setSessionNumber(88000);bo.setName("生机清体营");bo.setPublicVenue("上海市安亭驿岛酒店");bo.setGuideIds(Collections.emptyList());bo.setTheme("Synthetic");bo.setStartDate(new java.util.Date());bo.setEndDate(new java.util.Date(System.currentTimeMillis()+2L*86400000));
         bo.setCoverUrl("");bo.setCapacity(10);bo.setCity("Synthetic");bo.setStatus("draft");
         assertTrue(sessions.insertByBo(bo,9L));
         String id=db.queryForObject("SELECT id FROM ql_session WHERE session_number=88000",String.class);
-        String first=sessions.queryById(id).getCoverUrl();assertTrue(first.endsWith("/session-covers/v1-88000.png"));
+        String first=sessions.queryById(id).getCoverUrl();assertTrue(first.endsWith("/session-covers/v3-88000.png"));
         bo.setId(id);bo.setSessionNumber(88001);bo.setCoverUrl(first);assertTrue(sessions.updateByBo(bo,9L));
-        assertTrue(sessions.queryById(id).getCoverUrl().endsWith("/session-covers/v1-88001.png"));
+        assertTrue(sessions.queryById(id).getCoverUrl().endsWith("/session-covers/v3-88001.png"));
         bo.setCoverUrl("https://example.invalid/manual.png");assertTrue(sessions.updateByBo(bo,9L));
         assertEquals(bo.getCoverUrl(),sessions.queryById(id).getCoverUrl());
         bo.setCoverUrl("");assertTrue(sessions.updateByBo(bo,9L));
-        assertTrue(Files.isRegularFile(mediaDirectory.resolve("public/session-covers/v1-88001.png")));
+        assertTrue(Files.isRegularFile(mediaDirectory.resolve("public/session-covers/v3-88001.png")));
     }
     @Test void registrationDigitsFilterPreservesExactSelectionAndSessionOptionsUseNewestFive() {
         int[] periods={70801,71801,72801,73801,74801,75801,76801};
@@ -610,6 +698,8 @@ class RegistrationReadinessIT {
     }
     @Test void referralRecordsAreOwnedAndKeepFirstAndPerPeriodAttributionWithoutRewards() {
         String referrer=customer(),other=customer(),newFriend=customer(),s=session(10),prior=session(2);bindR10("r10-inviter",91006L,referrer);bindR10("r10-invitee",91007L,newFriend);bindR10("r10-unrelated",91008L,other);
+        syntheticInvitationForSqlOnly(referrer);
+        syntheticInvitationForSqlOnly(other);
         assertNotNull(mini.createInvitation("r10-inviter",s,false).get("code"));
         String completed=add(referrer,prior,"confirmed");db.update("UPDATE ql_session SET status='completed' WHERE id=?",prior);
         db.update("INSERT INTO ql_participation(id,customer_id,session_id,registration_id,attendance_status) VALUES(?,?,?,?,'completed')",UUID.randomUUID().toString(),referrer,prior,completed);
@@ -619,18 +709,21 @@ class RegistrationReadinessIT {
         Map<String,Object> row=mini.myReferrals("r10-inviter").get(0);assertFalse(row.containsKey("phone"));assertFalse(row.containsKey("realName"));assertFalse(row.containsKey("paymentStatus"));
         String next=session(5);String otherCode=String.valueOf(mini.createInvitation(null,next,true).get("code"));db.update("UPDATE ql_invitation SET owner_customer_id=?,source='referral' WHERE code=?",other,otherCode);mini.register("r10-invitee",referralSignup(next,otherCode));
         assertEquals(referrer,db.queryForObject("SELECT referrer_customer_id FROM ql_customer WHERE id=?",String.class,newFriend));assertEquals(other,db.queryForObject("SELECT session_referrer_customer_id FROM ql_registration WHERE customer_id=? AND session_id=?",String.class,newFriend,next));
-        status(String.valueOf(row.get("registrationId")),"confirmed");assertEquals("confirmed",mini.myReferrals("r10-inviter").get(0).get("registrationStatus"));
+        legacyConfirm(String.valueOf(row.get("registrationId")));assertEquals("confirmed",mini.myReferrals("r10-inviter").get(0).get("registrationStatus"));
         assertEquals(money,db.queryForObject("SELECT COUNT(*) FROM ql_transaction",Integer.class));assertEquals(cards,db.queryForObject("SELECT COUNT(*) FROM ql_pass_ledger",Integer.class));
     }
-    @Test void everyLoggedInFriendMayInviteWithoutChangingReturningEligibility() {
+    @Test void unverifiedAndMinorFriendsCannotInviteAndReturningEligibilityRemainsIndependent() {
         String owner=customer(),s=session(3);bindR10("r11-new",91101L,owner);
-        assertEquals(Boolean.TRUE,mini.overview("r11-new").get("invitationEligible"));
+        assertEquals(Boolean.FALSE,mini.overview("r11-new").get("invitationEligible"));
         assertEquals(Boolean.FALSE,mini.overview("r11-new").get("returningEligible"));
-        assertNotNull(mini.createInvitation("r11-new",s,false).get("code"));
+        assertEquals(403,assertThrows(CustomException.class,()->mini.createInvitation("r11-new",s,false)).getCode());
         db.update("UPDATE ql_customer SET birth_date=DATE_SUB(CURRENT_DATE(),INTERVAL 12 YEAR) WHERE id=?",owner);
-        assertNotNull(mini.createInvitation("r11-new",s,false).get("code"));
+        assertEquals(403,assertThrows(CustomException.class,()->mini.createInvitation("r11-new",s,false)).getCode());
         assertThrows(CustomException.class,()->mini.createInvitation(null,s,false));
         assertThrows(CustomException.class,()->mini.createInvitation("r11-missing",s,false));
+        db.update("UPDATE ql_customer SET birth_date=DATE_SUB(CURRENT_DATE(),INTERVAL 30 YEAR),data_confidence='verified' WHERE id=?",owner);
+        assertEquals(Boolean.FALSE,mini.overview("r11-new").get("invitationEligible"));
+        assertEquals(403,assertThrows(CustomException.class,()->mini.createInvitation("r11-new",s,false)).getCode());
         db.update("UPDATE ql_session SET status='closed' WHERE id=?",s);
         assertThrows(CustomException.class,()->mini.createInvitation("r11-new",s,false));
     }
@@ -678,7 +771,7 @@ class RegistrationReadinessIT {
     }
     @Test void passManagementAdjustsByLedgerAndNeverAllowsNegativeBalance(){String account=pass(customer(),5);QlPassAdjustmentBo b=new QlPassAdjustmentBo();b.setQuantityDelta(-2);b.setReason("Synthetic correction");assertEquals(3,passes.adjust(account,b,9L));assertEquals(2,db.queryForObject("SELECT COUNT(*) FROM ql_pass_ledger WHERE pass_account_id=?",Integer.class,account));b.setQuantityDelta(-4);assertThrows(CustomException.class,()->passes.adjust(account,b,9L));assertEquals(3,db.queryForObject("SELECT SUM(quantity_delta) FROM ql_pass_ledger WHERE pass_account_id=?",Integer.class,account));}
     @Test void groupPassSettlementUsesInitiatorAccountNotParticipantAccount(){String buyer=customer(),participant=customer(),s=session(1),r=add(participant,s,"confirmed"),batch=UUID.randomUUID().toString();db.update("INSERT INTO ql_registration_batch(id,session_id,submitted_by_customer_id,source,participant_count,submitted_at,payable_amount,payment_status,order_no) VALUES(?,?,?,'mini_program',1,NOW(),100,'unpaid',?)",batch,s,buyer,"T"+batch.replace("-","").substring(0,20));db.update("UPDATE ql_registration SET batch_id=? WHERE id=?",batch,r);String participantAccount=pass(participant,2),buyerAccount=pass(buyer,2);QlSettlementBo b=new QlSettlementBo();b.setSettlementType("pass");b.setPassUnits(1);b.setFinalAmount(BigDecimal.ZERO);b.setPassAccountId(participantAccount);assertThrows(CustomException.class,()->registrations.confirmSettlement(r,b,9L));assertEquals(2,db.queryForObject("SELECT SUM(quantity_delta) FROM ql_pass_ledger WHERE pass_account_id=?",Integer.class,participantAccount));b.setPassAccountId(buyerAccount);registrations.confirmSettlement(r,b,9L);assertThrows(CustomException.class,()->registrations.changeBatchPayment(batch,payment("paid","0"),9L));assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM ql_transaction WHERE registration_batch_id=?",Integer.class,batch));assertEquals(1,db.queryForObject("SELECT SUM(quantity_delta) FROM ql_pass_ledger WHERE pass_account_id=?",Integer.class,buyerAccount));assertEquals(buyerAccount,db.queryForObject("SELECT pass_account_id FROM ql_registration_batch WHERE id=?",String.class,batch));}
-    @Test void threeEntrypointsCompeteForLastSeat()throws Exception {
+    @Test void threeUnpaidEntrypointsStayPendingWithoutCompetingForSeats()throws Exception {
         String s=session(1),buyer=customer(),adminCustomer=customer(),staffCustomer=customer();
         when(context.getBean(RedisCache.class).getCacheObject("appToken:synthetic")).thenReturn(77L);
         when(context.getBean(QlCustomerIdentityService.class).resolve(77L)).thenReturn(buyer);
@@ -686,7 +779,7 @@ class RegistrationReadinessIT {
         QlMiniAppRegistrationBo.Participant p=new QlMiniAppRegistrationBo.Participant();p.setSelf(true);p.setName("Synthetic");p.setMinor(false);p.setPhone("13800000000");b.setParticipants(Collections.singletonList(p));
         List<Callable<Boolean>> actions=Arrays.asList(()->{add(adminCustomer,s,"pending");return true;},()->{staff.enroll(staffCustomer,s,access);return true;},()->{mini.register("synthetic",b);return true;});
         ExecutorService pool=Executors.newFixedThreadPool(3);CountDownLatch start=new CountDownLatch(1);List<Future<Boolean>> futures=new ArrayList<>();
-        try{for(Callable<Boolean> action:actions)futures.add(pool.submit(()->{start.await();try{return action.call();}catch(CustomException expected){return false;}}));start.countDown();int success=0;for(Future<Boolean> f:futures)if(f.get(30,TimeUnit.SECONDS))success++;assertEquals(1,success);assertEquals(1,db.queryForObject("SELECT COUNT(*) FROM ql_registration WHERE session_id=?",Integer.class,s));}finally{pool.shutdownNow();}
+        try{for(Callable<Boolean> action:actions)futures.add(pool.submit(()->{start.await();try{return action.call();}catch(CustomException expected){return false;}}));start.countDown();int success=0;for(Future<Boolean> f:futures)if(f.get(30,TimeUnit.SECONDS))success++;assertEquals(3,success);assertEquals(3,db.queryForObject("SELECT COUNT(*) FROM ql_registration WHERE session_id=?",Integer.class,s));assertEquals(0,context.getBean(QlMiniAppMapper.class).selectOccupiedRegistrations(s).size());}finally{pool.shutdownNow();}
     }
     @Test @SuppressWarnings("unchecked") void contactParticipantAndSettlementFactsStaySeparate() {
         String s=session(3),buyer=customer();
@@ -705,7 +798,7 @@ class RegistrationReadinessIT {
         assertEquals("家庭联系人",db.queryForObject("SELECT contact_name FROM ql_registration_batch WHERE id=?",String.class,batch));
         assertEquals("13900000000",db.queryForObject("SELECT contact_phone FROM ql_registration_batch WHERE id=?",String.class,batch));
         assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM ql_customer_identifier i JOIN ql_registration r ON r.customer_id=i.customer_id WHERE r.batch_id=?",Integer.class,batch));
-        for(Map<String,Object> row:rows)status(String.valueOf(row.get("registrationId")),"confirmed");
+        for(Map<String,Object> row:rows)legacyConfirm(String.valueOf(row.get("registrationId")));
         String first=String.valueOf(rows.get(0).get("registrationId"));
         settle(first,"150");
         assertThrows(CustomException.class,()->registrations.changePayment(first,payment("paid","200"),9L));

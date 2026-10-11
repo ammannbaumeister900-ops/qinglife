@@ -11,7 +11,7 @@ class QlMiniAppContactServiceTest {
         QlMiniAppMapper mapper = mock(QlMiniAppMapper.class);
         when(mapper.selectContactConfig()).thenReturn(rows);
         return new QlMiniAppServiceImpl(mock(RedisCache.class), mock(QlCustomerIdentityService.class), mapper,
-                mock(QlSessionPricing.class), mock(QlHabitPlanService.class), new QlSessionAdmissionPolicy()).contact();
+                mock(QlSessionPricing.class), mock(QlHabitPlanService.class), new QlSessionAdmissionPolicy(), new QlCommunityAccessPolicy()).contact();
     }
     private Map<String,Object> row(String key, String value) {
         Map<String,Object> result = new HashMap<>(); result.put("configKey", key); result.put("configValue", value); return result;

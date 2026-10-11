@@ -2,560 +2,117 @@
 name: qinglife-design
 description: >
   Design, review, and refine user-facing UI for the Qinglife (轻生活) native WeChat Mini Program.
-  Use when creating a new miniapp page or component, redesigning an existing page,
-  reviewing WXML/WXSS, changing visual hierarchy, typography, surfaces, states,
-  navigation, forms, or interaction feedback in apps/miniapp.
-  Preserve Qinglife's quiet, natural, restrained lifestyle identity while reducing
-  AI-generated UI patterns and keeping user tasks clear and efficient.
+  Use for page or component design, WXML/WXSS review, visual hierarchy, UI copy reduction,
+  typography, lists, forms, reading, private records, states, navigation and interaction feedback
+  in apps/miniapp, including authorized batch optimization. Choose by the confirmed page role;
+  preserve real content, business semantics and Qinglife's warm, natural editorial identity.
 ---
 
 # Qinglife Design
 
-Use this skill for user-facing design work inside `apps/miniapp`.
+本文件是项目设计决策源。工程、Git、安全与当前工作树规则遵循两级 `AGENTS.md`，不在此重复建立另一套流程。用户当前授权决定执行范围；Skill 本身不授权批量修改、业务变更或发布。面向原生微信小程序 WXML/WXSS，不假定 DOM、React 或浏览器专属能力。
 
-Qinglife is a native WeChat Mini Program.  
-Design for WXML / WXSS / native Mini Program interaction patterns.
+先读 [页面角色矩阵](references/page-roles.md)，按实际视图选择目标。已确认样板及遗留事项见当前仓库 `docs/design/ui-boundary-samples-acceptance-20261010.md`；计划批次时读 [分批方案与规则演练](references/batch-plan.md)。历史审计用于恢复角色，不替代当前源码或已确认的最终视觉。
 
-Do not assume DOM, React, Tailwind, GSAP, browser-only APIs, or desktop web interaction patterns.
+## 1. 先判断任务与角色
 
-## 1. Design north star
+轻生活：**东方生活方式 × Editorial Design；安静、自然、克制、温暖。** 温度来自真实的人、内容与恰当的阅读节奏，不依赖柔化句子或装饰。保持纸色、墨色、鼠尾草绿与陶土色的既有语义，避免科技渐变、通用疗愈素材和组件陈列。
 
-Qinglife should feel:
+决策顺序：用户当前任务 → 信息层级 → 可读性与操作 → 符合角色的品牌表达 → 视觉细节。已有待办、报名或记录，不能被宣传开场压过。先降低次要内容的权重，再考虑加强主焦点。
 
-**安静 · 自然 · 克制 · 温暖 · 有生活方式品牌感 · 有少量编辑感与东方气质**
+比例表示设计倾向，**不是面积、图片或文字占比**。复合页面按视图判断；未经确认不调整比例。未单列目标的分支先核实入口与任务，不自填数字。以下为策略参考，不作为硬分档或新比例：
 
-The product should feel considered, not decorated.
+| 倾向 | 优先组织什么 | 表达方式 |
+| --- | --- | --- |
+| 品牌较高 | 人物、真实内容、叙事与阅读 | 有内容依据的摄影、选择性衬线标题、编辑式构图、疏密节奏；无图也成立 |
+| 品牌与功能接近 | 体验认识与决策事实 | 图片与事实形成关系；日期、地点、费用、条件、主动作易扫描，不搬运全部详情到列表 |
+| 功能较高 | 当前对象、状态、下一步与恢复 | 紧凑目录、连续表单、直接核对；不强加大图开篇、文学标题或大面积留白 |
 
-Prefer:
+一致性体现在字体角色、色彩语义、动作层级与反馈，不要求相同 Card、间距、密度或构图。其他设计 Skill 可辅助诊断，不覆盖本项目角色与用户已确认方向；不叠加所有 Skill 的建议。
 
-**content over decoration  
-hierarchy over components  
-spacing over containers  
-clarity over atmosphere  
-real content over visual metaphors  
-restraint over novelty**
+## 2. 页面文案减法：每轮默认执行
 
-Do not turn Qinglife into:
+**能通过设计本身表达清楚的事情，不再额外使用文字解释。** 对界面辅助文案逐句判断：删除后，用户是否仍能正确理解页面并完成任务？能则优先删除；会造成误解或业务风险则保留并尽可能精简。
 
-- a SaaS dashboard
-- a generic wellness app
-- an Apple imitation
-- a Japanese lifestyle template
-- a magazine that sacrifices usability
-- a visually polished AI-generated component showcase
+- 删除非必要注释、备注、解释性副标题、重复说明、装饰引导语和占位品牌文案。标题已说明的事，不在下方再说一次。
+- 控件已清楚表达操作，不再写使用教程；先用层级、对齐、状态、选中与操作反馈表达关系。不能删掉用户确实需要的选择规则或异常恢复说明。
+- 优先删除，不把冗余话改得更温暖、更文学化；不为留白补字，不为品牌编造情绪。避免所有模块都成为“大标题＋解释＋内容”。
+- **真实内容不属于删减对象**：用户原文、故事正文、知识文章、真实活动描述不因视觉优化被改写或删节。列表可预览，阅读页保留完整内容；已有必要规则不因重复出现于不同决策步骤而机械删除。
+- 保留影响判断和操作的隐私/授权、价格口径、报名条件、身体边界、重要状态、错误、字段规则与必要操作说明。精简措辞不得缩窄或扩大其事实含义，也不能把关键规则藏进不易发现的折叠区。
+- 合并重复说明时放在用户作决定的位置；跨页面、提交前核对或不同权限上下文的提示，按必要性分别判断。
 
-## 2. Priority of decisions
+这项要求针对**用户界面文案**，不要求清理代码注释或工程文档。演示内容标识、能力限制和实际错误不是可随意删除的“技术文字”；内部验收说明应留在验收材料或隔离环境，不混入正式用户页。
 
-When making a UI decision, use this order:
+## 3. 视觉材料与排版
 
-1. User's current task
-2. Information hierarchy
-3. Readability and interaction clarity
-4. Qinglife brand character
-5. Visual refinement
-6. Decoration and motion
+- **字体**：表达性标题可用既有衬线角色；正文、表单、导航、状态、日期、地点、费用与按钮以清晰的功能字体为主。真实文章标题自然换行，不写死样稿断行；平台字体回退需验证。少量明确角色优于许多近似字号，不通过缩小字号或降低对比压缩页面。
+- **摄影**：仅使用有授权、与当前内容真实关联的资源；无图优于无关图。同一照片不代表所有期次或人物。现场摄影可按主体裁切，带字海报应完整可读，正文图片保持合理比例与顺序。封面已在正文出现时避免额外重复，不能删掉原正文图。缺图/失败自然退化为文字与原入口，不补造素材或署名。
+- **封面策略按角色**：公开活动列表沿用动态期数模板，日期/地点/状态/价格在正文；我的安排用无封面任务目录；私人回顾无摄影。上述是已确认样板的具体选择，不推广成全站通用封面规则。
+- **留白**：组内紧、组间松；阅读可有停顿，任务页不能为“安静”无故变长。不强制撑高短内容，不用解释文字填补空白。内容需有主次，不要求每个模块一样重或机械等宽。
+- **分隔线与容器**：先用对齐、邻近、空白和细线；独立容器只用于确有边界的对象/核对组。避免页面套 Card、字段再套 Card。线分隔不同对象，不与 Tab 或固定栏边界重复；依筛选后结果判断最后一项。不是全站禁用 Card，也不按类名判断是否为卡片。
+- **状态与颜色**：重要事实保持可读，不能用浅灰制造精致感。Badge 用于状态、分类、筛选，不能装饰普通句子；活动阶段、报名与费用分别表达，不能合成一个“已完成”或一律绿色。状态不能只靠颜色辨认。
+- **操作与动效**：主要任务有明确主动作，辅助操作克制但可发现、可触达。只有核实落点与校验相同才合并重复入口，不能绕过须知/权限/费用核对。不可操作状态不伪装为可点击按钮。保留有效按压、加载与进度反馈，默认静态阅读；不自动滚动真实文字或添加无意义循环动效。
+- **原生适配**：沿用导航、返回、胶囊测量、Tab 和安全区。长页滚动后仍能返回；固定栏不遮挡末项与输入。可点击区域按现有可用性标准核对，紧凑不等于难点按。不复制 HTML 模拟微信状态栏，不用未经验证的浏览器 CSS 撑起原生布局。
 
-A lower-priority goal must not damage a higher-priority goal.
+## 4. 按内容结构选择模式
 
-If a returning user already has an active task, registration, itinerary, record, or status, surface that before promotional or atmospheric content.
+这些是决策模式，不是组件模板。先读当前完整 WXML/WXSS/JS、数据映射与公共组件，再决定最小调整。
 
-Brand expression should live inside the experience, not stand between the user and the task.
+| 模式 / 已验样板 | 应保留的主次 | 避免的错误 |
+| --- | --- | --- |
+| 品牌发现 / 首页 | 无待办时真实人物和主故事形成焦点；有待办当前任务先行 | 复制品牌开篇到服务页；把内部视觉样稿写入接口 |
+| 活动决策 / detail | 活动身份与事实 → 感受体验 → 条件/带领者/费用/安排/规则 → 原报名动作，依真实内容适配 | 冗余散文标题、重复规则、海报裁切；凭测试日程数量推断课程天数 |
+| 活动比较 / 公开列表 | 期次与名称、时间地点、实际状态、两档公开价及费用说明；沿原排序突出首条 | 擅改推荐/排序；将详情全搬来；自动滚动心声。真实心声辅助比较，默认短预览，手动切换/全文，无则隐藏 |
+| 任务与状态 / 我的安排 | 期次/报名状态 → 名称独行 → 日期城市 → 必要状态/操作；单期不分组，多期有当前/历史时才分组 | 操作挤标题；历史分组藏待办；从结束日期推断完成或付款。组内保留既有顺序 |
+| 填写与核对 / register | 当前步骤和任务 → 对象/字段分组 → 必要条件与费用 → 真实提交核对 → 主动作 | 摄影开篇；每字段一张卡；只用 Toast；用价格算出接口未确认的应付总额 |
+| 公共阅读 / 故事文章 | 自然标题、真实作者/日期、关联封面、完整正文、出处与克制收藏/分享 | 固定人物身份、引语/断行/段落；统一添加无关健康提示；把长正文当冗余文案 |
+| 私人阅读与表达 / experience | 已有原文先读；活动归属、阶段/时间/可见性辅助；新增/编辑按真实资格出现 | 新增表单压过记录；无评分反复“未填”；混淆私人记录和可授权心声；虚构写作内容或持久化能力 |
 
-## 3. Relationship with other design skills
+### 表单、设置与结果页
 
-For Qinglife, this skill defines the project-specific design direction.
+步骤写任务名称，当前步与下一步清楚；换步起点可见，返回保留已有输入。字段按信息归属分组，标签注明必填/选填、单位和必要选择规则，不只依赖占位符。单选/多选及互斥“无”要可理解，不改原校验条件。
 
-External design skills may provide general methods, but must not override Qinglife's product identity.
+错误就近定位到实际字段/参与者，原位可修复，保留输入；Toast 只辅助。核对显示真正将提交的对象和既有兜底值，不虚构确认项。区分未授权、提交中、失败、成功，保留防重复提交及既有请求语义。设置区分本机偏好与真实服务能力；保存偏好不等于通知已开通。
 
-When used together:
+### 私人内容
 
-- `frontend-design`: use for general composition, hierarchy and design quality.
-- `taste-skill`: use to detect generic AI UI, over-design and visual sameness.
-- `qiaomu-design`: preferably use as a critique/review layer after a design direction exists.
+用户原文、换行和已有顺序优先，长文可主动展开且全文可达。归属和可见性清楚而克制，私人内容不随邀请、代报名或公开心声泄露。不要在视觉任务中新增私人文字持久化、跨身份草稿或新的阶段入口；沿用已支持的恢复范围，失败保留草稿，异步保存只确认已提交快照，不吞掉在途修改。可选评分没有值则不伪造数字；编辑文字不丢已有评分。
 
-Do not combine every suggestion from every skill.
+### 富文本与长期运营
 
-When recommendations conflict, prefer the solution that best satisfies this document and the real user task.
+后台负责内容结构，前台负责统一阅读样式。先核编辑器 → 存储 → API → 原生渲染链路；故事/方法共用能力不等于共用页面构图。复用现有适配器，不为单篇样稿引入专有格式或更换编辑器。
 
-## 4. Start with structure, not styling
+保留标题层级、段落、强调、列表、引用、图片顺序与安全链接语义；字号/任意颜色按既有阅读规范归一，不透传任意 HTML/CSS。区分段落与普通换行、收敛异常空段落，不能猜测重写已保存的正文。图片不溢出或变形。沿用受控节点、标签/属性/URL 安全处理；前端过滤不代表服务端安全已补齐。
 
-Before changing visual details, identify:
+以编辑器实际能力验收，不能把视频、表格或外链的可保存描述成可播放、可完整排版或可打开。通用文章容器技术缺口、服务端富文本清洗及媒体能力事项独立跟踪，不借视觉批次擅自扩大后台或公共组件改造。
 
-- Who is using this page?
-- What are they trying to do now?
-- What is the single most important information or action?
-- What information supports that task?
-- What can be visually quieter?
-- What can be removed?
+## 5. 真实数据与自然退化
 
-Do not solve information architecture problems with stronger colors, larger cards or more decoration.
+- **无内容**：区分读取中、失败、真的为空与无权限；失败可重试，空态只给真实可用下一步。可选模块无内容自然消失，必要但未知的事实按现有业务明确“待核对”，不伪装为 0、已确认或已完成。
+- **缺字段**：不留空标题、分隔符、署名或无意义占位文案；合法价格 0 与价格缺失、评分缺失与零分要区分。能力提示不承诺未实现的提醒、短信、草稿恢复或保存可回读。
+- **长内容/窄屏**：名称有独立宽度，状态/操作可换行；日期、价格、条件仍可读。预览只用于列表或已确认折叠场景，全文和必要规则可达；不以缩小所有文字解决溢出。
+- **多期/多条/多阶段**：保持原关联、筛选、排序、权限及精确跳转 ID；历史未处理事项不能因归档视觉而消失。课程持续天数按实际起止日期，与日程条数分开；只有日期无具体安排，不默认铺满空日程；长日程保留完整查看能力。
+- **测试素材**：真实内容不足可用隔离内存夹具或非生产测试内容补覆盖，并标明证据来源；不写入正式接口或现有验收库补版面。没取得的真实数据/保存/真机证据列为未验，不用样稿截图冒充。
 
-For existing pages, preserve business logic and product behavior unless the task explicitly asks to change them.
+## 6. 自主决策与暂停边界
 
-Judge cross-page consistency primarily by typography roles, information priority, action semantics and state expression. Different tasks may use different layouts and information densities.
+在**已授权范围**内，普通视觉、界面文案减法、排版和保留语义的轻度交互优化自主完成；不逐页重新要求原型或逐项审批。沿用确认样板作为质量依据，不复制其布局，也不因为工程方便退回普通 Card 堆叠。
 
-## 5. One primary visual focus
+仅在需要改变业务流程、权限/隐私、数据含义/持久化、接口契约，或出现无法据现有规则判断的重大设计冲突时，暂停受影响部分并提交具体决策：现有事实、冲突、单一建议、影响范围。能够独立完成的已授权工作继续。**页面包含隐私字段、费用或登录，不等于普通排版也要重新审批。** 不把原有技术缺口默认列为本批必修项。
 
-Each screen or major viewport should normally have one dominant focus.
+既有明确视觉验收方案直接还原。普通批次无需新原型；确需重建高品牌页面构图且尚无明确依据时，提出一套必要的可视化方案，再按授权推进，不做多套探索。不擅改角色比例；调整建议与当前执行分开。
 
-Do not give every section equal visual weight.
+## 7. 最小执行与验收闭环
 
-Avoid sequences where every block repeats:
+每批可含多个已明确视图，**逐视图完成小闭环**，不一次改完全站再统一发现问题。共用文件按分支限定样式与呈现；涉及共享组件时核对真实调用者，避免把冻结页面带改。
 
-`Pill → large title → explanatory copy → Card → button`
+1. **记录基线**：按 AGENTS 核对当前工作树。记本视图入口/角色、主要任务、现有字段/状态/权限、原跳转及本轮允许改动。保存实际小程序修改前截图；无法取得时记录缺口，不用旧图代替。
+2. **决定增删**：明确保留/调整/删除及一句理由，先层级后样式。对候选删减文案作“删除后仍能正确完成任务”检查；必要事实与用户原文不删。
+3. **实施验证**：先受影响功能，再相关静态检查/测试与相邻分支回归，新增逻辑按 AGENTS 保持可测；不为纯样式写镜像断言或无条件跑全库。已有失败先复现/对照，新增失败修复后再验。
+4. **关键状态**：按当前真实支持能力覆盖正常、加载、错误/重试、空/缺字段，以及本次相关的登录/无权限、禁用、提交中/失败/成功；列表检查 0/1/多项与筛选，表单检查返回/错误定位/输入保留，多状态页核对状态与操作。不制造不存在的状态凑数。
+5. **实际布局与交互**：在微信开发者工具检查正常宽度与代表性窄屏、长文/标题、图片加载失败、必要展开/收起、固定返回/操作/Tab/安全区。保存主要状态的实际截图及前后差异说明；测试夹具与真实接口证据分别标明。HTML 原型、浏览器转译图只能辅助，不能替代小程序验证。
+6. **收尾复核**：检查仍可删除的解释性文字、容器和重复入口；确认关键事实/完整内容/原权限与跳转保留；核对 diff 与允许范围。交付改动、验证、历史失败/新增问题、截图、未验证项与真机验收路径，更新统一清单。
 
-Variation should come from content structure, not decorative novelty.
+无法运行开发者工具或缺少验收身份时继续完成可验证部分，明确标记未验，不能声称全部通过。真机、真实保存、生产发布与开发者工具分别记录；上传微信/外部服务和发布遵循单独授权。
 
-When several modules compete for attention, reduce the visual weight of secondary modules before increasing the primary one.
-
-## 6. Surface and Card rules
-
-**Default: no Card.**
-
-Use a Card or independent surface only when the content genuinely needs to be perceived as one independent object.
-
-Good candidates:
-
-- one activity
-- one registration result
-- one historical post
-- one clearly bounded record
-- one confirmation group that must be distinguished from surrounding content
-
-Usually not Card-worthy:
-
-- one form field
-- one paragraph of explanation
-- one status line
-- one metadata group
-- one section heading
-- one short instruction
-- every item in a continuous list
-
-Prefer:
-
-- whitespace
-- alignment
-- typography
-- subtle separators
-- grouping by proximity
-
-before adding another surface.
-
-Avoid nested combinations such as:
-
-`page surface → Card → field Card → input surface`
-
-unless each boundary carries a real semantic role.
-
-Different information roles should not automatically share the same large radius, shadow and background treatment.
-
-## 7. Typography roles
-
-Typography must communicate function.
-
-### Serif
-
-Use Qinglife's serif style selectively for:
-
-- brand masthead
-- editorial/article titles
-- meaningful emotional statements
-- rare expressive moments
-
-Serif is a signature, not a default UI font.
-
-### System sans-serif
-
-Use system sans-serif for:
-
-- buttons
-- navigation
-- status
-- dates
-- locations
-- prices and pricing conditions
-- names
-- form labels
-- inputs
-- metadata
-- instructions
-- operational information
-
-Do not make functional information poetic through typography.
-
-Do not enlarge an entire price sentence merely to emphasize the numeric price.
-
-Prefer fewer meaningful text roles over many slightly different font sizes.
-
-## 8. Color and readability
-
-Preserve Qinglife's warm paper, clay, sage and natural palette.
-
-Do not replace the brand with cold gray, neon, blue-purple technology colors or high-contrast SaaS styling.
-
-However:
-
-**soft does not mean faint.**
-
-Dates, locations, fees, navigation labels, section labels and important supporting information must remain easy to read.
-
-Do not reduce important information to low-contrast decorative text simply to create a gentle mood.
-
-Use muted colors for genuinely secondary information, not for information the user must verify.
-
-Secondary dates, deadlines, fees and states must remain legible in real usage conditions, including narrow screens. Reduce their emphasis through hierarchy and spacing, not simply smaller type or lower contrast.
-
-## 9. Pill / Badge rules
-
-Pills and badges are reserved primarily for:
-
-- status
-- classification
-- filters
-- compact semantic attributes
-
-Do not use Pills simply to make text look designed.
-
-Avoid Pills for:
-
-- greetings
-- emotional sentences
-- ordinary explanations
-- decorative introductions
-- text that merely repeats the next heading
-
-If removing the Pill does not reduce comprehension, prefer plain text.
-
-Different business states should remain distinguishable.  
-Do not merge unrelated states into one decorative badge merely to reduce component count.
-
-## 10. Spacing
-
-Whitespace should clarify relationships.
-
-Use spacing to answer:
-
-- what belongs together?
-- what starts a new section?
-- what deserves a pause?
-
-Do not create "air" by applying large margins uniformly everywhere.
-
-Group spacing should be visibly tighter than section spacing.
-
-Long reading pages may breathe more than:
-
-- forms
-- account pages
-- task flows
-- record lists
-
-Do not make functional pages unnecessarily long in order to feel calm.
-
-## 11. Decoration
-
-Decoration must earn its place.
-
-Qinglife may use subtle editorial or tactile details, but avoid stacking multiple metaphors.
-
-Examples of expressive elements include:
-
-- paper texture
-- soft light
-- large radius
-- soft shadow
-- tape
-- seal
-- serif display typography
-- atmospheric gradients
-- breathing backgrounds
-- decorative objects
-
-Do not make several of these compete on the same screen.
-
-**As a default, allow only one clearly expressive visual language to dominate a viewport.**
-
-If typography already provides strong editorial character, reduce decorative surfaces.
-
-If authentic photography already provides atmosphere, reduce gradients and visual props.
-
-Never add decoration merely because the page feels "too simple."
-
-Simple is acceptable.
-
-## 12. Images and content assets
-
-Prefer authentic, content-related assets.
-
-Do not use one generic lifestyle scene to represent unrelated content.
-
-For articles, activities and experiences:
-
-- real relevant photography is valuable
-- content-specific imagery is valuable
-- no image is better than an unrelated decorative image
-
-Do not automatically generate a substitute illustration when an authentic image is unavailable.
-
-Let typography and content carry the page when necessary.
-
-## 13. Motion
-
-Motion must explain:
-
-- feedback
-- transition
-- progress
-- state change
-- navigation
-
-Do not use motion merely to make the interface feel premium.
-
-Avoid automatic motion that interrupts reading or form completion.
-
-Authentic content alone does not justify autoplay, drifting text, carousels or continuous animation. Default to static presentation unless these treatments provide a clear benefit for the task or content comprehension.
-
-Be especially cautious with:
-
-- autoplay carousels
-- continuously breathing backgrounds
-- looping decorative animation
-- movement unrelated to state
-
-Preserve useful press feedback, loading feedback, progress transitions and meaningful state animation.
-
-A quiet product should also be quiet in time.
-
-## 14. Buttons and actions
-
-Maintain clear action hierarchy.
-
-Prefer:
-
-1. one primary action
-2. optional secondary action
-3. quiet text action when appropriate
-
-Do not repeat multiple visually strong CTAs for the same task.
-
-Do not style status text as a clickable button when clicking cannot lead to meaningful progress.
-
-A disabled, unavailable or informational state should look different from an actionable control.
-
-Do not use visual novelty to make every action important.
-
-## 15. Forms
-
-Forms are tasks, not editorial compositions.
-
-Optimize for:
-
-- scanning
-- completion
-- error recovery
-- understanding selection rules
-
-Avoid wrapping every field in an independent Card.
-
-Use clear grouping and section headings.
-
-For single-select and multi-select questions, make selection rules understandable before trial and error.
-
-If an option such as “无” is mutually exclusive, make that behavior understandable.
-
-Validation should identify the relevant field or group whenever feasible.
-
-Do not rely only on a generic Toast when the user must search a long page to find the error.
-
-When changing multi-step forms, consider scroll position and make the start of the new step discoverable.
-
-Keep necessary privacy explanations, but do not visually amplify every privacy sentence into another independent surface.
-
-## 16. State and feedback
-
-Design explicit states for:
-
-- loading
-- empty
-- error
-- success
-- disabled
-- unavailable
-- stale/refreshing when relevant
-
-Do not visually collapse loading, empty and error into the same generic soft card.
-
-Error messages should describe what is known.
-
-Do not invent emotional explanations for technical failure.
-
-Success feedback must not promise capabilities the product does not actually provide.
-
-Examples:
-
-- Do not imply a notification will definitely arrive unless that delivery exists.
-- Do not say reminders are enabled when only a local preference was saved.
-- Do not confirm a saved result if users cannot later retrieve it through the expected flow.
-
-Visual trust depends on product truth.
-
-## 17. Navigation
-
-Preserve native WeChat conventions when they work.
-
-Do not rebuild native interaction solely for aesthetic consistency.
-
-Shared navigation must consider:
-
-- safe areas
-- capsule position
-- long-page behavior
-- persistent access to critical navigation
-- readable selected and unselected states
-
-On long content or activity-detail pages, verify that the user retains a reasonable way to leave or go back after scrolling.
-
-Do not add another navigation layer unless the information architecture requires it.
-
-## 18. Lists and repeated content
-
-Repeated content should normally become quieter as quantity increases.
-
-For content browsing, consider:
-
-- separators
-- typography
-- aligned metadata
-- compact rows
-
-before Card grids.
-
-Qinglife's simple reading-list and directory-row patterns are good references.
-
-Do not make saved articles, records or services visually heavier simply because they are displayed on a different page.
-
-Reuse semantic patterns, not just CSS classes.
-
-## 19. New page decision process
-
-When creating a new page:
-
-### Step 1 — Define the task
-Write one sentence:
-
-`The user comes here to ______.`
-
-### Step 2 — Define hierarchy
-Identify:
-
-- primary information/action
-- secondary information
-- optional information
-
-### Step 3 — Choose the lightest structure that works
-Start with:
-
-- page
-- heading
-- content
-- separator
-- action
-
-Add Card, Pill, imagery, shadow or motion only when a clear reason exists.
-
-### Step 4 — Apply Qinglife identity
-Use existing palette, typography and shared components where appropriate.
-
-Do not invent a new aesthetic language for one page.
-
-### Step 5 — Remove
-Before implementation is considered finished, ask:
-
-- Can one Card disappear?
-- Can one Pill become plain text?
-- Can one decoration disappear?
-- Can one visual level disappear?
-- Can the user reach the main task sooner?
-
-If yes, prefer the simpler version unless information clarity decreases.
-
-## 20. Existing page redesign process
-
-For an existing page:
-
-1. Read its WXML, WXSS and related shared styles/components.
-2. Understand its current business behavior before editing.
-3. Identify what is already working and preserve it.
-4. Separate structural problems from visual styling problems.
-5. Fix hierarchy before appearance.
-6. Remove unnecessary visual treatment before adding new treatment.
-7. Reuse existing Qinglife patterns when they already solve the problem.
-8. Avoid unrelated refactors.
-9. Keep changes scoped to the requested design objective.
-10. After implementation, review the page again for AI-generated visual habits.
-
-## 21. Preserve these Qinglife assets
-
-Do not casually remove:
-
-- warm paper / natural base palette
-- restrained clay and sage accents
-- system sans-serif body text
-- selective serif editorial contrast
-- real activity covers
-- explicit dates, places, fees and states
-- stable four-channel bottom navigation
-- line-based content lists
-- directory-style service rows
-- meaningful real-world step numbers and chronological order
-- native safe-area handling
-- private, voluntary, non-gamified tone
-- acceptance of rest and incomplete participation
-- draft saving and useful progress states
-
-These are product identity, not merely decoration.
-
-## 22. Common failure patterns
-
-Actively check for:
-
-- every section becoming a Card
-- excessive large rounded rectangles
-- repeated Pill → title → copy → button compositions
-- gradients added without semantic purpose
-- shadows on every surface
-- decorative objects unrelated to content
-- serif spreading into functional data
-- faint text used to manufacture elegance
-- equal visual weight across all modules
-- excessive explanatory copy before the main task
-- generic wellness imagery
-- over-designed empty states
-- unnecessary automatic animation
-- adding icons simply because a row feels empty
-- turning a task page into a landing page
-- redesigning business logic during a visual cleanup
-- introducing web patterns that do not map naturally to native WeChat Mini Programs
-
-## 23. Final review
-
-Before declaring a Qinglife UI task complete, verify:
-
-Review all actually used branches, including history, detail, empty and error states, together with inherited shared styles. Do not judge a page only from its default first viewport.
-
-- Is the user's main task obvious?
-- Does the most important content appear early enough?
-- Is every Card necessary?
-- Is every Pill semantic?
-- Is serif used selectively?
-- Are important facts readable?
-- Is decorative treatment restrained?
-- Does motion have a purpose?
-- Are state and error behaviors understandable?
-- Does the page still feel like Qinglife?
-- Does it feel less designed by AI, not merely more designed?
-
-When uncertain, choose the quieter solution.
-
-Once the main task is clear, page roles are stable, core states are complete and obvious AI UI patterns have been removed, stop aesthetic iteration. Move to real-device acceptance or real user feedback instead of continuing redesign solely for greater refinement.
+主要任务清楚、角色表达到位、关键状态完整且相关验证没有新增问题后，停止审美迭代，进入真机/用户验收。冻结样板只因明确问题或新的授权重开，不为了统一外观反复修改。

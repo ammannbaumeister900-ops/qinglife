@@ -163,13 +163,15 @@ test('camp valid API submission preserves optional phone, selected participants 
   const f = fixture('camp-flow'), before = plain(f.page.data.draft)
   f.page.refresh = async () => {}
   f.page.data.step = 2
+  f.business.registrationQuote = async payload => ({participants:payload.participants.map((p,index)=>({index,friendType:'new',unitPrice:'3800.00'})),quotedAmount:3800*payload.participants.length})
+  await f.page.loadQuote()
   await f.page.submitRegistration()
   assert.equal(f.submissions.length, 1)
   assert.equal(f.submissions[0].participants.length, 3)
   assert.equal(f.submissions[0].participants[0].phone, f.page.data.state.phone)
   assert.equal(f.submissions[0].participants[1].phone, '')
   assert.equal(f.submissions[0].motivation, before.motivation)
-  assert.equal(f.page.data.view, 'journey')
+  assert.equal(f.page.data.view, 'success')
   assert.deepEqual(plain(f.page.data.draft), before)
   assert.equal(f.page.data.submitting, false)
 })

@@ -105,3 +105,42 @@
   background: transparent;
   color: var(--ql-ink);
 }
+
+/* Story expression is local; other reading types keep their existing page hierarchy. */
+page { background: #f7f6ef; }
+.article-page { min-height: calc(100vh - 88px); }
+.article-story {
+  --ql-bg: #f7f6ef;
+  --ql-ink: #252b21;
+  --ql-ink-light: #6a715f;
+  --ql-border: #d2d7c9;
+  --ql-clay-deep: #435e3c;
+  min-height: calc(100vh - 88px);
+}
+.article-story .article-sheet { padding: 0 0 24px; }
+.article-story .article-heading { margin: 0; padding: 27px 28px 36px; }
+.story-category { color: #435e3c; font-size: 12px; letter-spacing: 2px; line-height: 1.6; }
+.article-story .article-title { margin-top: 19px; font-size: 39px; font-weight: 400; line-height: 1.4; letter-spacing: .025em; white-space: normal; word-break: break-word; text-wrap: balance; }
+.article-story .article-meta { margin-top: 20px; gap: 6px 16px; font-size: 12px; line-height: 1.8; }
+.story-photograph { display: block; width: 100%; height: auto; margin-bottom: 35px; }
+.article-story .article-body { padding: 0 28px; font-size: 17px; line-height: 1.95; letter-spacing: .015em; }
+.content-warning { margin: 24px 0; color: var(--ql-ink-light); font-size: 13px; line-height: 1.8; }
+.article-story .content-warning { margin-right: 28px; margin-left: 28px; }
+.article-story .article-actionbar { padding: 12px 26px calc(14px + env(safe-area-inset-bottom)); gap: 16px; }
+.article-story .collect-button, .article-story .share-button { height: 44px; min-height: 44px; font-size: 13px; }
+.article-story .collect-button { padding: 0 4px; color: #636e58; }
+.article-story .collect-button.collected { color: #435e3c; }
+.article-story .bookmark-icon { width: 17px; height: 20px; margin-right: 9px; }
+.article-story .share-button { padding: 0 21px; border: 1px solid #b8c1ad; border-radius: 5px; }
+@media (max-width: 360px) { .article-story .article-title { font-size: 34px; } }
+
+/* Method reading only; the approved story layout stays frozen. */
+.article-method .article-sheet { padding: 28rpx 40rpx 40rpx; }
+.article-method .article-heading { margin-bottom: 36rpx; padding-bottom: 28rpx; border-bottom: 1rpx solid var(--ql-border); }
+.article-method .article-title { font-size: 44rpx; line-height: 1.5; }
+.article-method .article-meta { margin-top: 20rpx; font-size: 26rpx; }
+.article-method .article-body { font-size: 32rpx; line-height: 1.95; }
+.article-method .health-note { font-size: 28rpx; line-height: 1.8; }
+.article-method .article-actionbar { padding-right: 40rpx; padding-left: 40rpx; }
+.article-method .share-button { border-radius: 8rpx; }
+@media (max-width: 350px) { .article-method .article-body { font-size: 16px; } .article-method .health-note { font-size: 14px; } }

@@ -5,7 +5,7 @@ import cn.hutool.core.date.LocalDateTimeUtil;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
-import com.yicai.common.config.RuoYiConfig;
+import com.yicai.common.utils.file.PublicMediaUpload;
 import com.yicai.common.core.domain.entity.SysUser;
 import com.yicai.common.core.mybatisplus.core.ServicePlusImpl;
 import com.yicai.common.core.page.PagePlus;
@@ -17,6 +17,7 @@ import com.yicai.life.domain.bo.EssayBo;
 import com.yicai.life.domain.vo.EssayVo;
 import com.yicai.life.mapper.*;
 import com.yicai.life.service.IEssayService;
+import com.yicai.life.service.EssayHtmlSanitizer;
 import com.yicai.system.mapper.SysUserMapper;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
@@ -47,6 +48,8 @@ public class EssayServiceImpl extends ServicePlusImpl<EssayMapper, Essay, EssayV
     @Override
     public EssayVo queryById(Long id){
         EssayVo vo = getVoById(id);
+        if (vo == null) return null;
+        vo.setContent(EssayHtmlSanitizer.clean(vo.getContent()));
         LambdaQueryWrapper<EssayLabel> lqw = new LambdaQueryWrapper();
         lqw.eq(EssayLabel::getEssay, vo.getId());
         lqw.orderByAsc(EssayLabel::getId);
@@ -63,8 +66,9 @@ public class EssayServiceImpl extends ServicePlusImpl<EssayMapper, Essay, EssayV
     public TableDataInfo<EssayVo> queryPageList(EssayBo bo) {
         PagePlus<Essay, EssayVo> result = pageVo(PageUtils.buildPagePlus(), buildQueryWrapper(bo));
         for(EssayVo vo : result.getRecordsVo()){
+            vo.setContent(EssayHtmlSanitizer.clean(vo.getContent()));
             if(StringUtils.isNotBlank(vo.getTitleUrl())){
-                vo.setTitleUrl(RuoYiConfig.getImagePath() + vo.getTitleUrl());
+                vo.setTitleUrl(PublicMediaUpload.url(vo.getTitleUrl()));
             }
             SysUser user = sysUserMapper.selectUserById(vo.getAuthor());
             vo.setAuthorNickName(user.getNickName());
@@ -89,7 +93,9 @@ public class EssayServiceImpl extends ServicePlusImpl<EssayMapper, Essay, EssayV
 
     @Override
     public List<EssayVo> queryList(EssayBo bo) {
-        return listVo(buildQueryWrapper(bo));
+        List<EssayVo> rows = listVo(buildQueryWrapper(bo));
+        for (EssayVo row : rows) row.setContent(EssayHtmlSanitizer.clean(row.getContent()));
+        return rows;
     }
 
     private LambdaQueryWrapper<Essay> buildQueryWrapper(EssayBo bo) {
@@ -238,7 +244,7 @@ public class EssayServiceImpl extends ServicePlusImpl<EssayMapper, Essay, EssayV
      * @param entity 实体类数据
      */
     private void validEntityBeforeSave(Essay entity){
-        //TODO 做一些数据校验,如唯一约束
+        entity.setContent(EssayHtmlSanitizer.clean(entity.getContent()));
     }
 
     @Override

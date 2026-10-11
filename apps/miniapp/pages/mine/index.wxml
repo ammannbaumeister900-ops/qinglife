@@ -15,11 +15,11 @@
     </view>
 
     <view class="asset-list">
-      <button class="asset" bindtap="openFriendRegistration"><view class="asset-main"><view class="asset-name">轻友登记</view><view class="asset-description">建立档案，保留每一次参加前的状态</view></view><text class="asset-chevron">›</text></button>
-      <button class="asset" data-view="experiences" bindtap="openFlow"><view class="asset-main"><view class="asset-name">全部参与经历</view><view class="asset-description">回看往期体验，留下自己的感受</view></view><text class="asset-chevron">›</text></button>
-      <button class="asset" data-view="records" bindtap="openFlow"><view class="asset-main"><view class="asset-name">私人记录</view><view class="asset-description">自己的感受，只留给自己</view></view><text class="asset-chevron">›</text></button>
-      <button class="asset" data-view="collections" bindtap="openFlow"><view class="asset-main"><view class="asset-name">内容收藏</view><view class="asset-description">把喜欢的阅读留在这里</view></view><text class="asset-chevron">›</text></button>
-      <button wx:if="{{state.backend && state.loggedIn}}" class="asset invite-entry" bindtap="openReferrals"><view class="asset-main"><view class="asset-name">邀请轻友</view><view class="asset-description">选择邀请笺，邀请想到的人</view></view><text class="asset-chevron">›</text></button>
+      <button class="asset" bindtap="openFriendRegistration"><view class="asset-main"><view class="asset-name">轻友登记</view></view><text class="asset-chevron">›</text></button>
+      <button class="asset" data-view="experiences" bindtap="openFlow"><view class="asset-main"><view class="asset-name">全部参与经历</view></view><text class="asset-chevron">›</text></button>
+      <button class="asset" data-view="records" bindtap="openFlow"><view class="asset-main"><view class="asset-name">私人记录</view><view class="asset-description">仅自己可见</view></view><text class="asset-chevron">›</text></button>
+      <button class="asset" data-view="collections" bindtap="openFlow"><view class="asset-main"><view class="asset-name">内容收藏</view></view><text class="asset-chevron">›</text></button>
+      <button wx:if="{{state.backend && state.loggedIn}}" class="asset invite-entry" bindtap="openReferrals"><view class="asset-main"><view class="asset-name">邀请轻友</view></view><text class="asset-chevron">›</text></button>
     </view>
 
     <view wx:if="{{state.loggedIn && state.passAccounts && state.passAccounts.length}}" class="pass-ledger">

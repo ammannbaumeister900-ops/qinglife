@@ -49,4 +49,11 @@
         SELECT <include refid="readingColumns"/> FROM essay e LEFT JOIN sys_user u ON u.user_id=e.author
         WHERE e.status=1 AND e.home_featured=1 AND NOT <include refid="isStory"/> ORDER BY e.order_num,e.id LIMIT 8
     </select>
+    <select id="selectPublicReading" resultType="java.util.HashMap">
+        SELECT CAST(e.id AS CHAR) AS id,e.title,e.Introduction AS summary,e.title_url AS cover,e.content,e.insert_time AS publishedAt,
+        COALESCE(u.nick_name,'轻生活') AS author,
+        COALESCE((SELECT GROUP_CONCAT(l.name ORDER BY el.id SEPARATOR ' · ') FROM essay_label el JOIN label l ON l.id=el.label WHERE el.essay=e.id),'轻生活') AS category,
+        <include refid="isStory"/> AS isStory
+        FROM essay e LEFT JOIN sys_user u ON u.user_id=e.author WHERE e.id=#{id} AND e.status=1
+    </select>
 </mapper>

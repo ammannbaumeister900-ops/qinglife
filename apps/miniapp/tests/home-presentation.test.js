@@ -7,13 +7,147 @@ const expression=(x,d)=>{try{return vm.runInNewContext(String(x).replace(/^{{|}}
 const value=(x,d)=>String(x).replace(/{{([\s\S]*?)}}/g,(_,s)=>expression(s,d)??'')
 function visible(nodes,d){let result=[],branch=false;for(const n of nodes){if(n.text!==undefined)continue;const a=n.attrs;let show=true;if('wx:if'in a){show=!!expression(a['wx:if'],d);branch=show}else if('wx:elif'in a){show=!branch&&!!expression(a['wx:elif'],d);branch=branch||show}else if('wx:else'in a){show=!branch;branch=true}else branch=false;if(!show)continue;const scopes=a['wx:for']?(expression(a['wx:for'],d)||[]).map((item,index)=>({...d,[a['wx:for-item']||'item']:item,[a['wx:for-index']||'index']:index})):[d];for(const scope of scopes){const attrs=Object.fromEntries(Object.entries(a).filter(([k])=>!k.startsWith('wx:')).map(([k,v])=>[k,value(v,scope)]));result.push({tag:n.tag,attrs});result.push(...visible(n.children,scope))}}return result}
 const has=(node,cls)=>(node.attrs.class||'').split(' ').includes(cls)
-const activity={id:'session-home',name:'本期轻体营',sessionNumber:101,sourceStatus:'open',status:'开放报名',statusTone:'open',startDate:'2099-01-01',endDate:'2099-01-03',date:'2099年1月1日—3日',city:'上海',place:'',seatsLeft:8}
+const activity={id:'session-home',name:'本期轻体营',sessionNumber:101,sourceStatus:'open',status:'开放报名',statusTone:'open',startDate:'2099-01-01',endDate:'2099-01-03',date:'2099年1月1日—3日',city:'上海',place:'',seatsLeft:8,cover:'https://media.example.test/camp.jpg'}
 function state(status='none'){const s=plain(require('../utils/store').defaultState());s.loggedIn=status!=='none';s.stage='journey';s.registration={...s.registration,activityId:activity.id,status};s.registrations={[activity.id]:s.registration};return s}
-async function home(s,readings={stories:[],featured:[]}){let p;const calls=[],routes=[];const api={enabled:()=>true,context:async()=>({state:s,activities:[activity]}),homeReadings:async()=>{calls.push('homeReadings');if(readings instanceof Error)throw readings;return readings}};const mocks={'../../services/business-api':api,'../../utils/navigation':{navigateTo:x=>routes.push(x.url),openReadingList:stories=>routes.push(stories?'stories':'readings')},'../../utils/store':{updateState:()=>{}}};vm.runInNewContext(fs.readFileSync(path.join(root,'pages/home/index.js'),'utf8'),{Page:x=>p=x,require:id=>mocks[id]||require(path.resolve(root,'pages/home',id))});p.data=plain(p.data);p.setData=x=>Object.assign(p.data,x);await p.onShow();return {p,api,calls,routes,nodes:()=>visible(tree().children,p.data)}}
-const readings={stories:[{id:'9007199254741000',title:'轻友自己的故事',summary:'真实摘要'},{id:'story-2',title:'另一篇故事',cover:'/assets/brand/logo-sage.png'},{id:'story-3',title:'更多故事'}],featured:[{id:'read-1',title:'一篇轻读',summary:'摘要'}]}
-test('guest opening stays compact while activity precedes real stories and selected readings',async()=>{const f=await home(state(),readings),nodes=f.nodes();assert(!nodes.some(n=>has(n,'home-task')));assert(nodes.some(n=>has(n,'welcome-block')));const classes=['home-camp-entry','home-stories','home-readings'];const positions=classes.map(c=>nodes.findIndex(n=>has(n,c)));assert(positions.every(i=>i>=0));assert(positions[0]<positions[1]&&positions[1]<positions[2]);assert.deepEqual(f.calls,['homeReadings'])})
-test('pending, confirmed arrangements and completed experience use existing task results before content',async()=>{for(const status of ['pending','confirmed','completed','cancelled']){const f=await home(state(status),readings),nodes=f.nodes();assert(nodes.some(n=>has(n,'home-task')),status);assert(!nodes.some(n=>has(n,'welcome-block')),status);assert(nodes.findIndex(n=>has(n,'home-task'))<nodes.findIndex(n=>has(n,'home-camp-entry')));assert.equal(f.p.data.view.route,domain.homeTask(state(status),[activity]).route);f.p.openPrimary();assert(f.routes[0].includes('view='+f.p.data.view.route));assert(f.routes[0].includes('id='+activity.id))}})
+async function home(s,readings={stories:[],featured:[]},activities=[activity]){let p;const calls=[],routes=[];const api={enabled:()=>true,context:async()=>({state:s,activities}),homeReadings:async()=>{calls.push('homeReadings');if(readings instanceof Error)throw readings;return readings}};const mocks={'../../services/business-api':api,'../../utils/navigation':{navigateTo:x=>routes.push(x.url),switchTab:x=>routes.push(x.url),openReadingList:stories=>routes.push(stories?'stories':'readings')},'../../utils/store':{updateState:fn=>Object.assign(s,fn(s))}};vm.runInNewContext(fs.readFileSync(path.join(root,'pages/home/index.js'),'utf8'),{Page:x=>p=x,require:id=>mocks[id]||require(path.resolve(root,'pages/home',id))});p.data=plain(p.data);p.setData=x=>Object.assign(p.data,x);await p.onShow();return {p,api,calls,routes,nodes:()=>visible(tree().children,p.data)}}
+const readings={stories:[{id:'9007199254741000',title:'轻友自己的故事',summary:'真实摘要'},{id:'story-2',title:'另一篇故事',cover:'/assets/brand/logo-sage.png',summary:'次级故事摘要'},{id:'story-3',title:'更多故事'}],featured:[{id:'read-1',title:'一篇轻读',summary:'摘要'}]}
+test('guest opening keeps the brand and puts the real camp cover before stories and readings',async()=>{const f=await home(state(),readings),nodes=f.nodes();assert(!nodes.some(n=>has(n,'home-task')));assert(nodes.some(n=>has(n,'welcome-block')));assert.equal(nodes.filter(n=>n.tag==='ql-nav-space'&&n.attrs.brand==='true').length,1);assert(nodes.findIndex(n=>n.tag==='ql-nav-space'&&n.attrs.brand==='true')<nodes.findIndex(n=>has(n,'welcome-block')));const classes=['home-camp-entry','home-stories','home-readings'];const positions=classes.map(c=>nodes.findIndex(n=>has(n,c)));assert(positions.every(i=>i>=0));assert(positions[0]<positions[1]&&positions[1]<positions[2]);assert.deepEqual(f.calls,['homeReadings'])})
+test('pending, confirmed arrangements and completed experience use existing task results before content',async()=>{for(const status of ['pending','confirmed','completed']){const f=await home(state(status),readings),nodes=f.nodes();assert(nodes.some(n=>has(n,'home-task')),status);assert.equal(nodes.filter(n=>n.tag==='ql-nav-space'&&n.attrs.brand==='true').length,1);assert(nodes.findIndex(n=>n.tag==='ql-nav-space'&&n.attrs.brand==='true')<nodes.findIndex(n=>has(n,'home-task')));assert.equal(nodes.filter(n=>has(n,'primary')).length,1);assert(nodes.findIndex(n=>has(n,'home-task-action'))<nodes.findIndex(n=>has(n,'home-camp-cover')));assert(!nodes.some(n=>has(n,'welcome-block')),status);assert(nodes.findIndex(n=>has(n,'home-task'))<nodes.findIndex(n=>has(n,'home-camp-entry')));assert.equal(f.p.data.view.route,domain.homeTask(state(status),[activity]).route);f.p.openPrimary();assert(f.routes[0].includes('view='+f.p.data.view.route));assert(f.routes[0].includes('id='+activity.id))}})
 test('daily and paused-plan tasks remain visible even without a current registration',async()=>{for(const paused of [false,true]){const s=state();s.loggedIn=true;s.stage='habit';s.habit={...s.habit,paused};const f=await home(s,readings),nodes=f.nodes();assert.equal(f.p.data.showHomeTask,false);assert(nodes.some(n=>has(n,'home-task')));assert(!nodes.some(n=>has(n,'welcome-block')));f.p.openPrimary();assert(f.routes[0].includes(paused?'view=habit':'view=daily'))}})
-test('story browsing is static, uses returned content and preserves exact IDs and the more-stories destination',async()=>{const f=await home(state(),readings),nodes=f.nodes();assert(!nodes.some(n=>n.tag==='swiper'||n.tag==='swiper-item'));const rows=nodes.filter(n=>has(n,'home-story-row'));assert.equal(rows.length,2);assert.equal(rows[0].attrs['data-id'],'9007199254741000');assert.equal(rows[0].attrs['data-title'],readings.stories[0].title);assert.equal(nodes.filter(n=>has(n,'home-story-cover')).length,1);assert.equal(nodes.filter(n=>has(n,'home-story-summary')).length,1);assert(!nodes.some(n=>has(n,'home-cover-placeholder')));f.p.openArticle({currentTarget:{dataset:{id:rows[0].attrs['data-id'],title:rows[0].attrs['data-title']}}});assert(f.routes[0].includes('id=9007199254741000'));f.p.openStories();assert.equal(f.routes.at(-1),'stories')})
+test('story browsing is manual, uses returned content and preserves exact IDs and the more-stories destination',async()=>{const f=await home(state(),readings),nodes=f.nodes();assert(!nodes.some(n=>n.tag==='swiper'||n.tag==='swiper-item'));const rows=nodes.filter(n=>has(n,'home-story-row'));assert.equal(rows.length,3);assert.equal(rows[0].attrs['data-id'],'9007199254741000');assert.equal(rows[0].attrs['data-title'],readings.stories[0].title);assert.equal(nodes.filter(n=>has(n,'home-story-cover')).length,1);assert.equal(nodes.filter(n=>has(n,'home-story-summary')).length,2);assert(!nodes.some(n=>has(n,'home-cover-placeholder')));f.p.openArticle({currentTarget:{dataset:{id:rows[0].attrs['data-id'],title:rows[0].attrs['data-title']}}});assert(f.routes[0].includes('id=9007199254741000'));f.p.openStories();assert.equal(f.routes.at(-1),'stories')})
 test('reading request failure retains activity and retry while hiding empty or invented reading content',async()=>{const f=await home(state(),Error('offline')),nodes=f.nodes();assert(nodes.some(n=>has(n,'home-camp-entry')));assert(!nodes.some(n=>has(n,'home-story-row')||has(n,'home-reading-row')));assert(nodes.some(n=>n.attrs.bindtap==='onShow'));assert(f.p.data.readingError);assert.equal(f.p.data.loadError,'')})
-test('initial loading and context failure keep task and normal content mutually exclusive',async()=>{const f=await home(state('confirmed'),readings);f.p.setData({loading:true,loadError:''});assert(!f.nodes().some(n=>has(n,'home-task')||has(n,'home-camp-entry')));f.api.context=async()=>{throw Error('offline')};await f.p.onShow();assert.equal(f.p.data.loadError,'offline');assert(!f.nodes().some(n=>has(n,'home-task')||has(n,'welcome-block')||has(n,'home-story-row')));assert(f.nodes().some(n=>n.attrs.bindtap==='onShow'))})
+test('initial loading and context failure keep task and normal content mutually exclusive',async()=>{const f=await home(state('confirmed'),readings);f.p.setData({loading:true,loadError:''});assert(f.nodes().some(n=>n.tag==='ql-nav-space'&&n.attrs.brand==='true'));assert(!f.nodes().some(n=>has(n,'home-task')||has(n,'home-camp-entry')));f.api.context=async()=>{throw Error('offline')};await f.p.onShow();assert.equal(f.p.data.loadError,'offline');assert(f.nodes().some(n=>n.tag==='ql-nav-space'&&n.attrs.brand==='true'));assert(!f.nodes().some(n=>has(n,'home-task')||has(n,'welcome-block')||has(n,'home-story-row')));assert(f.nodes().some(n=>n.attrs.bindtap==='onShow'))})
+
+test('camp uses the supplied cover and preserves facts and detail navigation, with text-only and empty fallbacks',async()=>{
+  const f=await home(state(),readings),nodes=f.nodes()
+  const cover=nodes.find(n=>has(n,'home-camp-cover'))
+  assert.equal(cover.attrs.src,activity.cover)
+  assert(nodes.findIndex(n=>has(n,'welcome-block'))<nodes.indexOf(cover))
+  assert.equal(f.p.data.featured.name,activity.name)
+  assert.equal(f.p.data.featured.city,activity.city)
+  assert(f.p.data.featured.dateLabel)
+  assert(nodes.some(n=>has(n,'home-camp-title'))&&nodes.some(n=>has(n,'home-camp-date'))&&nodes.some(n=>has(n,'home-camp-detail')))
+  f.p.openActivity({currentTarget:{dataset:{view:'detail'}}})
+  assert.equal(f.routes[0],'/pages/camp-flow/index?view=detail&id='+activity.id)
+  const withoutCover=await home(state(),readings,[{...activity,cover:''}])
+  assert(!withoutCover.nodes().some(n=>has(n,'home-camp-cover')))
+  assert(withoutCover.nodes().some(n=>has(n,'home-camp-detail')))
+  const empty=await home(state(),readings,[])
+  assert(empty.nodes().some(n=>has(n,'home-camp-empty')))
+  assert(!empty.nodes().some(n=>has(n,'home-camp-cover')||has(n,'home-camp-detail')))
+  empty.p.openCamp()
+  assert.equal(empty.routes[0],'/pages/camp/index')
+})
+
+test('zero, one, two and many stories degrade without invented items or repeating the lead',async()=>{
+  for(const count of [0,1,2,3,8]){
+    const stories=Array.from({length:count},(_,i)=>({id:'story-'+i,title:'故事 '+i,summary:'摘要 '+i}))
+    const f=await home(state(),{stories,featured:[]}),nodes=f.nodes()
+    const leads=nodes.filter(n=>has(n,'home-story-lead')),secondary=nodes.filter(n=>has(n,'home-story-secondary'))
+    assert.equal(leads.length,count?1:0)
+    assert.equal(secondary.length,Math.min(Math.max(count-1,0),5))
+    assert.deepEqual([...leads,...secondary].map(n=>n.attrs['data-id']),stories.slice(0,6).map(s=>s.id))
+    assert(!nodes.some(n=>has(n,'home-story-cover')))
+    assert.equal(nodes.filter(n=>has(n,'home-story-summary')).length,Math.min(count,6))
+    assert.equal(nodes.filter(n=>has(n,'home-more-stories')).length,count?1:0)
+    const rail=nodes.find(n=>n.tag==='scroll-view')
+    assert.equal(!!rail,count>1)
+    if(rail){
+      assert.equal(rail.attrs['scroll-x'],String(count>2))
+      assert.equal(has(rail,'home-story-scroll-single'),count===2)
+      assert(nodes.findIndex(n=>has(n,'home-more-stories'))>nodes.findLastIndex(n=>has(n,'home-story-secondary')))
+    }
+  }
+})
+
+test('all stories keep their returned covers, titles and summaries with manual browsing',async()=>{
+  const stories=readings.stories.map((s,i)=>({...s,cover:'https://media.example.test/story-'+i+'.jpg',summary:'真实摘要 '+i}))
+  const f=await home(state(),{stories,featured:[]}),nodes=f.nodes()
+  assert.equal(nodes.filter(n=>has(n,'home-story-summary')).length,3)
+  const images=nodes.filter(n=>has(n,'home-story-cover'))
+  assert.deepEqual(images.map(n=>n.attrs.src),stories.map(s=>s.cover))
+  assert(nodes.indexOf(images[0])<nodes.findIndex(n=>has(n,'home-story-summary')))
+  assert(nodes.findIndex(n=>has(n,'home-story-summary'))<nodes.findIndex(n=>has(n,'home-story-scroll')))
+  const rows=nodes.filter(n=>has(n,'home-story-row'))
+  for(const row of rows)f.p.openArticle({currentTarget:{dataset:{id:row.attrs['data-id'],title:row.attrs['data-title']}}})
+  assert.deepEqual(f.routes,stories.map(s=>'/pages/article/index?id='+encodeURIComponent(s.id)+'&title='+encodeURIComponent(s.title)))
+  assert(!nodes.some(n=>n.tag==='swiper'||n.attrs.autoplay||n.attrs['indicator-dots']))
+})
+
+test('selected reading preserves a lead with summary and a quieter second recommendation',async()=>{
+  const featured=Array.from({length:3},(_,i)=>({id:'read-'+i,title:'轻读 '+i,summary:'摘要 '+i}))
+  const f=await home(state(),{stories:[],featured}),nodes=f.nodes()
+  const rows=nodes.filter(n=>has(n,'home-reading-row'))
+  assert.equal(rows.length,2)
+  assert(has(rows[0],'home-reading-lead'))
+  assert(has(rows[1],'home-reading-secondary'))
+  assert.equal(nodes.filter(n=>has(n,'home-reading-summary')).length,1)
+  for(const row of rows)f.p.openArticle({currentTarget:{dataset:{id:row.attrs['data-id'],title:row.attrs['data-title']}}})
+  assert.deepEqual(f.routes,featured.slice(0,2).map(s=>'/pages/article/index?id='+encodeURIComponent(s.id)+'&title='+encodeURIComponent(s.title)))
+  f.p.openReading()
+  assert.equal(f.routes.at(-1),'readings')
+  const empty=await home(state())
+  assert(!empty.nodes().some(n=>has(n,'home-reading-row')))
+  assert(empty.nodes().some(n=>has(n,'home-reading-message')))
+})
+
+test('refresh keeps the current task, brand and content while exposing the existing refresh note',async()=>{
+  const f=await home(state('pending'),readings)
+  let finish
+  f.api.context=()=>new Promise(resolve=>{finish=resolve})
+  const refresh=f.p.onShow()
+  assert.equal(f.p.data.loading,false)
+  assert.equal(f.p.data.refreshing,true)
+  const nodes=f.nodes()
+  for(const cls of ['home-task','home-camp-cover','home-story-lead','refresh-note'])assert(nodes.some(n=>has(n,cls)),cls)
+  finish({state:state('pending'),activities:[activity]})
+  await refresh
+  assert.equal(f.p.data.refreshing,false)
+  assert(!f.nodes().some(n=>has(n,'refresh-note')))
+})
+
+test('brand photography stays optional, is hidden for active tasks and degrades on an image error',async()=>{
+  const f=await home(state(),readings)
+  assert.equal(f.p.data.brand.heroUrl,'/assets/brand/home-guides.jpg')
+  assert(f.nodes().some(n=>has(n,'home-hero-image')))
+  f.p.setData({brand:{heroUrl:''}})
+  assert(!f.nodes().some(n=>has(n,'home-hero')))
+  f.p.setData({brand:{heroUrl:'https://media.example.test/brand.jpg',heroCaption:'导游'}})
+  assert(f.nodes().some(n=>has(n,'home-hero-image')))
+  f.p.imageFailed({currentTarget:{dataset:{src:f.p.data.brand.heroUrl}}})
+  assert(!f.nodes().some(n=>has(n,'home-hero')))
+  assert(f.nodes().some(n=>has(n,'welcome-block')))
+  const pending=await home(state('pending'),readings)
+  pending.p.setData({brand:{heroUrl:'https://media.example.test/brand.jpg'}})
+  assert(!pending.nodes().some(n=>has(n,'home-hero')))
+  assert(pending.nodes().some(n=>has(n,'home-task')))
+})
+test('failed covers become text entries and preserve exact content and destinations',async()=>{
+  const stories=readings.stories.map((s,i)=>({...s,cover:'https://media.example.test/story-'+i+'.jpg'}))
+  const f=await home(state(),{stories,featured:readings.featured})
+  for(const src of [activity.cover,...stories.map(s=>s.cover)]) f.p.imageFailed({currentTarget:{dataset:{src}}})
+  const nodes=f.nodes()
+  assert(!nodes.some(n=>has(n,'home-camp-cover')||has(n,'home-story-cover')))
+  assert.equal(nodes.filter(n=>has(n,'home-story-row')).length,stories.length)
+  assert.equal(f.p.data.stories[0].cover,stories[0].cover)
+  assert.deepEqual(nodes.filter(n=>has(n,'home-story-row')).map(n=>n.attrs['data-id']),stories.map(s=>s.id))
+  assert(nodes.some(n=>has(n,'home-camp-detail')))
+  await f.p.onShow()
+  assert.equal(Object.keys(f.p.data.failedImages).length,0)
+})
+test('camp facts and detail precede the photo, titles retain the original name and task period remains independent',async()=>{
+  const name='秋日生机饮食 · 三日轻体营'
+  const f=await home(state('pending'),readings,[{...activity,sourceStatus:'closed',status:'已关闭',statusTone:'planned'},{...activity,id:'next',sessionNumber:102,name}])
+  const nodes=f.nodes()
+  for(const cls of ['home-camp-title','home-camp-date','home-camp-detail','home-camp-status']) assert(nodes.findIndex(n=>has(n,cls))<nodes.findIndex(n=>has(n,'home-camp-cover')))
+  assert.equal(f.p.data.taskContext,'第 101 期 · 你的参与')
+  assert.equal(f.p.data.featured.sessionNumber,102)
+  const named=await home(state(),readings,[{...activity,name}])
+  assert.equal(named.p.data.featured.title,'秋日生机饮食')
+  assert.equal(named.p.data.featured.kind,'三日轻体营')
+  assert.equal(named.p.data.featured.name,name)
+  const unsplit=await home(state(),readings,[{...activity,name:'日常活动'}])
+  assert.equal(unsplit.p.data.featured.title,'日常活动')
+  assert.equal(unsplit.p.data.featured.kind,'')
+})
+module.exports = { home, state, activity, has }

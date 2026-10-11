@@ -1,10 +1,15 @@
 const { test } = require('node:test'), assert = require('node:assert/strict'), fs = require('node:fs'), vm = require('node:vm'), path = require('node:path')
 const reflection = require('../utils/reflection')
-function page(api, wxOverrides = {}, timers = { setTimeout, clearTimeout }) { let page; vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../pages/camp-reflection/index.js'), 'utf8'), { Page: p => { page = p }, require: p => p.includes('business-api') ? api : p.includes('reflection') ? reflection : {}, wx: { showToast() {}, ...wxOverrides }, Date, ...timers }); page.data = JSON.parse(JSON.stringify(page.data)); page.setData = patch => Object.assign(page.data, patch); return page }
+// An explicitly permitted server response isolates legacy editor/voice behavior; D2 denies by default in its own regression.
+function page(api, wxOverrides = {}, timers = { setTimeout, clearTimeout }) { api = { privateOverview: async () => ({ overview: { invitationEligible: true } }), ...api }; let page; vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../pages/camp-reflection/index.js'), 'utf8'), { Page: p => { page = p }, require: p => p.includes('business-api') ? api : p.includes('reflection') ? reflection : {}, wx: { showToast() {}, ...wxOverrides }, Date, ...timers }); page.data = JSON.parse(JSON.stringify(page.data)); page.setData = patch => Object.assign(page.data, patch); return page }
 
 test('new posts default to nickname while legacy records remain anonymous', () => { assert.equal(reflection.draft({ records: [] }, 'before').anonymous, false); const old = reflection.draft({ records: [{ phase: 'before', note: '期待', revision: 3, shareConsent: 1, status: 'published' }] }, 'before'); assert.equal(old.shared, true); assert.equal(old.anonymous, true); assert.equal(reflection.draft({ records: [{phase:'before',anonymous:0}] }, 'before').anonymous,false); const text = '轻'.repeat(150); assert.equal(reflection.count(reflection.voiceText(text, '草稿')), 153) })
 
-test('the single submit action always enters review and uses the current nickname or anonymous choice', async () => { const calls = []; const p = page({ enabled: () => true, campReflection: async () => ({ registrationId: 'self', authorName: '小禾', canBefore: true, records: [] }), saveCampReflection: async data => { calls.push(data); return { ...data, status: data.action === 'submit' ? 'submitted' : 'private', revision: calls.length, shareConsent: data.shareConsent ? 1 : 0 } } }); p.data.sessionId = 'period'; await p.load(); p.onInput({ detail: { value: '想把一点轻带回日常' } }); await p.save(); assert.equal(calls[0].registrationId, 'self'); assert.equal(calls[0].action, 'submit'); assert.equal(calls[0].shareConsent, true); assert.equal(calls[0].anonymous, false); assert(!('author' in calls[0])); p.toggleAnonymous(); await p.save(); assert.equal(calls[1].action, 'submit'); assert.equal(calls[1].anonymous, true); assert.equal(calls[1].phase, 'before'); await p.save({currentTarget:{dataset:{action:'private'}}}); assert.equal(calls[2].action,'submit'); assert.equal(calls[2].shareConsent,true); assert.equal(calls[2].anonymous,true); assert.equal(p.data.anonymous,true) })
+test('one draft supports private save and explicit nickname submission without accepting an anonymous UI action', async () => {
+ const calls=[],p=page({enabled:()=>true,campReflection:async()=>({registrationId:'self',authorName:'小禾',canBefore:true,records:[]}),saveCampReflection:async data=>{calls.push(data);return {...data,status:data.action==='submit'?'submitted':'private',revision:calls.length,shareConsent:data.shareConsent?1:0}}});
+ await p.load();p.onInput({detail:{value:'同一份原稿'}});await p.savePrivate();assert.equal(calls[0].action,'private');assert.equal(calls[0].shareConsent,false);assert.equal(p.data.note,'同一份原稿');
+ p.data.anonymous=true;await p.save();assert.equal(calls[1].action,'submit');assert.equal(calls[1].shareConsent,true);assert.equal(calls[1].anonymous,false);assert.equal(calls[1].registrationId,'self');assert(!('author' in calls[1]));assert.equal(p.toggleAnonymous,undefined);
+})
 
 test('barrage and full text share the server supplied nickname or anonymous author', () => { let component, modal;vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../components/camp-voices/index.js'),'utf8'),{Component:c=>{component=c},wx:{showModal:m=>{modal=m}}});const state={data:{voices:[{id:'named',phase:'before',author:'小禾',note:'来时'},{id:'anonymous',phase:'after',author:'本期轻友',note:'归去'}]},setData(){}};component.methods.read.call(state,{currentTarget:{dataset:{id:'named'}}});assert.equal(modal.title,'小禾 · 轻友心声');component.methods.read.call(state,{currentTarget:{dataset:{id:'anonymous'}}});assert.equal(modal.title,'本期轻友 · 轻友心声');const wxml=fs.readFileSync(path.join(__dirname,'../components/camp-voices/index.wxml'),'utf8');assert.equal((wxml.match(/item.author/g)||[]).length,2) })
 
@@ -30,7 +35,7 @@ test('overlong recognized text stays intact and editable until manually shortene
 })
 
 function deferred() { let resolve, reject; const promise = new Promise((yes, no) => { resolve = yes; reject = no }); return { promise, resolve, reject } }
-function writable(p) { p.data.context = { registrationId: 'self', authorName: '小禾', canBefore: true, voiceAvailable: true }; p.data.phase = 'before'; return p }
+function writable(p) { p.data.loading = false; p.data.context = { registrationId: 'self', authorName: '小禾', canBefore: true, voiceAvailable: true }; p.data.phase = 'before'; return p }
 function clock() { let next = 0; const callbacks = new Map(); return { setTimeout: (fn, delay) => { callbacks.set(++next, { fn, delay }); return next }, clearTimeout: id => callbacks.delete(id), fire: delay => { for (const [id, value] of [...callbacks]) if (value.delay === delay) { callbacks.delete(id); value.fn() } }, count: () => callbacks.size } }
 function microphone() {
  const handlers = {}, calls = { start: [], stop: 0, deleted: [] }
@@ -58,7 +63,7 @@ test('hold records mp3; release transcribes directly into the same editable draf
  p.onInput({ detail: { value: '原有文字' } }); await hold(p); mic.handlers.start(); assert.equal(p.data.recording, true); assert.equal(p.data.voiceStarting, false); assert.equal(mic.calls.start[0].format, 'mp3'); assert.equal(mic.calls.start[0].duration, 45000)
  p.endVoice(); assert.equal(mic.calls.stop, 1); mic.handlers.stop({ tempFilePath: 'hold.mp3', duration: 2000 }); await tick()
  assert.equal(calls[0].voiceConsent, true); assert.equal(calls[0].registrationId, 'self'); assert.equal(p.data.note, '原有文字\n今天慢慢来'); assert.equal(p.data.length, 10); assert.equal(p.data.draftDirty, true); assert.equal(p.data.transcribing, false); assert.deepEqual(mic.calls.deleted, ['hold.mp3'])
- p.onInput({ detail: { value: '可以修正识别错字' } }); p.toggleAnonymous(); assert.equal(p.data.note, '可以修正识别错字'); assert.equal(p.data.anonymous, true)
+ p.onInput({ detail: { value: '可以修正识别错字' } }); assert.equal(p.toggleAnonymous, undefined); assert.equal(p.data.note, '可以修正识别错字'); assert.equal(p.data.anonymous, false)
 })
 
 test('release before recorder onStart immediately stops the delayed recording', async () => {
@@ -83,14 +88,14 @@ test('moving back down keeps the held recording before release', async () => {
 test('declining or failing consent never requests the microphone and does not lock edits', async () => {
  for (const mode of ['decline', 'fail', 'throw']) {
   let authorized = 0; const p = writable(page({}, { showModal: options => { if (mode === 'throw') throw Error('dialog failure'); mode === 'decline' ? options.success({ confirm: false }) : options.fail({ errMsg: 'cancel' }) }, authorize: () => authorized++ }))
-  await hold(p); assert.equal(authorized, 0); assert.equal(p.data.voiceStarting, false); p.onInput({ detail: { value: '继续修改' } }); p.toggleAnonymous(); assert.equal(p.data.note, '继续修改'); assert.equal(p.data.anonymous, true)
+  await hold(p); assert.equal(authorized, 0); assert.equal(p.data.voiceStarting, false); p.onInput({ detail: { value: '继续修改' } }); assert.equal(p.toggleAnonymous, undefined); assert.equal(p.data.note, '继续修改'); assert.equal(p.data.anonymous, false)
  }
 })
 
 test('waiting for microphone permission never auto-records after release or a late grant', async () => {
  let permission; const mic = microphone(), p = writable(page({}, { ...allowVoice, ...mic.wx, getSetting: options => options.success({ authSetting: {} }), authorize: options => permission = options }))
- p.voiceConsent = true; const pending = hold(p); await tick(); p.endVoice(); p.onInput({ detail: { value: '等待时修改' } }); p.toggleAnonymous(); permission.success({}); await pending
- assert.equal(mic.calls.start.length, 0); assert.equal(p.voiceReady, true); assert.equal(p.data.voiceStarting, false); assert.equal(p.data.note, '等待时修改'); assert.equal(p.data.anonymous, true)
+ p.voiceConsent = true; const pending = hold(p); await tick(); p.endVoice(); p.onInput({ detail: { value: '等待时修改' } }); assert.equal(p.toggleAnonymous, undefined); permission.success({}); await pending
+ assert.equal(mic.calls.start.length, 0); assert.equal(p.voiceReady, true); assert.equal(p.data.voiceStarting, false); assert.equal(p.data.note, '等待时修改'); assert.equal(p.data.anonymous, false)
  await hold(p); mic.handlers.start(); p.cancelVoice(); mic.handlers.stop({ tempFilePath: 'granted.mp3', duration: 1000 })
 })
 
@@ -102,7 +107,7 @@ test('cancelled permission cannot start a recording when its stale success arriv
 test('platform privacy consent remains explicit and microphone is not used before agreement', async () => {
  let authorized = 0; const mic = microphone(), p = writable(page({}, { ...allowVoice, ...mic.wx, getPrivacySetting: options => options.success({ needAuthorization: true, privacyContractName: '轻生活隐私保护指引' }), getSetting: options => options.success({ authSetting: {} }), authorize: options => { authorized++; options.success({}) } }))
  await hold(p); assert.equal(p.data.showVoicePrivacy, true); assert.equal(p.data.voiceStarting, false); assert.equal(authorized, 0); assert.equal(mic.calls.start.length, 0)
- p.toggleAnonymous(); await p.agreeVoicePrivacy(); assert.equal(authorized, 1); assert.equal(mic.calls.start.length, 0); assert.equal(p.voiceReady, true); assert.equal(p.data.showVoicePrivacy, false)
+ assert.equal(p.toggleAnonymous, undefined); await p.agreeVoicePrivacy(); assert.equal(authorized, 1); assert.equal(mic.calls.start.length, 0); assert.equal(p.voiceReady, true); assert.equal(p.data.showVoicePrivacy, false)
  const markup = fs.readFileSync(path.join(__dirname, '../pages/camp-reflection/index.wxml'), 'utf8'); assert.match(markup, /open-type="agreePrivacyAuthorization"/)
  await hold(p); mic.handlers.start(); p.cancelVoice(); mic.handlers.stop({ tempFilePath: 'privacy.mp3', duration: 1000 })
 })
@@ -144,14 +149,14 @@ test('ASR errors or empty results preserve the latest typed text', async () => {
 
 test('typing during recognition is preserved and recognized text appends to the latest draft', async () => {
  const conversion = deferred(), mic = microphone(), p = writable(page({ transcribeReflection: () => conversion.promise }, mic.wx))
- const pending = p.recognize({ tempFilePath: 'edit.mp3', duration: 1000 }); await tick(); p.onInput({ detail: { value: '后来修改的正文' } }); p.toggleAnonymous(); conversion.resolve({ text: '语音文字' }); await pending
- assert.equal(p.data.note, '后来修改的正文\n语音文字'); assert.equal(p.data.anonymous, true); assert.equal(p.data.transcribing, false); assert.equal(p.data.draftDirty, true); assert.deepEqual(mic.calls.deleted, ['edit.mp3'])
+ const pending = p.recognize({ tempFilePath: 'edit.mp3', duration: 1000 }); await tick(); p.onInput({ detail: { value: '后来修改的正文' } }); assert.equal(p.toggleAnonymous, undefined); conversion.resolve({ text: '语音文字' }); await pending
+ assert.equal(p.data.note, '后来修改的正文\n语音文字'); assert.equal(p.data.anonymous, false); assert.equal(p.data.transcribing, false); assert.equal(p.data.draftDirty, true); assert.deepEqual(mic.calls.deleted, ['edit.mp3'])
 })
 
 test('text submission during recognition sends only the visible draft and ignores late ASR', async () => {
  const conversion = deferred(), saved = deferred(), mic = microphone(), requests = []
  const p = writable(page({ transcribeReflection: () => conversion.promise, saveCampReflection: data => { requests.push(data); return saved.promise } }, mic.wx))
- const recognition = p.recognize({ tempFilePath: 'submit.mp3', duration: 1000 }); await tick(); p.onInput({ detail: { value: '明确提交的文字' } }); p.toggleAnonymous(); const submission = p.save(); await p.save(); p.toggleAnonymous(); p.onInput({ detail: { value: '请求期间不混入修改' } }); assert.equal(requests.length, 1); assert.equal(requests[0].anonymous, true); assert.equal(requests[0].action, 'submit'); assert.equal(requests[0].shareConsent, true)
+ const recognition = p.recognize({ tempFilePath: 'submit.mp3', duration: 1000 }); await tick(); p.onInput({ detail: { value: '明确提交的文字' } }); assert.equal(p.toggleAnonymous, undefined); const submission = p.save(); await p.save(); assert.equal(p.toggleAnonymous, undefined); p.onInput({ detail: { value: '请求期间不混入修改' } }); assert.equal(requests.length, 1); assert.equal(requests[0].anonymous, false); assert.equal(requests[0].action, 'submit'); assert.equal(requests[0].shareConsent, true)
  saved.resolve({ ...requests[0], shareConsent: 1, status: 'submitted', revision: 1 }); await submission; conversion.resolve({ text: '迟到的文字' }); await recognition; assert.equal(p.data.note, '明确提交的文字'); assert.equal(p.data.status, 'submitted'); assert.equal(p.data.saving, false); assert.equal(p.data.transcribing, false)
 })
 
@@ -166,21 +171,21 @@ test('hiding or unloading cancels pending permission and cleans final audio with
  const recording = ready(writable(page({}, mic.wx))); await hold(recording); mic.handlers.start(); recording.onUnload(); mic.handlers.stop({ tempFilePath: 'unload.mp3', duration: 1000 }); assert.deepEqual(mic.calls.deleted, ['unload.mp3']); assert.equal(mic.handlers.stop, undefined)
 })
 
-test('a failed text submission keeps edits and anonymity available for retry', async () => {
+test('a failed text submission keeps edits available for retry', async () => {
  const p = writable(page({ saveCampReflection: async () => { throw Error('网络异常') } }))
- p.onInput({ detail: { value: '保留的心声' } }); await p.save(); assert.equal(p.data.saving, false); assert.equal(p.data.note, '保留的心声'); p.onInput({ detail: { value: '修改后重试' } }); p.toggleAnonymous(); assert.equal(p.data.note, '修改后重试'); assert.equal(p.data.anonymous, true)
+ p.onInput({ detail: { value: '保留的心声' } }); await p.save(); assert.equal(p.data.saving, false); assert.equal(p.data.note, '保留的心声'); p.onInput({ detail: { value: '修改后重试' } }); assert.equal(p.toggleAnonymous, undefined); assert.equal(p.data.note, '修改后重试'); assert.equal(p.data.anonymous, false)
 })
 
 test('one in-box hold control and one submit remain; recording never disables editing or anonymity', () => {
  const markup = fs.readFileSync(path.join(__dirname, '../pages/camp-reflection/index.wxml'), 'utf8')
- assert.equal((markup.match(/<textarea /g) || []).length, 1); assert.equal((markup.match(/bindtap="save"/g) || []).length, 1); assert(!/voice-review|voice-entry|加入草稿|仅自己保存/.test(markup)); assert.match(markup, /bindlongpress="beginVoice"/); assert.match(markup, /bindtouchend="endVoice"/); assert.match(markup, /bindtouchcancel="cancelVoice"/)
- const input = markup.match(/<textarea class="reflection-input"[^>]+/)[0], anonymous = markup.match(/<button class="reflection-anonymous"[^>]+/)[0], mic = markup.match(/<button class="voice-hold[^>]+/)[0]
- assert(!/voiceStarting|recording|transcribing/.test(input)); assert(!/voiceStarting|recording|transcribing/.test(anonymous)); assert(!/disabled="[^\"]*(voiceStarting|recording|transcribing)/.test(mic))
+ assert.equal((markup.match(/<textarea /g) || []).length, 1); assert.equal((markup.match(/bindtap="save"/g) || []).length, 1); assert.equal((markup.match(/bindtap="savePrivate"/g)||[]).length,1); assert(!/reflection-anonymous|匿名发布/.test(markup)); assert(!/voice-review|voice-entry|加入草稿/.test(markup)); assert.match(markup, /bindlongpress="beginVoice"/); assert.match(markup, /bindtouchend="endVoice"/); assert.match(markup, /bindtouchcancel="cancelVoice"/)
+ const input = markup.match(/<textarea class="reflection-input"[^>]+/)[0], mic = markup.match(/<button class="voice-hold[^>]+/)[0]
+ assert(!/voiceStarting|recording|transcribing/.test(input)); assert(!/disabled="[^\"]*(voiceStarting|recording|transcribing)/.test(mic))
 })
 
 test('reset requires confirmation, changes only the local draft and preserves anonymity and revision', async () => {
  let modal, calls=0; const p=writable(page({ saveCampReflection:async()=>calls++ }, {showModal:options=>{modal=options;assert(Array.from(options.confirmText).length<=4)}}))
- p.data.revision=8;p.data.status='published';p.data.shared=true;p.toggleAnonymous();p.onInput({detail:{value:'仍然保留的文字'}})
+ p.data.revision=8;p.data.status='published';p.data.shared=true;p.data.anonymous=true;p.onInput({detail:{value:'仍然保留的文字'}})
  const cancelled=p.resetDraft();assert.equal(p.data.note,'仍然保留的文字');modal.success({confirm:false});await cancelled;assert.equal(p.data.note,'仍然保留的文字')
  const confirmed=p.resetDraft();modal.success({confirm:true});await confirmed;assert.equal(p.data.note,'');assert.equal(p.data.length,0);assert.equal(p.data.anonymous,true);assert.equal(p.data.revision,8);assert.equal(p.data.shared,true);assert.equal(p.data.status,'published');assert.equal(p.data.draftDirty,true);assert.equal(calls,0)
 })
@@ -194,4 +199,45 @@ test('reset ignores duplicate taps and does not clear if submitting, leaving, or
  const pending=p.resetDraft();await p.resetDraft();assert.equal(count,1);p.data.saving=true;modal.success({confirm:true});await pending;assert.equal(p.data.note,'保留');assert.equal(p.resetPending,false)
  p.data.saving=false;const failed=p.resetDraft();modal.fail();await failed;assert.equal(p.data.note,'保留')
  const leaving=p.resetDraft();p.leftPage=true;modal.success({confirm:true});await leaving;assert.equal(p.data.note,'保留');assert.equal(p.resetPending,false)
+})
+
+test('entry consumes only server windows and keeps participant, pending and cancellation boundaries', async () => {
+ const reg = { status: 'confirmed', participants: [{ id: 'person-self' }] }, future = { startDate: '2099-01-01' }
+ assert.equal(reflection.entry({canBefore:false,canAfter:false},reg,future).allowed,false)
+ assert.equal(reflection.entry({canBefore:false,canAfter:false},reg,future).reason,'开营当天起可填写心声')
+ for (const context of [{canBefore:true},{canAfter:true}]) assert.equal(reflection.entry(context,reg,future).allowed,true)
+ assert.equal(reflection.entry({canBefore:'true'},reg,future).allowed,false,'malformed eligibility must fail closed')
+ for (const status of ['pending','waitlisted','cancelled','none']) {
+  const current = {...reg,status};let calls=0
+  const access=await reflection.readEntry(async()=>{calls++;return {canBefore:true}},current,future)
+  assert.equal(access.allowed,false);assert.equal(calls,0)
+ }
+ assert.equal(reflection.entry({canAfter:true},{status:'confirmed',participants:[{id:'family'}]},future).allowed,false)
+ assert.equal(reflection.entry({},reg,{sourceStatus:'cancelled'}).reason,'本期已取消，无法填写心声')
+ const failed=await reflection.readEntry(async()=>{throw Error('offline')},reg,future)
+ assert.equal(failed.allowed,false);assert.equal(failed.retry,true)
+ const forbidden=await reflection.readEntry(async()=>{throw Object.assign(Error('只能保存本人心声'),{code:403})},reg,future)
+ assert.equal(forbidden.reason,'只能保存本人心声');assert.equal(forbidden.retry,false)
+})
+
+test('closed editor preserves old originals but cannot type, record, transcribe or save', async () => {
+ let writes=0,recordings=0
+ const p=page({enabled:()=>true,campReflection:async()=>({canBefore:false,canAfter:false,voiceAvailable:true,records:[{phase:'before',note:'既有原稿',revision:3}]}),saveCampReflection:async()=>writes++},{getRecorderManager:()=>{recordings++;throw Error('must not record')}})
+ await p.load();assert.equal(p.data.note,'既有原稿')
+ p.onInput({detail:{value:'不能写入'}});p.voiceTouchStart({touches:[{clientY:400}]});await p.beginVoice();await p.savePrivate();await p.save()
+ assert.equal(p.data.note,'既有原稿');assert.equal(recordings,0);assert.equal(writes,0)
+ const markup=fs.readFileSync(path.join(__dirname,'../pages/camp-reflection/index.wxml'),'utf8')
+ assert.match(markup,/<view wx:if="{{context.canBefore \|\| context.canAfter}}" class="reflection-paper/)
+ assert.match(markup,/wx:else class="reflection-readonly"/)
+})
+
+test('native input owns composition and cursor while model keeps exact text for save and voice append', () => {
+ const p=writable(page({})),patches=[],setData=p.setData
+ p.setData=patch=>{patches.push(patch);setData(patch)}
+ for (const value of ['zhong','中文','中间插入文','中间插入🌿文','中间\n插入🌿文']) {
+  p.onInput({detail:{value,cursor:2}})
+  assert.equal(p.data.note,value);assert.equal(p.data.length,Array.from(value).length)
+  assert.equal(p.data.draftDirty,true)
+ }
+ assert(patches.every(patch=>!Object.hasOwn(patch,'note')&&!Object.hasOwn(patch,'cursor')),'input must not replace the native value or cursor through setData')
 })

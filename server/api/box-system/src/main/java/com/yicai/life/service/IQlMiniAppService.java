@@ -20,6 +20,7 @@ public interface IQlMiniAppService {
     void saveExperience(String token, QlMiniAppExperienceBo bo);
     Map<String, Object> overview(String token);
     Map<String, Object> register(String token, QlMiniAppRegistrationBo bo);
+    Map<String, Object> registrationQuote(String token, QlMiniAppQuoteBo bo);
     void checkIn(String token, QlMiniAppAttendanceBo bo);
     void saveDailyRecord(String token, QlMiniAppDailyRecordBo bo);
     List<Map<String, Object>> listDailyRecords(String token);

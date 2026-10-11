@@ -4,6 +4,11 @@ const demo = require('../../data/demo')
 const store = require('../../utils/store')
 const domain = require('../../utils/domain')
 const navigation = require('../../utils/navigation')
+const detailPresentation = require('../../utils/camp-detail-presentation')
+const experiencePresentation = require('../../utils/experience-presentation')
+const reflection = require('../../utils/reflection')
+const registrationDraft = require('../../utils/registration-draft')
+const registrationHistory = require('../../utils/registration-history')
 
 function currentFeelingPhase(activity, status) {
   const now = new Date(), today = domain.localDate(now)
@@ -16,8 +21,13 @@ function currentFeelingPhase(activity, status) {
 
 Page({
   data: {
-    view: 'detail', loading: false, loadError: '', submitting: false, feelingSaving: false, invitationCode: '', routeActivityId: '', sharePath: '', requestId: '', scales: [1,2,3,4,5], feelingPhase: '', feelingDayId: '', energy: null, relaxation: null, feelingNote: '', feelingSaved: false, inviteActivities: [],
-    step: 1, formError: null,
+    view: 'detail', loading: false, loadError: '', submitting: false, feelingSaving: false, invitationCode: '', routeActivityId: '', sharePath: '', preparedInviteId: '', requestId: '', scales: [1,2,3,4,5], feelingPhase: '', feelingDayId: '', energy: null, relaxation: null, feelingNote: '', feelingLength: 0, feelingSaved: false, feelingError: '', inviteActivities: [],
+    step: 1, formError: null, submittedServiceStatus: null, submittedParticipantCount: 0,
+    relationOptions: registrationDraft.relations, contactOverrides: { name: false, phone: false },
+    quote: { ready: false, rows: [], total: '', error: '' }, quoteLoading: false,
+    reflectionAccess: { allowed: false, reason: '正在读取心声资格', retry: false }, reflectionOpening: false,
+    experienceTimeline: [], reviewScope: '', reviewEditing: false, reviewDirty: false, reviewSavedNote: '', reviewHasAfter: false, reviewError: '', reviewExpanded: {},
+    detail: {}, detailExpanded: false, detailActivityId: '', detailFailedImages: {},
     activity: demo.activities[0],
     state: {},
     selectedCount: 1,
@@ -35,15 +45,19 @@ Page({
       try { scene = decodeURIComponent(options.scene) } catch (error) { scene = '' }
       if (!/^[a-f0-9]{32}$/i.test(scene)) scene = ''
     }
-    this.setData({ routeActivityId: options.id || '', invitationCode: options.invite || scene })
+    this.setData({ routeActivityId: options.id || '', linkedRegistrationId: options.registrationId || '', invitationCode: options.invite || scene })
     if (options.id && demo.activities.some(item => item.id === options.id)) store.updateState(state => { state.selectedActivityId = options.id; return state })
     this.setData({ view: options.view || 'detail' })
+    if (business.watchIdentity) this.unwatchInvitation = business.watchIdentity(() => {
+      this.clearInvitation(); this.invalidateQuote()
+      this.setData({ draft: null, submittedServiceStatus: null, submittedParticipantCount: 0, loadedCustomerId: '', requestId: '', contactOverrides: { name: false, phone: false } })
+    })
   },
 
   async onShow() {
     await this.refresh()
     if (this.data.view !== 'register' || this.data.loadError) return
-    if (domain.hasRegistration(this.data.registration)) {
+    if (domain.blocksRegistration(this.data.registration)) {
       this.setData({ view: 'journey' })
       return
     }
@@ -55,6 +69,7 @@ Page({
   },
 
   async refresh() {
+    this.clearInvitation()
     if (business.enabled()) {
       this.setData({ loading: true, loadError: '' })
       try {
@@ -68,25 +83,48 @@ Page({
         const context = await business.context(id)
         if (!context.activity) throw new Error('活动不存在或未发布')
         const { activity, state, overview } = context
+        const version = this.invitationVersion
         const registration = state.registrations[activity.id] || { activityId: activity.id, status: 'none', participants: [], serviceConsent: false }
         const self = registration.participants.find(person => person.id === 'person-self')
+        const scope = business.identityScope ? business.identityScope() : null
+        const reflectionAccess = await reflection.readEntry(() => business.campReflection(activity.id, scope), registration, activity)
+        if (business.assertIdentity) business.assertIdentity(scope)
+        if (version !== this.invitationVersion) return
         const today = domain.localDate()
         const todayDay = activity.days.find(day => String(day.activityDate).slice(0,10) === today) || null
         const phase = currentFeelingPhase(activity, registration.status)
         const record = (overview.experienceRecords || []).find(record => self && record.registrationId === self.registrationId && record.phase === phase && !(record.nodeKey || ''))
         const identityChanged = this.data.loadedCustomerId !== overview.customerId
-        if (identityChanged) this.setData({ draft: null, sharePath: '', shareTitle: '', requestId: '', loadedCustomerId: overview.customerId })
-        const draft = this.data.draft || { serviceConsent: true, contactName: state.profile.nickname || '', contactPhone: state.phone || '', participants: [{ id: 'person-self', name: state.profile.nickname || '', relation: '本人', minor: state.profile.minor, phone: state.phone || '', selected: true }] }
+        if (identityChanged) { this.invalidateQuote(); this.setData({ contactOverrides: { name: false, phone: false }, draft: null, sharePath: '', preparedInviteId: '', shareTitle: '', requestId: '', submittedServiceStatus: null, submittedParticipantCount: 0, loadedCustomerId: overview.customerId }) }
+        const registrationKey = JSON.stringify(registration.participants.map(p => [p.registrationId, p.status, p.activeRegistration]))
+        if (this.loadedRegistrationKey != null && this.loadedRegistrationKey !== registrationKey) {
+          this.invalidateQuote(); this.setData({ draft: null, requestId: '', step: 1 })
+        }
+        this.loadedRegistrationKey = registrationKey
+        let draft = this.data.draft || registrationHistory.draft(registration, state)
+        const draftSelf = draft.participants.find(person => person.id === 'person-self')
+        if (draftSelf) {
+          const previous = this.data.state || {}
+          if (!previous.profile || previous.profile.nickname !== state.profile.nickname) draftSelf.name = state.profile.nickname || ''
+          if (previous.phone !== state.phone) draftSelf.phone = state.phone || ''
+          draft = registrationDraft.syncContacts(draft, this.data.contactOverrides)
+        }
+        if (this.quoteKey && this.quoteKey !== registrationDraft.key(activity.id, draft, state)) this.invalidateQuote()
         const experienceTimeline = (overview.experienceRecords || []).filter(row => self && row.registrationId === self.registrationId).map(row => ({ ...row, label: row.phase === 'before' ? '活动前' : row.phase === 'after' ? '活动后' : ((activity.days.find(day => day.id === row.nodeKey) || {}).label || '活动期间') })).reverse()
-        this.setData({ activity, state, registration, draft, serviceStatus: domain.campServiceStatus(registration), overview, experienceTimeline, loading: false, routeActivityId: activity.id,
+        const selfConfirmed = reflection.activeSelf(registration) && ['confirmed','completed'].includes(self.status || registration.status)
+        const canReview = selfConfirmed && phase === 'after'
+        const reviewPatch = this.data.view === 'experience' ? experiencePresentation.refresh(this.data, JSON.stringify([overview.customerId, activity.id, self ? self.registrationId : '']), experienceTimeline, canReview) : {}
+        this.setData({ activity, state, registration, draft, reflectionAccess, serviceStatus: domain.campServiceStatus(registration), overview, experienceTimeline, loading: false, routeActivityId: activity.id,
           selectedCount: (this.data.view === 'register' ? draft : registration).participants.filter(person => person.selected).length,
-          isRegistered: registration.status !== 'none', availability: domain.activityState(activity), todayDay,
-          dayViews: activity.days.map(day => ({ ...day, date: String(day.activityDate).slice(0,10), today: day.id === (todayDay && todayDay.id), checked: (overview.attendance || []).some(row => row.sessionDayId === day.id && ['checked_in','late'].includes(row.attendanceStatus)) })),
-          canReview: !!self && ['confirmed','completed'].includes(registration.status) && phase === 'after', canWriteReview: !!self, canRecordFeeling: !!self && ['confirmed','completed'].includes(registration.status) && !!phase,
+          isRegistered: domain.hasActiveRegistration(registration), hasSelfActiveRegistration: reflection.activeSelf(registration), canReapply: registrationHistory.canReapply(registration),
+          cancelledHistory: (overview.registrations || []).filter(row => row.sessionId === activity.id && row.registrationStatus === 'cancelled').map(row => ({ ...row, reference: String(row.registrationId).slice(-8), linked: row.registrationId === this.data.linkedRegistrationId })).sort((a,b) => Number(b.linked) - Number(a.linked)), availability: domain.activityState(activity), todayDay,
+          dayViews: activity.days.map(day => ({ ...day, date: String(day.activityDate).slice(0,10), today: day.id === (todayDay && todayDay.id), checked: (overview.attendance || []).some(row => self && row.registrationId === self.registrationId && row.sessionDayId === day.id && ['checked_in','late'].includes(row.attendanceStatus)) })),
+          canReview, canWriteReview: !!self, canRecordFeeling: selfConfirmed && !!phase,
           feelingRegistrationId: self ? self.registrationId : '', feelingPhase: phase, feelingDayId: '',
-          energy: record ? record.energy : null, relaxation: record ? record.relaxation : null, feelingNote: record ? record.note : '', feelingSaved: !!record,
+          energy: record ? record.energy : null, relaxation: record ? record.relaxation : null, feelingNote: record ? record.note : '', feelingLength: Array.from(record && record.note || '').length, feelingSaved: !!record,
           reviewNote: record && phase === 'after' ? record.note : '', reviewSaved: !!record && phase === 'after',
-          inviteActivities: context.activities.filter(item => item.id !== activity.id && domain.activityState(item).canRegister) })
+          inviteActivities: context.activities.filter(item => item.id !== activity.id && domain.activityState(item).canRegister),
+          ...this.detailPresentationPatch(activity, registration), ...reviewPatch })
       } catch (error) { this.setData({ loading: false, loadError: error.message }) }
       return
     }
@@ -105,17 +143,46 @@ Page({
     })
     const review = (state.experienceReviews || {})[activity.id]
     const canReview = state.loggedIn && state.phoneLinked && registration.status !== 'none' && !['pending', 'waitlist', 'cancelled'].includes(registration.status) && (registration.status === 'completed' || !!activity.endDate && today > activity.endDate)
+    const canWriteReview = registration.participants.some(person => person.selected && person.id === 'person-self')
+    const reviewPatch = this.data.view === 'experience' ? experiencePresentation.refresh(this.data, JSON.stringify(['demo', activity.id, canWriteReview ? 'person-self' : '']), review && canWriteReview ? [{ phase: 'after', nodeKey: '', label: '活动后', note: review.note, updatedAt: review.savedAt, visibility: 'private' }] : [], canReview && canWriteReview) : {}
     this.setData({
       state,
       activity,
       selectedCount,
-      registration, draft, serviceStatus: domain.campServiceStatus(registration), canWriteReview: registration.participants.some(person => person.selected && person.id === 'person-self'), availability: domain.activityState(activity), isRegistered: registration.status !== 'none', canReview,
+      registration, draft, serviceStatus: domain.campServiceStatus(registration), canWriteReview, availability: domain.activityState(activity), isRegistered: registration.status !== 'none', canReview,
       dayViews, todayDay: dayViews.find(day => day.today) || null,
-      reviewNote: review && registration.participants.some(person => person.selected && person.id === 'person-self') ? review.note : this.data.reviewNote, reviewSaved: !!review
+      reviewNote: review && registration.participants.some(person => person.selected && person.id === 'person-self') ? review.note : this.data.reviewNote, reviewSaved: !!review,
+      ...this.detailPresentationPatch(activity, registration), ...reviewPatch
     })
   },
 
+  detailPresentationPatch(activity, registration) {
+    const id = String(activity.id || ''), changed = id !== this.data.detailActivityId
+    const failures = changed ? {} : this.data.detailFailedImages
+    return { detail: detailPresentation.present(activity, registration, failures), detailActivityId: id,
+      detailExpanded: changed ? false : this.data.detailExpanded, detailFailedImages: failures }
+  },
+
+  toggleDetailSchedule() { this.setData({ detailExpanded: !this.data.detailExpanded }) },
+
+  detailImageFailed(event) {
+    const url = event.currentTarget.dataset.url
+    if (this.data.view !== 'detail' || !url || ![this.data.detail.cover, this.data.detail.guideImage].includes(url)) return
+    const failures = { ...this.data.detailFailedImages, [url]: true }
+    this.setData({ detailFailedImages: failures, detail: detailPresentation.present(this.data.activity, this.data.registration, failures) })
+  },
+
+  previewDetailImage(event) {
+    const url = event.currentTarget.dataset.url
+    if (this.data.view !== 'detail' || !url || ![this.data.detail.cover, this.data.detail.guideImage].includes(url) || this.data.detailFailedImages[url]) return
+    const fail = () => wx.showToast({ title: '图片暂时无法查看', icon: 'none' })
+    const preview = current => wx.previewImage({ current, urls: [current], fail })
+    if (url.startsWith('/assets/')) wx.getImageInfo({ src: url, success: result => preview(result.path), fail })
+    else preview(url)
+  },
+
   async startRegistration() {
+    if (domain.blocksRegistration(this.data.registration)) return this.openJourney()
     const state = this.data.state
     if (!domain.activityState(this.data.activity).canRegister) {
       return wx.showToast({ title: '请查看本期名额状态', icon: 'none' })
@@ -137,9 +204,22 @@ Page({
   toggleParticipant(event) { formFeedback.clearError(this);
     const draft = JSON.parse(JSON.stringify(this.data.draft))
     const person = draft.participants.find(item => item.id === event.currentTarget.dataset.id)
+    if (person && person.existingActive) return
     if (person) person.selected = !person.selected
-    this.setData({ draft, selectedCount: draft.participants.filter(item => item.selected).length })
+    this.invalidateQuote()
+    this.setData({ draft: registrationDraft.syncContacts(draft, this.data.contactOverrides), selectedCount: draft.participants.filter(item => item.selected).length })
   },
+  onParticipantInput(event) {
+    const { index, field } = event.currentTarget.dataset
+    const person = this.data.draft.participants[index]
+    if (!person || person.id === 'person-self' || !['name', 'phone'].includes(field)) return
+    formFeedback.clearError(this)
+    const draft = JSON.parse(JSON.stringify(this.data.draft))
+    draft.participants[index][field] = event.detail.value
+    this.invalidateQuote()
+    this.setData({ draft })
+  },
+
   chooseMotivation(event) {
     const value = event.currentTarget.dataset.value
     this.setData({ draft: { ...this.data.draft, motivation: value } })
@@ -159,7 +239,7 @@ Page({
     this.registrationError(target, '第' + (index + 1) + '位参与者（' + (person.name || person.relation || '未填写姓名') + '）：' + message)
   },
 
-  nextStep() {
+  async nextStep() {
     if (this.data.step === 1 && this.data.selectedCount < 1) return this.registrationError('camp-participants', '请至少选择一位参与者')
     if (!this.data.draft.contactName) return this.registrationError('camp-contact-name', '请填写主要联系人姓名')
     if (!/^1\d{10}$/.test(this.data.draft.contactPhone || '')) return this.registrationError('camp-contact-phone', '请填写正确的主要联系人手机号')
@@ -168,13 +248,15 @@ Page({
     const invalidPhone = this.data.draft.participants.findIndex(person => person.selected && person.phone && !/^1\d{10}$/.test(person.phone))
     if (invalidPhone >= 0) return this.participantError(invalidPhone, '请检查选填的本人手机号')
     if (this.data.step < 2) formFeedback.changeStep(this, wx, { step: this.data.step + 1 })
+    if (business.enabled()) await this.loadQuote()
   },
 
   previousStep() {
     if (this.data.step > 1) formFeedback.changeStep(this, wx, { step: this.data.step - 1 })
   },
 
-  onUnload() { formFeedback.cancel(this) },
+  onHide() { this.invalidateQuote(); this.clearInvitation() },
+  onUnload() { this.invalidateQuote(); this.clearInvitation(); if (this.unwatchInvitation) this.unwatchInvitation(); formFeedback.cancel(this) },
 
   async submitRegistration() {
     if (this.data.submitting) return
@@ -198,13 +280,28 @@ Page({
       if (!this.data.requestId) this.setData({ requestId: 'registration-' + Date.now() + '-' + Math.random().toString(36).slice(2) })
       formFeedback.clearError(this)
       this.setData({ submitting: true })
+      const submissionVersion = this.invitationVersion
       try {
-        await business.register({ sessionId: this.data.activity.id, clientRequestId: this.data.requestId, invitationCode: this.data.invitationCode || null, serviceConsent: true, motivation: this.data.draft.motivation || null, contactName: this.data.draft.contactName.trim(), contactPhone: this.data.draft.contactPhone.trim(),
-          participants: participants.map(person => ({ self: person.id === 'person-self', customerId: person.id === 'person-self' ? null : person.customerId || null, name: person.name, relation: person.relation, minor: !!person.minor, phone: person.phone || (person.id === 'person-self' ? this.data.state.phone : '') })) })
-        this.setData({ view: 'journey' })
+        const scope = business.identityScope ? business.identityScope() : null
+        const reviewed = this.data.quote.ready ? JSON.stringify(this.data.quote) : ''
+        const currentKey = registrationDraft.key(this.data.activity.id, this.data.draft, this.data.state)
+        await this.loadQuote()
+        if (business.assertIdentity) business.assertIdentity(scope)
+        if (submissionVersion !== this.invitationVersion) return
+        if (currentKey !== registrationDraft.key(this.data.activity.id, this.data.draft, this.data.state)) return
+        if (!this.data.quote.ready) return this.registrationError('camp-submit-error', '价格暂时无法核对，请重试', 2)
+        if (this.data.quote.ready && reviewed !== JSON.stringify(this.data.quote)) return this.registrationError('camp-submit-error', '参考价格已更新，请核对后再次提交', 2)
+        const submitted = await business.register({ sessionId: this.data.activity.id, clientRequestId: this.data.requestId, invitationCode: this.data.invitationCode || null, serviceConsent: true, motivation: this.data.draft.motivation || null, contactName: this.data.draft.contactName.trim(), contactPhone: this.data.draft.contactPhone.trim(),
+          participants: participants.map(person => ({ self: person.id === 'person-self', customerId: person.id === 'person-self' ? null : person.customerId || null, name: person.name, relation: person.relation, minor: !!person.minor, phone: person.phone || (person.id === 'person-self' ? this.data.state.phone : '') })) }, scope)
+        if (business.assertIdentity) business.assertIdentity(scope)
+        if (submissionVersion !== this.invitationVersion) return
+        this.setData({ view: 'success', submittedParticipantCount: participants.length,
+          submittedServiceStatus: submitted && submitted.registrationStatus && submitted.paymentStatus
+            ? domain.campServiceStatus({ status: submitted.registrationStatus, paymentStatus: submitted.paymentStatus })
+            : { registration: '状态待核对', registrationNote: '请查看安排，核对本次申请状态' } })
         await this.refresh()
         wx.showToast({ title: '报名已收到', icon: 'none' })
-      } catch (error) { formFeedback.showError(this, wx, { target: 'camp-submit-error', message: error.message || '报名提交失败，请重试' }) }
+      } catch (error) { if (submissionVersion === this.invitationVersion) formFeedback.showError(this, wx, { target: 'camp-submit-error', message: error.message || '报名提交失败，请重试' }) }
       finally { this.setData({ submitting: false }) }
       return
     }
@@ -245,56 +342,163 @@ Page({
     wx.showToast({ title: '已记录，现场仍需核验', icon: 'none' })
   },
   toggleDay(event) { const id = event.currentTarget.dataset.id; this.setData({ expandedDay: this.data.expandedDay === id ? '' : id }) },
-  onReviewInput(event) { this.setData({ reviewNote: event.detail.value, reviewSaved: false }) },
+  onReviewInput(event) { this.setData({ reviewNote: event.detail.value, reviewSaved: false, reviewDirty: event.detail.value !== this.data.reviewSavedNote, reviewError: '' }) },
+  editReview() {
+    if (!this.data.canReview || !this.data.canWriteReview || this.data.loading || this.data.loadError) return
+    if (business.enabled()) return this.openReflection()
+    this.setData({ reviewEditing: true }, () => {
+      if (wx.pageScrollTo) wx.pageScrollTo({ selector: '#experience-editor', offsetTop: -110, duration: 200 })
+    })
+  },
+  closeReview() {
+    if (this.data.feelingSaving) return
+    this.setData({ reviewEditing: false })
+    if (this.data.reviewDirty) wx.showToast({ title: '未保存的修改保留在本页', icon: 'none' })
+  },
+  toggleExperienceRecord(event) {
+    const key = event.currentTarget.dataset.key
+    if (!this.data.canReview || !(this.data.experienceTimeline || []).some(row => row.displayKey === key && row.hasLongNote)) return
+    this.setData({ reviewExpanded: { ...this.data.reviewExpanded, [key]: !this.data.reviewExpanded[key] } })
+  },
   async saveReview() {
-    if (business.enabled()) { this.setData({ feelingNote: this.data.reviewNote }); return this.saveFeeling() }
-    if (!this.data.canReview) return
+    if (!this.data.canReview || !this.data.canWriteReview || this.data.feelingSaving || this.data.loading || this.data.loadError) return
+    if (business.enabled()) return this.openReflection()
     if (!this.data.registration.participants.some(person => person.selected && person.id === 'person-self')) return wx.showToast({ title: '请由实际参与者保存自己的感受', icon: 'none' })
     store.updateState(state => { state.experienceReviews = state.experienceReviews || {}; state.experienceReviews[this.data.activity.id] = { note: this.data.reviewNote.trim(), savedAt: new Date().toISOString(), private: true }; return state })
+    this.setData({ reviewDirty: false, reviewEditing: false, reviewSavedNote: this.data.reviewNote.trim() })
     this.refresh()
     wx.showToast({ title: '感受已保存', icon: 'none' })
   },
   showAddPerson() { this.setData({ addingPerson: !this.data.addingPerson }) },
-  onSelfPhone(event) { formFeedback.clearError(this); const draft = JSON.parse(JSON.stringify(this.data.draft)); const self = draft.participants.find(p => p.id === 'person-self'); if (self) self.phone = event.detail.value; if (!draft.contactPhone) draft.contactPhone = event.detail.value; this.setData({ draft }) },
-  onSelfName(event) { formFeedback.clearError(this); const draft = JSON.parse(JSON.stringify(this.data.draft)); const self = draft.participants.find(p => p.id === 'person-self'); if (self) self.name = event.detail.value; if (!draft.contactName) draft.contactName = event.detail.value; this.setData({ draft }) },
-  onContactName(event) { formFeedback.clearError(this); this.setData({ draft: { ...this.data.draft, contactName: event.detail.value } }) },
-  onContactPhone(event) { formFeedback.clearError(this); this.setData({ draft: { ...this.data.draft, contactPhone: event.detail.value } }) },
+  onSelfPhone(event) { this.updateSelf('phone', event.detail.value) },
+  onSelfName(event) { this.updateSelf('name', event.detail.value) },
+  onContactName(event) { formFeedback.clearError(this); this.setData({ contactOverrides: { ...this.data.contactOverrides, name: true }, draft: { ...this.data.draft, contactName: event.detail.value } }) },
+  onContactPhone(event) { formFeedback.clearError(this); this.setData({ contactOverrides: { ...this.data.contactOverrides, phone: true }, draft: { ...this.data.draft, contactPhone: event.detail.value } }) },
   onPersonName(event) { formFeedback.clearError(this); this.setData({ personName: event.detail.value }) },
   onPersonPhone(event) { formFeedback.clearError(this); this.setData({ personPhone: event.detail.value }) },
-  onPersonRelation(event) { formFeedback.clearError(this); this.setData({ personRelation: event.detail.value }) },
+  onPersonRelation(event) {
+    const value = this.data.relationOptions[Number(event.detail.value)]
+    if (!value) return
+    formFeedback.clearError(this); this.setData({ personRelation: value })
+  },
+  onParticipantRelation(event) {
+    const index = Number(event.currentTarget.dataset.index), relation = this.data.relationOptions[Number(event.detail.value)]
+    const draft = JSON.parse(JSON.stringify(this.data.draft)), person = draft.participants[index]
+    if (!person || person.id === 'person-self' || !relation) return
+    if (relation === '本人') return wx.showToast({ title: '本人请在上方参与者中选择', icon: 'none' })
+    person.relation = relation; this.invalidateQuote(); this.setData({ draft })
+  },
   toggleMinor() { this.setData({ personMinor: !this.data.personMinor }) },
   addPerson() {
     const name = this.data.personName.trim(), phone = this.data.personPhone.trim(), relation = this.data.personRelation.trim()
     if (!name) return this.registrationError('camp-person-name', '请填写新增参与者的姓名或称呼')
-    if (!relation) return this.registrationError('camp-person-relation', '请填写新增参与者与你的关系')
+    if (!registrationDraft.relations.includes(relation)) return this.registrationError('camp-person-relation', '请选择与参与者的关系')
+    if (relation === '本人') return this.registrationError('camp-person-relation', '本人请在上方参与者中选择，不重复添加')
     if (phone && !/^1\d{10}$/.test(phone)) return this.registrationError('camp-person-phone', '请检查新增参与者选填的本人手机号')
     const draft = JSON.parse(JSON.stringify(this.data.draft))
+    this.invalidateQuote()
     draft.participants.push({ id: 'person-' + Date.now(), name, phone, relation, minor: this.data.personMinor, selected: true })
     this.setData({ draft })
     formFeedback.clearError(this)
     this.setData({ addingPerson: false, personName: '', personPhone: '', personRelation: '', personMinor: false })
     this.refresh()
   },
-  openReflection() { navigation.navigateTo({ url: '/pages/camp-reflection/index?id=' + encodeURIComponent(this.data.activity.id) }) },
-  openFeeling() { this.setData({ view: 'feeling' }) },
+  updateSelf(field, value) {
+    formFeedback.clearError(this)
+    const draft = JSON.parse(JSON.stringify(this.data.draft)), self = draft.participants.find(p => p.id === 'person-self')
+    if (!self) return
+    self[field] = value; this.invalidateQuote()
+    this.setData({ draft: registrationDraft.syncContacts(draft, this.data.contactOverrides) })
+  },
+  invalidateQuote() {
+    this.quoteVersion = (this.quoteVersion || 0) + 1; this.quoteKey = ''
+    this.setData({ quoteLoading: false, quote: { ready: false, rows: [], total: '', error: '' } })
+  },
+  async loadQuote() {
+    const version = (this.quoteVersion || 0) + 1; this.quoteVersion = version
+    const key = registrationDraft.key(this.data.activity.id, this.data.draft, this.data.state)
+    const scope = business.identityScope ? business.identityScope() : null
+    this.setData({ quoteLoading: true, quote: { ready: false, rows: [], total: '', error: '' } })
+    try {
+      if (!business.registrationQuote) throw Error('价格暂时无法确认，请联系工作人员核对')
+      const result = await business.registrationQuote({ sessionId: this.data.activity.id, participants: registrationDraft.participants(this.data.draft, this.data.state) }, scope)
+      if (business.assertIdentity) business.assertIdentity(scope)
+      if (version !== this.quoteVersion || key !== registrationDraft.key(this.data.activity.id, this.data.draft, this.data.state)) return
+      const quote = registrationDraft.quote(result, this.data.draft.participants.filter(p => p.selected))
+      this.quoteKey = key; this.setData({ quote, quoteLoading: false })
+    } catch (error) {
+      if (version === this.quoteVersion) this.setData({ quoteLoading: false, quote: { ready: false, rows: [], total: '', error: error.message || '价格暂时无法确认，请重试' } })
+    }
+  },
+  async openReflection() {
+    if (!reflection.activeSelf(this.data.registration) || this.data.reflectionOpening || this.data.loading || this.data.loadError) return
+    if (!this.data.reflectionAccess.allowed) return wx.showToast({ title: this.data.reflectionAccess.reason, icon: 'none' })
+    const activity = this.data.activity, registration = this.data.registration, version = this.invitationVersion
+    const scope = business.identityScope ? business.identityScope() : null
+    this.setData({ reflectionOpening: true })
+    try {
+      const access = await reflection.readEntry(() => business.campReflection(activity.id, scope), registration, activity)
+      if (business.assertIdentity) business.assertIdentity(scope)
+      if (version !== this.invitationVersion) return
+      this.setData({ reflectionAccess: access })
+      if (!access.allowed) return wx.showToast({ title: access.reason, icon: 'none' })
+      navigation.navigateTo({ url: '/pages/camp-reflection/index?id=' + encodeURIComponent(activity.id) })
+    } catch (error) { if (version === this.invitationVersion) wx.showToast({ title: error.message, icon: 'none' }) }
+    finally { if (version === this.invitationVersion) this.setData({ reflectionOpening: false }) }
+  },
+  openFeeling() { if (business.enabled() && this.data.feelingPhase === 'after') return this.openReflection(); this.setData({ view: 'feeling' }) },
   chooseScale(event) { const { field, value } = event.currentTarget.dataset; if (['energy','relaxation'].includes(field)) this.setData({ [field]: this.data[field] === Number(value) ? null : Number(value) }) },
-  onFeelingInput(event) { this.setData({ feelingNote: event.detail.value, feelingSaved: false, reviewSaved: false }) },
+  onFeelingInput(event) { this.setData({ feelingNote: event.detail.value, feelingLength: Array.from(event.detail.value).length, feelingSaved: false, feelingError: '', reviewSaved: false }) },
   async saveFeeling() {
     if (this.data.feelingSaving || !this.data.canRecordFeeling) return
+    if (business.enabled() && this.data.feelingPhase === 'after') return this.openReflection()
     const note = this.data.feelingNote, phase = this.data.feelingPhase
-    this.setData({ feelingSaving: true })
+    if (Array.from(note || '').length > 150) return this.setData({ feelingError: '新保存的感受最多150字；历史原文不会截断' })
+    const reviewing = this.data.view === 'experience', scope = this.data.reviewScope
+    const customerId = this.data.loadedCustomerId, registrationId = this.data.feelingRegistrationId
+    const after = reviewing && (this.data.experienceTimeline || []).find(experiencePresentation.isAfter)
+    const existing = after || ((this.data.overview || {}).experienceRecords || []).find(row => row.registrationId === registrationId && row.phase === phase && !row.nodeKey)
+    const payload = { registrationId, phase, sessionDayId: null, energy: existing ? experiencePresentation.score(existing.energy) : null, relaxation: existing ? experiencePresentation.score(existing.relaxation) : null, note }
+    this.setData({ feelingSaving: true, feelingError: '' })
     try {
-      await business.saveExperience({ registrationId: this.data.feelingRegistrationId, phase, sessionDayId: null, energy: null, relaxation: null, note })
+      await business.saveExperience(payload)
+      if (registrationId !== this.data.feelingRegistrationId || customerId !== this.data.loadedCustomerId || reviewing && scope !== this.data.reviewScope) return
       this.setData({ feelingSaved: this.data.feelingNote === note, reviewSaved: phase === 'after' && this.data.reviewNote === note })
-      const draftChanged = this.data.view === 'experience' ? this.data.reviewNote !== note : this.data.feelingNote !== note
+      const draftChanged = reviewing ? this.data.reviewNote !== note : this.data.feelingNote !== note
+      if (reviewing) this.setData({ experienceTimeline: experiencePresentation.saved(this.data.experienceTimeline, payload), reviewHasAfter: true, reviewSavedNote: note, reviewDirty: draftChanged, reviewEditing: draftChanged, reviewError: '' })
       wx.showToast({ title: draftChanged ? '提交内容已保存，新修改未保存' : '感受已保存，仅自己可见', icon: 'none' })
-    } catch (error) { wx.showToast({ title: error.message, icon: 'none' }) }
+    } catch (error) {
+      if (!reviewing && customerId === this.data.loadedCustomerId && registrationId === this.data.feelingRegistrationId) this.setData({ feelingError: error.message || '暂时无法保存，请重试。' })
+      if (reviewing && scope === this.data.reviewScope && customerId === this.data.loadedCustomerId) this.setData({ reviewError: error.message || '暂时无法保存，请重试。' })
+      wx.showToast({ title: error.message || '暂时无法保存，请重试。', icon: 'none' })
+    }
     finally { this.setData({ feelingSaving: false }) }
   },
-  openInvite() { this.setData({ view: 'invite' }) },
+  clearInvitation() {
+    this.invitationVersion = (this.invitationVersion || 0) + 1
+    this.setData({ sharePath: '', preparedInviteId: '', shareTitle: '', invitePreparing: false, reflectionAccess: { allowed: false, reason: '正在读取心声资格', retry: false }, reflectionOpening: false, state: { ...this.data.state, invitationEligible: false } })
+  },
+  canInvite() { return !this.data.loading && !this.data.loadError && this.data.state.invitationEligible === true && !this.data.state.profile?.minor },
+  openInvite() { if (this.canInvite()) this.setData({ view: 'invite' }) },
   async prepareInvitation(event) {
-    try { const result = await business.createInvitation(event.currentTarget.dataset.id); this.setData({ sharePath: result.path, shareTitle: (this.data.inviteActivities.find(item => item.id === event.currentTarget.dataset.id) || {}).name || '轻生活活动邀请' }); wx.showToast({ title: '邀请已准备好，请自主分享', icon: 'none' }) }
-    catch (error) { wx.showToast({ title: error.message, icon: 'none' }) }
+    if (!this.canInvite() || this.data.invitePreparing) return
+    const id = event.currentTarget.dataset.id, version = this.invitationVersion
+    if (!(this.data.inviteActivities || []).some(item => item.id === id)) return
+    const scope = business.identityScope ? business.identityScope() : null
+    this.setData({ invitePreparing: true, sharePath: '' })
+    try {
+      if (business.privateOverview) {
+        const { overview } = await business.privateOverview(scope)
+        if (version !== this.invitationVersion) return
+        if (overview.invitationEligible !== true || overview.profile?.minor) { this.clearInvitation(); return }
+      }
+      const result = await business.createInvitation(id, scope)
+      if (business.assertIdentity) business.assertIdentity(scope)
+      if (version !== this.invitationVersion || !this.canInvite()) return
+      this.setData({ sharePath: result.path, preparedInviteId: id, shareTitle: this.data.inviteActivities.find(item => item.id === id).name || '轻生活活动邀请' })
+      wx.showToast({ title: '邀请已准备好，请自主分享', icon: 'none' })
+    } catch (error) { if (version === this.invitationVersion) wx.showToast({ title: error.message, icon: 'none' }) }
+    finally { if (version === this.invitationVersion) this.setData({ invitePreparing: false }) }
   },
   onShareAppMessage() { return { title: this.data.shareTitle || this.data.activity.name, path: this.data.sharePath || '/pages/camp-flow/index?view=detail&id=' + encodeURIComponent(this.data.activity.id) + (this.data.invitationCode ? '&invite=' + encodeURIComponent(this.data.invitationCode) : '') } },
 

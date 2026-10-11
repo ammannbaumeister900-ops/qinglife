@@ -47,6 +47,7 @@ class QlPermissionBoundaryTest {
         app.getBeanFactory().registerSingleton("selections", mock(com.yicai.life.service.QlAdminSelectionService.class));
         app.getBeanFactory().registerSingleton("passService", mock(QlPassService.class));
         app.getBeanFactory().registerSingleton("registrationService", mock(IQlRegistrationService.class));
+        app.getBeanFactory().registerSingleton("offlineReceipts", mock(com.yicai.life.service.QlOfflineReceiptService.class));
         app.getBeanFactory().registerSingleton("customerService", mock(IQlCustomerService.class));
         app.getBeanFactory().registerSingleton("dossierService", mock(QlCustomerDossierService.class));
         app.getBeanFactory().registerSingleton("friendAssessments", mock(QlFriendAssessmentService.class));
@@ -206,7 +207,7 @@ class QlPermissionBoundaryTest {
         com.yicai.life.domain.bo.QlReflectionModerationBo bo=new com.yicai.life.domain.bo.QlReflectionModerationBo();bo.setRevision(1);bo.setDisplayNote("审核后展示");
         user.getPermissions().add("life:reflection:review");assertThrows(AccessDeniedException.class,()->controller.approveAndPublish("voice",bo));
         user.getPermissions().remove("life:reflection:review");user.getPermissions().add("life:reflection:publish");assertThrows(AccessDeniedException.class,()->controller.approveAndPublish("voice",bo));verifyNoInteractions(service);
-        user.getPermissions().add("life:reflection:review");controller.approveAndPublish("voice",bo);verify(service).moderate("voice","approvePublish",bo,42L);
+        user.getPermissions().add("life:reflection:review");controller.approveAndPublish("voice",bo);verify(service).moderate(eq("voice"),eq("approvePublish"),eq(bo),eq(42L),anySet());
     }
     @Test void pageConfigurationAndSelectorsRequireTheirOwnActionGrants() {
         com.yicai.web.controller.system.AccountPagePermissionController pages=context.getBean(com.yicai.web.controller.system.AccountPagePermissionController.class);
@@ -214,16 +215,24 @@ class QlPermissionBoundaryTest {
         QlAdminSelectionController selectors=context.getBean(QlAdminSelectionController.class);assertThrows(AccessDeniedException.class,()->selectors.customers());assertThrows(AccessDeniedException.class,()->selectors.sessions());assertThrows(AccessDeniedException.class,()->selectors.passes("r"));
         LoginUser user=(LoginUser)SecurityContextHolder.getContext().getAuthentication().getPrincipal();user.getPermissions().add("system:accountPermission:list");pages.list(null,1,20);assertThrows(AccessDeniedException.class,()->pages.save(42L,new com.yicai.system.domain.bo.AccountPagePermissionBo()));
     }
+    @Test void offlineReceiptRequiresBothEditAndPaymentPermissions() {
+        com.yicai.life.service.QlOfflineReceiptService receipts=context.getBean(com.yicai.life.service.QlOfflineReceiptService.class);reset(receipts);
+        com.yicai.life.domain.bo.QlOfflineReceiptBo bo=new com.yicai.life.domain.bo.QlOfflineReceiptBo();
+        LoginUser user=(LoginUser)SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        user.getPermissions().add("life:registration:edit");assertThrows(AccessDeniedException.class,()->registrationController.confirmOfflineReceipt("r",bo));
+        user.getPermissions().remove("life:registration:edit");user.getPermissions().add("life:registration:payment");assertThrows(AccessDeniedException.class,()->registrationController.confirmOfflineReceipt("r",bo));verifyNoInteractions(receipts);
+        user.getPermissions().add("life:registration:edit");registrationController.confirmOfflineReceipt("r",bo);verify(receipts).confirm("r",bo,42L);
+    }
     @Configuration
     @EnableGlobalMethodSecurity(prePostEnabled = true)
     static class MethodSecurityConfig {
         @Bean QlAdminSelectionController selectionsController(com.yicai.life.service.QlAdminSelectionService service){return new QlAdminSelectionController(service);}
         @Bean com.yicai.web.controller.system.AccountPagePermissionController accountController(com.yicai.system.service.AccountPagePermissionService service){return new com.yicai.web.controller.system.AccountPagePermissionController(service);}
-        @Bean QlCampReflectionAdminController campReflectionController(com.yicai.life.service.QlCampReflectionService reflections) { return new QlCampReflectionAdminController(reflections); }
+        @Bean QlCampReflectionAdminController campReflectionController(com.yicai.life.service.QlCampReflectionService reflections, PermissionService permissions) { return new QlCampReflectionAdminController(reflections, permissions); }
         @Bean(name = "ss") PermissionService permissionService() { return new PermissionService(); }
         @Bean QlPassController passController(QlPassService service) { return new QlPassController(service); }
-        @Bean QlRegistrationController registrationController(IQlRegistrationService service) {
-            return new QlRegistrationController(service);
+        @Bean QlRegistrationController registrationController(IQlRegistrationService service, com.yicai.life.service.QlOfflineReceiptService receipts) {
+            return new QlRegistrationController(service,receipts);
         }
         @Bean QlCustomerController customerController(IQlCustomerService customers,
                 QlCustomerDossierService dossier, QlFriendAssessmentService assessments,

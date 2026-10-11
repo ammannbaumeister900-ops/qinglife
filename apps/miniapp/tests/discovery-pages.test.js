@@ -48,9 +48,9 @@ test('home and camp signup routes preserve the exact session ID', () => {
   const urls = [], mocks = { '../../utils/navigation': { navigateTo: x => urls.push(x.url) } }
   const home = page('home', mocks); home.data.featured = { id: 'session & 2' }
   home.openActivity({ currentTarget: { dataset: { view: 'register' } } })
-  const camp = page('camp', mocks); camp.signup({ currentTarget: { dataset: { id: 'session & 2' } } })
+  const camp = page('camp', mocks); camp.data.openActivities = [{ id: 'session & 2', canRegister: true }]; camp.signup({ currentTarget: { dataset: { id: 'session & 2' } } })
   assert.equal(urls[0], '/pages/camp-flow/index?view=register&id=session%20%26%202')
-  assert.equal(urls[1], urls[0])
+  assert.equal(urls[1], '/pages/camp-flow/index?view=detail&id=session%20%26%202')
 })
 test('private records exclude a companion and clear on load failure', async () => {
   let fail = false
@@ -79,7 +79,7 @@ test('refresh keeps the last good camp list while request is pending', async () 
 test('sample reading opens complete labeled local articles without calling legacy API', async () => {
   const samples = require('../data/reading-samples')
   assert.equal(new Set(samples.map(a => a.category)).size, 4)
-  const content = page('content', { '../../config/runtime': { environment: 'demo' }, '../../services/legacy-api': { getArticles: () => { throw new Error('production forbidden') } } })
+  const content = page('content', { '../../config/runtime': { environment: 'demo' }, '../../services/business-api': { enabled: () => false, readings: () => { throw Error('business network forbidden in offline Demo') } }, '../../services/legacy-api': { getArticles: () => { throw new Error('production forbidden') } } })
   await content.loadArticles()
   assert.equal(content.data.visibleArticles.length, 4)
   assert.ok(samples.every(a => a.sample && a.content.includes('演示')))

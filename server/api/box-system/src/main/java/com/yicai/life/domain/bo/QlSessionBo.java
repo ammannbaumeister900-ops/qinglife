@@ -47,5 +47,8 @@ public class QlSessionBo extends BaseEntity {
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private Date registrationCloseAt;
     private String leaderName;
+    private java.util.List<Long> guideIds;
+    private Boolean registrationOpenManual;
+    private Boolean registrationCloseManual;
     private String cancelPolicy;
 }

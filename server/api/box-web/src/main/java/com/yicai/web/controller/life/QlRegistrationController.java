@@ -30,6 +30,7 @@ import javax.validation.Valid;
 @RequestMapping("/life/registration")
 public class QlRegistrationController extends BaseController {
     private final IQlRegistrationService registrationService;
+    private final com.yicai.life.service.QlOfflineReceiptService offlineReceipts;
 
     @PreAuthorize("@ss.hasPermi('life:registration:list')")
     @GetMapping("/list")
@@ -99,6 +100,30 @@ public class QlRegistrationController extends BaseController {
     @PutMapping("/batch/{batchId}/cancel")
     public AjaxResult<Void> cancelBatch(@PathVariable String batchId,@RequestBody java.util.Map<String,String> body) {
         return toAjax(registrationService.cancelBatch(batchId,body.get("reason"),currentUserId()));
+    }
+
+    @PreAuthorize("@ss.hasPermi('life:registration:payment') && @ss.hasPermi('life:registration:edit')")
+    @Log(title = "核实线下到账并确认整单报名", businessType = BusinessType.UPDATE, isSaveRequestData = false)
+    @PostMapping("/{id}/offline-receipt")
+    public AjaxResult<Void> confirmOfflineReceipt(@PathVariable String id,
+            @Valid @RequestBody com.yicai.life.domain.bo.QlOfflineReceiptBo bo) {
+        return toAjax(offlineReceipts.confirm(id,bo,currentUserId()));
+    }
+
+    @PreAuthorize("@ss.hasPermi('life:registration:payment')")
+    @GetMapping("/{id}/offline-receipts")
+    public AjaxResult<java.util.List<java.util.Map<String,Object>>> offlineReceipts(@PathVariable String id) {
+        return AjaxResult.success(offlineReceipts.list(id));
+    }
+
+    @PreAuthorize("@ss.hasPermi('life:registration:payment')")
+    @GetMapping("/{id}/offline-receipt-images/{imageId}")
+    public org.springframework.http.ResponseEntity<byte[]> receiptImage(@PathVariable String id,@PathVariable String imageId) {
+        java.util.Map<String,Object> image=offlineReceipts.image(id,imageId);
+        return org.springframework.http.ResponseEntity.ok().header("Cache-Control","no-store")
+            .header("X-Content-Type-Options","nosniff")
+            .contentType(org.springframework.http.MediaType.parseMediaType(String.valueOf(image.get("mime"))))
+            .body((byte[])image.get("data"));
     }
 
     private Long currentUserId() {

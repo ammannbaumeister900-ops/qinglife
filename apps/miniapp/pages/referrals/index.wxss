@@ -35,3 +35,27 @@ page { background: #f6f1e8; color: #51433c; }
 button::after { border: none; }
 
 .referrals-page button.primary { background: #a17d68; color: #fffaf2; min-height: 100rpx; border-radius: 18rpx; }
+
+/* The artwork supplies warmth; selection and recommendation records stay factual. */
+.referrals-page { padding: 28rpx 36rpx calc(64rpx + env(safe-area-inset-bottom)); background: var(--ql-bg); color: var(--ql-ink); }
+.referrals-page .intro { padding: 0 0 24rpx; }
+.referrals-page .title { margin: 0; font-size: 44rpx; line-height: 1.5; letter-spacing: 0; }
+.referrals-page .section-label { margin: 0 0 16rpx; font-size: 28rpx; font-weight: 600; }
+.referrals-page button.session-choice { margin: 0; padding: 24rpx 0; border: none; border-bottom: 1rpx solid var(--ql-border); border-radius: 0; background: transparent; }
+.referrals-page button.session-selected { background: transparent; }
+.referrals-page .session-selected .choice-mark { background: var(--ql-ink); color: var(--ql-surface); border-color: var(--ql-ink); }
+.referrals-page .session-title { color: var(--ql-ink); font-size: 30rpx; }
+.referrals-page .copy { font-size: 28rpx; color: var(--ql-ink-light); }
+.referrals-page .invitation-preview { margin-top: 28rpx; border: none; border-radius: 0; box-shadow: none; background: transparent; }
+.referrals-page .invitation-art { height: 440rpx; }
+.referrals-page .preset-picker { margin: 20rpx 0 28rpx; gap: 16rpx; }
+.referrals-page button.preset { padding: 6rpx; border-radius: 6rpx; background: transparent; }
+.referrals-page .preset-name { font-size: 26rpx; color: var(--ql-ink-light); }
+.referrals-page .privacy-copy { color: var(--ql-ink-light); font-size: 26rpx; }
+.referrals-page .ready-copy { color: var(--ql-ink); font-size: 28rpx; }
+.referrals-page button.primary { min-height: 48px; border-radius: 8rpx; background: var(--ql-ink); font-size: 28rpx; }
+.referrals-page .record-heading { margin-top: 40rpx; padding-top: 28rpx; font-family: inherit; font-size: 30rpx; font-weight: 600; letter-spacing: 0; }
+.referrals-page .record-top { flex-wrap: wrap; font-size: 30rpx; }
+.referrals-page .status, .referrals-page .date { font-size: 26rpx; color: var(--ql-ink-light); }
+.referrals-page .empty { font-size: 28rpx; color: var(--ql-ink-light); }
+@media (max-width: 350px) { .referrals-page .copy, .referrals-page .privacy-copy { font-size: 14px; } .referrals-page .preset-name, .referrals-page .date { font-size: 13px; } }

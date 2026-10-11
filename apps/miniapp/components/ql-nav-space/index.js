@@ -2,6 +2,7 @@ Component({
   properties: {
     title: { type: String, value: '' },
     back: { type: Boolean, value: false },
+    brand: { type: Boolean, value: false },
     immersive: { type: Boolean, value: false }
   },
 

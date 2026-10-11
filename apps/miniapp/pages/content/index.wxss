@@ -186,3 +186,25 @@
 .content-page .chips .chip { display: inline-flex; align-items: center; justify-content: center; flex: none; width: auto; min-width: 0; min-height: 64rpx; margin: 0; padding: 12rpx 20rpx; font-size: 24rpx; line-height: 1.4; }
 
 .content-page { background: linear-gradient(180deg,#F5F0E6,#F7F3EB 780rpx,#F2F1E8 1400rpx); }
+
+/* Discovery has a lead; search keeps a compact result rhythm. */
+.content-page { padding: 24rpx 40rpx calc(180rpx + env(safe-area-inset-bottom)); background: var(--ql-bg); }
+.content-page::before { display: none; }
+.content-page .search-row { height: 96rpx; border-radius: 8rpx; background: var(--ql-surface); }
+.content-page .search-input { font-size: 28rpx; }
+.content-page .search-clear { min-height: 44px; top: 0; height: 100%; font-size: 26rpx; }
+.content-page .chips { gap: 8rpx 20rpx; margin: 0 0 24rpx; }
+.content-page .chips .chip { min-height: 44px; border: none; border-bottom: 3rpx solid transparent; border-radius: 0; padding: 12rpx 0; font-size: 28rpx; background: transparent; }
+.content-page .chips .chip.active { border-color: var(--ql-ink); color: var(--ql-ink); }
+.content-page .article-card { padding: 28rpx 0; }
+.content-page .article-card:last-of-type { border-bottom: none; }
+.reading-cover { display: block; width: 100%; margin-bottom: 24rpx; }
+.reading-category { color: var(--ql-clay-deep); font-size: 24rpx; line-height: 1.6; }
+.content-page .article-title { margin: 12rpx 0; font-size: 36rpx; overflow-wrap: anywhere; }
+.content-page .reading-feature .article-title { font-size: 44rpx; line-height: 1.45; }
+.content-page .article-summary { font-size: 28rpx; }
+.content-page .article-footer { margin-top: 14rpx; font-size: 24rpx; color: var(--ql-ink-light); letter-spacing: 0; }
+.reading-search .article-title { font-family: inherit; font-size: 32rpx; font-weight: 600; }
+.reading-search .article-card { padding: 24rpx 0; }
+.content-page .empty-state { border: none; background: transparent; border-radius: 0; padding: 40rpx 0; }
+@media (max-width: 350px) { .content-page .article-summary, .content-page .search-input, .content-page .chips .chip { font-size: 14px; } .reading-category, .content-page .article-footer { font-size: 12px; } }

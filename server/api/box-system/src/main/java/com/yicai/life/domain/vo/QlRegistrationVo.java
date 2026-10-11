@@ -30,6 +30,7 @@ public class QlRegistrationVo {
     private String customerId;
     private String customerNo;
     private String nickname;
+    private String participantPhone;
     private String realName;
     private String sessionId;
     private Integer sessionNumber;

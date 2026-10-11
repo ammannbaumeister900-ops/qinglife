@@ -12,8 +12,20 @@ function fixture(name) {
   let page, state = require('../utils/store').defaultState()
   state.registration.status = 'none'; state.registrations = {}; state.backend = true
   const context = { state, activities: [{ id: 'session-test', name: '测试活动', date: '2099-01-01', startDate: '2099-01-01', endDate: '2099-01-03', status: '开放报名', sourceStatus: 'open', seatsLeft: 5 }], overview: {} }
-  const toasts = [], copies = [], writes = []
+  const toasts = [], copies = [], writes = [], links = []
+  const privateScope = { token: 'synthetic' }
+  let serverDailyRecords = null
+  const toServerRecord = ([key, row]) => ({ ...row, id: key, recordDate: state.habit.serverDate,
+    recordStage: 'habit', planDay: state.habit.currentDay, sessionId: state.habit.sessionId || null, choiceValue: row.choice })
   const business = {
+    normalizeHabit: raw => raw, isDemo: () => false, identityScope: () => privateScope,
+    assertIdentity: scope => { assert.equal(scope, privateScope) },
+    privateOverview: async () => {
+      await business.refreshHabit()
+      if (!serverDailyRecords) serverDailyRecords = Object.entries(state.dailyRecords).map(toServerRecord)
+      return { scope: privateScope, overview: { customerId: 'test-owner', habit: state.habit, dailyRecords: plain(serverDailyRecords) } }
+    },
+    recordDaily: value => { serverDailyRecords = [{ ...value, id: 'test-daily', choiceValue: value.choiceValue, updatedAt: '2026-10-06' }] },
     enabled: () => true, context: async () => context, featuredReadings: async () => [], homeReadings: async () => ({ stories: [], featured: await business.featuredReadings() }), campVoices: async () => [],
     readings: async filters => { const result = await legacy.getArticles(filters.pageNum); if(result.error) throw Error(result.error); return result }, readingTopics: async () => [],
     contact: async () => ({ name: '服务人员', wechat: 'test-wechat', configured: true }), login: async () => {},
@@ -25,7 +37,7 @@ function fixture(name) {
   const store = { getState: () => plain(state), updateState: fn => { state = fn(plain(state)); return plain(state) } }
   const wx = { showToast: value => toasts.push(value.title), setClipboardData: value => { copies.push(value.data); value.success() } }
   const mocks = { '../../services/business-api': business, '../../services/legacy-api': legacy, '../../services/article-favorites': favorites,
-    '../../services/staff-api': { request: async () => ({}) }, '../../utils/store': store, '../../utils/navigation': {}, '../../config/runtime': { environment: 'production' } }
+    '../../services/staff-api': { request: async () => ({}) }, '../../utils/store': store, '../../utils/navigation': { navigateTo: value => links.push(value.url) }, '../../config/runtime': { environment: 'production' } }
   vm.runInNewContext(fs.readFileSync(path.join(root, 'pages', name, 'index.js'), 'utf8'), {
     wx, Page: value => { page=value }, require: id => mocks[id] || require(path.resolve(root,'pages',name,id))
   })
@@ -36,7 +48,7 @@ function fixture(name) {
     assert.ok(match, 'missing condition ' + marker)
     return !!vm.runInNewContext(match[1], page.data)
   }
-  return { page, business, legacy, favorites, context, toasts, copies, writes, condition, state: () => state,
+  return { page, business, legacy, favorites, context, toasts, copies, writes, condition, links, state: () => state,
     run: () => page[name === 'mine' ? 'refresh' : 'onShow']() }
 }
 
@@ -232,20 +244,12 @@ test('empty list retries show loading without a simultaneous empty message', asy
   }
 })
 
-test('edited camp feeling/review drafts invalidate saved feedback and restore it only after a real success', async () => {
-  const f=fixture('camp-flow')
-  f.page.setData({canRecordFeeling:true,feelingPhase:'after',feelingSaved:true,reviewSaved:true,feelingNote:'已保存正文'})
-  f.page.onFeelingInput({detail:{value:'新的感受'}})
-  assert.equal(f.page.data.feelingSaved,false);assert.equal(f.page.data.reviewSaved,false)
-  f.business.saveExperience=async()=>{throw new Error('save offline')}
-  await f.page.saveFeeling()
-  assert.equal(f.page.data.feelingSaved,false)
-  assert.equal(f.page.data.feelingNote,'新的感受')
-  f.business.saveExperience=async()=>{}
-  await f.page.saveFeeling();assert.equal(f.page.data.feelingSaved,true)
-  f.page.onReviewInput({detail:{value:'新的回顾'}})
-  assert.equal(f.page.data.reviewSaved,false)
-  await f.page.saveReview();assert.equal(f.page.data.reviewSaved,true)
+test('before private drafts require actual save success; formal after uses the unified editor', async () => {
+ const f=fixture('camp-flow');f.business.campReflection=async()=>({canAfter:true});f.page.setData({reflectionAccess:{allowed:true},registration:{status:'confirmed',participants:[{id:'person-self'}]},canRecordFeeling:true,canReview:true,canWriteReview:true,feelingPhase:'after',feelingSaved:true,reviewSaved:true,feelingNote:'已保存正文'});
+ f.page.onFeelingInput({detail:{value:'新的感受'}});assert.equal(f.page.data.feelingSaved,false);assert.equal(f.page.data.reviewSaved,false);
+ f.business.saveExperience=()=>{throw Error('after must not write through the old API')};await f.page.saveFeeling();assert.match(f.links.at(-1),/camp-reflection/);assert.equal(f.page.data.feelingSaved,false);
+ f.page.setData({feelingPhase:'before'});f.business.saveExperience=async()=>{throw Error('save offline')};await f.page.saveFeeling();assert.equal(f.page.data.feelingSaved,false);assert.equal(f.page.data.feelingNote,'新的感受');f.business.saveExperience=async()=>{};await f.page.saveFeeling();assert.equal(f.page.data.feelingSaved,true);
+ f.page.onReviewInput({detail:{value:'新的回顾'}});assert.equal(f.page.data.reviewSaved,false);await f.page.saveReview();assert.match(f.links.at(-1),/camp-reflection/);assert.equal(f.page.data.reviewSaved,false,'navigation must not pretend to save');
 })
 
 test('daily edited drafts survive a failed preflight/write and do not claim to be saved', async () => {
@@ -253,7 +257,7 @@ test('daily edited drafts survive a failed preflight/write and do not claim to b
   state.stage='habit';state.habit={...state.habit,id:'plan-test',serverDate:'2026-10-06',canRecordToday:true}
   const key='habit-plan-test-2026-10-06';state.dailyRecords={[key]:{choice:'rest',note:'已保存正文'}}
   f.business.refreshHabit=async()=>state.habit
-  f.page.refresh()
+  await f.page.refresh()
   assert.equal(f.condition('savedRecord &&'),true)
   f.page.chooseDaily({currentTarget:{dataset:{value:'done'}}});f.page.onDailyNote({detail:{value:'  新的草稿  '}})
   assert.equal(f.condition('savedRecord &&'),false)
@@ -263,7 +267,7 @@ test('daily edited drafts survive a failed preflight/write and do not claim to b
   assert.equal(f.page.data.dailyChoice,'done')
   assert.equal(f.condition('savedRecord &&'),false)
   assert.equal(f.state().dailyRecords[key].note,'已保存正文')
-  f.business.saveDailyRecord=async value=>f.writes.push(plain(value))
+  f.business.saveDailyRecord=async value=>{f.writes.push(plain(value));f.business.recordDaily(value)}
   await f.page.saveDaily();await tick()
   assert.equal(f.condition('savedRecord &&'),true)
   assert.equal(f.writes[0].note,'新的草稿')
@@ -283,26 +287,22 @@ test('error templates retain actionable retries and avoid unsupported update/con
 })
 
 
-test('camp edits during an in-flight save remain unsaved after the earlier payload succeeds', async () => {
-  const f=fixture('camp-flow'),write=deferred(),payloads=[]
-  f.page.setData({view:'experience',canRecordFeeling:true,feelingPhase:'after',reviewNote:'提交时的回顾'})
-  f.business.saveExperience=value=>{payloads.push(plain(value));return write.promise}
-  const pending=f.page.saveReview()
-  f.page.onReviewInput({detail:{value:'请求期间的新草稿'}})
-  write.resolve();await pending
-  assert.equal(payloads[0].note,'提交时的回顾')
-  assert.equal(f.page.data.reviewNote,'请求期间的新草稿')
-  assert.equal(f.page.data.reviewSaved,false)
-  assert.match(f.toasts.at(-1),/新修改未保存/)
+test('before edits during an in-flight save remain unsaved after the earlier payload succeeds', async () => {
+ const f=fixture('camp-flow'),write=deferred(),payloads=[];
+ f.page.setData({view:'feeling',canRecordFeeling:true,feelingPhase:'before',feelingNote:'提交时的感受'});
+ f.business.saveExperience=value=>{payloads.push(plain(value));return write.promise};const pending=f.page.saveFeeling();
+ f.page.onFeelingInput({detail:{value:'请求期间的新草稿'}});write.resolve();await pending;
+ assert.equal(payloads[0].note,'提交时的感受');assert.equal(f.page.data.feelingNote,'请求期间的新草稿');assert.equal(f.page.data.feelingSaved,false);assert.match(f.toasts.at(-1),/新修改未保存/);
 })
 
 test('daily edits across preflight, write and background refresh remain editable without duplicate saves', async () => {
   const f=fixture('friend-flow'),state=f.context.state,preflight=deferred(),write=deferred();let checks=0
   state.stage='habit';state.habit={...state.habit,id:'plan-test',serverDate:'2026-10-06',canRecordToday:true}
   state.dailyRecords={'habit-plan-test-2026-10-06':{choice:'rest',note:'旧记录'}}
+  await f.page.refresh()
   f.business.refreshHabit=()=>++checks===1?preflight.promise:Promise.resolve(state.habit)
-  f.business.saveDailyRecord=value=>{f.writes.push(plain(value));return write.promise}
-  f.page.refresh();f.page.chooseDaily({currentTarget:{dataset:{value:'done'}}});f.page.onDailyNote({detail:{value:'提交时的正文'}})
+  f.business.saveDailyRecord=value=>{f.writes.push(plain(value));return write.promise.then(()=>f.business.recordDaily(value))}
+  f.page.chooseDaily({currentTarget:{dataset:{value:'done'}}});f.page.onDailyNote({detail:{value:'提交时的正文'}})
   const pending=f.page.saveDaily()
   const repeated=f.page.saveDaily()
   assert.equal(checks,1,'pending save must not start another preflight')

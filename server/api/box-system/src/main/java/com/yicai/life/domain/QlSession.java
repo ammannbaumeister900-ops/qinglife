@@ -37,6 +37,7 @@ public class QlSession implements Serializable {
     @com.baomidou.mybatisplus.annotation.TableField(updateStrategy = com.baomidou.mybatisplus.annotation.FieldStrategy.IGNORED)
     private Date registrationCloseAt;
     private String leaderName;
+    private String guideUserIds;
     private String cancelPolicy;
     private Long createdBy;
     private Date createdAt;

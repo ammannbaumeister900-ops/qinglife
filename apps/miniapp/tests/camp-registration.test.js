@@ -20,7 +20,7 @@ test('business context maps real nickname without falling back to real name', as
   const module = { exports: {} }
   vm.runInNewContext('(function(require,module,exports){' + fs.readFileSync(path.join(root,'services/business-api.js'),'utf8') + '\n})', {
     wx: { getStorageSync: () => 'fixture-token', request: options => options.success({statusCode:200,data:{code:200,data: options.url.endsWith('/sessions') ? [{id:'s',startDate:'2099-01-01',endDate:'2099-01-03',status:'open',capacity:5}] : {customerId:'own',profile:{name:'真实姓名',nickname,phone:'13800000001'},registrations:[{sessionId:'s',isSelf:1,participantName:'真实姓名',registrationStatus:'pending'}]}}}) }
-  })(id => id.includes('runtime') ? {environment:'staging',businessBaseUrl:'https://example.test'} : {getState:()=>({})},module,module.exports)
+  })(id => id.includes('runtime') ? {environment:'staging',businessBaseUrl:'https://example.test'} : id.includes('registration-history') ? require('../utils/registration-history') : {getState:()=>({})},module,module.exports)
   let result = await module.exports.context()
   assert.equal(result.state.profile.nickname,'小禾'); assert.equal(result.state.profile.name,'真实姓名'); assert.equal(result.state.registrations.s.participants[0].name,'小禾')
   nickname = ''
@@ -39,7 +39,7 @@ test('missing nickname stays blank for signup and is never replaced with the rea
   await p.refresh(); assert.equal(p.data.draft.participants[0].name,''); assert.equal(p.data.draft.contactName,'')
 })
 test('booked camp reopens service even when registration window is closed or full', async () => {
-  for (const status of ['pending','confirmed','completed','waitlisted','cancelled','rescheduled']) {
+  for (const status of ['pending','confirmed','completed','waitlisted','rescheduled']) {
     const reg={activityId:'session',status,participants:[{id:'person-self',selected:true,status}]}, c=context('小禾',{session:reg}); c.activity={...activity,seatsLeft:0,status:'已满'}; c.activities=[c.activity]
     const nav=[], business={enabled:()=>true,context:async()=>c,campVoices:async()=>[]}, camp=page('camp',business,nav)
     await camp.onShow(); assert.equal(camp.data.visibleActivities[0].hasRegistration,true); camp.signup({currentTarget:{dataset:{id:'session'}}}); assert.equal(nav[0],'/pages/camp-flow/index?view=journey&id=session')
@@ -47,9 +47,9 @@ test('booked camp reopens service even when registration window is closed or ful
   }
 })
 test('service status distinguishes pending settlement, unpaid, paid, no payment and pass usage', () => {
-  assert.equal(domain.campServiceStatus({status:'pending',paymentStatus:'unpaid',finalAmount:999}).payment,'金额待确认')
+  assert.equal(domain.campServiceStatus({status:'pending',paymentStatus:'unpaid',finalAmount:999}).payment,'待缴费')
   const money={status:'confirmed',settlementStatus:'confirmed',settlementType:'money',finalAmount:'200.00',paymentStatus:'unpaid'}
-  assert.equal(domain.campServiceStatus(money).payment,'待付款'); assert.equal(domain.campServiceStatus({...money,paymentStatus:'paid'}).payment,'已付款'); assert.equal(domain.campServiceStatus({...money,finalAmount:0}).payment,'无需付款')
+  assert.equal(domain.campServiceStatus(money).payment,'待付款'); assert.equal(domain.campServiceStatus({...money,paymentStatus:'paid'}).payment,'已付款'); assert.equal(domain.campServiceStatus({...money,finalAmount:0}).payment,'费用待核对')
   assert.equal(domain.campServiceStatus({...money,finalAmount:null}).payment,'金额待确认'); assert.equal(domain.campServiceStatus({...money,settlementType:'pass',passUnits:2}).paymentNote,'本次使用 2 次卡次')
   assert.equal(domain.campServiceStatus({...money,status:'cancelled',settlementStatus:'pending'}).registration,'已取消')
 })

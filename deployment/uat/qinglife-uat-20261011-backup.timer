@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily backup of the isolated Qinglife UAT
+
+[Timer]
+OnCalendar=*-*-* 04:20:00 Asia/Shanghai
+RandomizedDelaySec=300
+Persistent=true
+Unit=qinglife-uat-20261011-backup.service
+
+[Install]
+WantedBy=timers.target

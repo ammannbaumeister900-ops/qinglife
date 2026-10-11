@@ -3,6 +3,8 @@ const legacyApi = require('../../services/legacy-api')
 const favorites = require('../../services/article-favorites')
 const demo = require('../../data/demo')
 const business = require('../../services/business-api')
+const runtime = require('../../config/runtime')
+const { presentArticle } = require('../../utils/article-presentation')
 
 Page({
   data: {
@@ -12,6 +14,7 @@ Page({
     loading: true,
     error: '',
     article: {},
+    presentation: {},
     source: 'demo',
     collected: false
   },
@@ -39,13 +42,17 @@ Page({
       const article = result.item || {}
       if (this.data.routeTitle && article.title === '未命名文章') article.title = this.data.routeTitle
       const collected = await favorites.isCollected(article.id, result.source)
-      this.setData({ article, source: result.source, collected })
+      this.setData({ article, presentation: presentArticle(article, runtime.businessBaseUrl), source: result.source, collected })
     } catch (error) {
-      this.setData({ error: error.message || '文章暂时无法读取，请重试', article: {}, collected: false })
+      this.setData({ error: error.message || '文章暂时无法读取，请重试', article: {}, presentation: {}, collected: false })
     } finally {
       this._articleLoading = false
       this.setData({ loading: false })
     }
+  },
+
+  onCoverError() {
+    this.setData({ 'presentation.cover': '' })
   },
 
   async toggleCollect() {

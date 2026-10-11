@@ -10,6 +10,7 @@ import com.yicai.life.domain.bo.*;
 import com.yicai.life.service.QlCustomerIdentityService;
 import com.yicai.life.mapper.QlMiniAppMapper;
 import com.yicai.life.service.IQlMiniAppService;
+import com.yicai.life.service.EssayHtmlSanitizer;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DuplicateKeyException;
@@ -38,6 +39,9 @@ public class QlMiniAppServiceImpl implements IQlMiniAppService {
     private final com.yicai.life.service.QlSessionPricing pricing;
     private final com.yicai.life.service.QlHabitPlanService habitPlans;
     private final com.yicai.life.service.QlSessionAdmissionPolicy admissionPolicy;
+    private final com.yicai.life.service.QlCommunityAccessPolicy communityAccess;
+    @Autowired private com.yicai.life.service.QlExperienceOriginalService experienceOriginals;
+    @Autowired private com.yicai.life.service.QlMiniAppRegistrationQuoteService registrationQuotes;
 
     @Override
     public List<Map<String, Object>> listSessions() {
@@ -101,7 +105,8 @@ public class QlMiniAppServiceImpl implements IQlMiniAppService {
     public Map<String, Object> readingDetail(Long id) {
         Map<String,Object> reading = miniAppMapper.selectPublicReading(id);
         if (reading == null) throw new CustomException("轻读不存在或未发布", 404);
-        reading.put("cover", publicMediaUrl(reading.get("cover")));
+        normalizeReadings(Collections.singletonList(reading));
+        reading.put("content", EssayHtmlSanitizer.clean((String) reading.get("content")));
         return reading;
     }
 
@@ -132,8 +137,13 @@ public class QlMiniAppServiceImpl implements IQlMiniAppService {
         result.put("experienceRecords", miniAppMapper.selectExperienceRecords(customerId));
         result.put("habit", habitPlans.latest(customerId));
         result.put("returningEligible", miniAppMapper.countCompletedSessions(customerId) > 0);
-        result.put("invitationEligible", true); // Every authenticated light friend may invite.
+        result.put("invitationEligible", communityAccess.canInvite(customerId));
         return result;
+    }
+
+    @Override
+    public Map<String,Object> registrationQuote(String token, QlMiniAppQuoteBo bo) {
+        return registrationQuotes.quote(requireCustomerId(token), bo);
     }
 
     @Override
@@ -164,18 +174,18 @@ public class QlMiniAppServiceImpl implements IQlMiniAppService {
             return replayRegistration(existing, fingerprint);
         }
         Map<String, Object> session = miniAppMapper.selectSessionForRegistration(bo.getSessionId());
-        if (session == null || !"open".equals(String.valueOf(session.get("status")))) {
-            throw new CustomException("当前期次未开放报名");
-        }
+        if (session == null) throw new CustomException("当前期次未开放报名");
+        admissionPolicy.requireNewRegistrationOpen(session);
         existing = miniAppMapper.selectBatchByClientRequestId(scopedRequestId);
         if (existing != null) return replayRegistration(existing, fingerprint);
-        policy.admit(bo.getSessionId(), bo.getParticipants().size(), true);
+        policy.admit(bo.getSessionId(), 0, true);
         Date requestTime = new Date();
 
         String referrerId = null;
         if (StrUtil.isNotBlank(bo.getInvitationCode())) {
             Map<String,Object> invitation = miniAppMapper.selectInvitation(bo.getInvitationCode());
             if (invitation == null || !"registration".equals(invitation.get("purpose")) || !bo.getSessionId().equals(String.valueOf(invitation.get("sessionId")))) throw new CustomException("邀请与当前活动不匹配");
+            communityAccess.requireInvitationOwner(Objects.toString(invitation.get("ownerId"), null));
             if (invitation.get("ownerId") != null) referrerId = String.valueOf(invitation.get("ownerId"));
         }
         Date now = requestTime;
@@ -190,7 +200,8 @@ public class QlMiniAppServiceImpl implements IQlMiniAppService {
         miniAppMapper.setRequestFingerprint(batchId, fingerprint);
         miniAppMapper.insertServiceConsent(uuid(), buyerId, CONSENT_POLICY_VERSION, now);
 
-        String registrationStatus = "auto".equals(String.valueOf(session.get("confirmMode"))) ? "confirmed" : "pending";
+        // No trusted payment-completion event is connected. Submission is never payment evidence.
+        String registrationStatus = "pending";
         boolean selfUsed = false;
         Set<String> participantIds = new HashSet<>();
         Set<String> participantPhones = new HashSet<>();
@@ -224,7 +235,8 @@ public class QlMiniAppServiceImpl implements IQlMiniAppService {
                     participantCustomerId = createParticipant(participant, buyerId, now);
                 }
             }
-            if (!participantIds.add(participantCustomerId) || miniAppMapper.countRegistration(participantCustomerId, bo.getSessionId()) > 0) throw new CustomException("该参与人已报名本期", 409);
+            if (!participantIds.add(participantCustomerId)) throw new CustomException("不能重复选择同一参与人", 409);
+            policy.requireNoActiveRegistration(participantCustomerId, bo.getSessionId());
             String effectiveReferrer = participantCustomerId.equals(referrerId) ? null : referrerId;
             if (effectiveReferrer != null) miniAppMapper.setFirstReferrer(participantCustomerId, effectiveReferrer);
             BigDecimal unitPrice = pricing.price(participantCustomerId, newPrice, returningPrice);
@@ -234,6 +246,7 @@ public class QlMiniAppServiceImpl implements IQlMiniAppService {
                     registrationStatus, bo.getMotivation(), StrUtil.blankToDefault(participant.getRelation(), isSelf ? "本人" : "其他"),
                     Boolean.TRUE.equals(participant.getMinor()), now);
             miniAppMapper.setRegistrationPrice(registrationId, unitPrice);
+            miniAppMapper.setRegistrationParticipantSnapshot(registrationId, participant.getName().trim(), participantPhone);
             if (effectiveReferrer != null) miniAppMapper.setSessionReferrer(registrationId, effectiveReferrer);
             miniAppMapper.insertRegistrationStatusLog(uuid(), registrationId, registrationStatus,
                     "小程序提交报名", buyerId, now);
@@ -376,6 +389,7 @@ public class QlMiniAppServiceImpl implements IQlMiniAppService {
     @Transactional
     public Map<String,Object> createInvitation(String token, String sessionId, boolean staff) {
         String ownerId = staff ? null : requireCustomerId(token);
+        if (!staff) communityAccess.requireInvitationCreation(ownerId);
         requireOpenInvitationSession(sessionId);
         String code = uuid().replace("-", "");
         miniAppMapper.insertInvitation(code, sessionId, ownerId, staff ? "staff" : "referral", new Date());
@@ -390,6 +404,7 @@ public class QlMiniAppServiceImpl implements IQlMiniAppService {
         if (code == null || !code.matches("[a-fA-F0-9]{32}")) throw new CustomException("邀请无效", 404);
         Map<String,Object> invitation = miniAppMapper.selectInvitation(code);
         if (invitation == null || !"registration".equals(invitation.get("purpose"))) throw new CustomException("邀请无效", 404);
+        communityAccess.requireInvitationOwner(Objects.toString(invitation.get("ownerId"), null));
         String sessionId = String.valueOf(invitation.get("sessionId"));
         requireOpenInvitationSession(sessionId);
         Map<String,Object> result = new LinkedHashMap<>(); result.put("sessionId", sessionId); return result;
@@ -418,6 +433,7 @@ public class QlMiniAppServiceImpl implements IQlMiniAppService {
     @Transactional
     public void saveExperience(String token, QlMiniAppExperienceBo bo) {
         String customerId = requireCustomerId(token);
+        experienceOriginals.lockRegistration(customerId, bo.getRegistrationId());
         Map<String,Object> owner = miniAppMapper.selectExperienceOwner(bo.getRegistrationId(), customerId);
         if (owner == null) throw new CustomException("只能记录本人已确认活动的感受", 403);
         String phase = bo.getPhase(), sessionId = String.valueOf(owner.get("sessionId"));
@@ -435,6 +451,7 @@ public class QlMiniAppServiceImpl implements IQlMiniAppService {
             String endDate = dateKey(asDate(owner.get("endDate")));
             if (!"completed".equals(owner.get("sessionStatus")) && (today.compareTo(endDate) < 0 || today.equals(endDate) && !hasReached(owner.get("endTime")))) throw new CustomException("活动尚未结束");
         } else throw new CustomException("记录阶段无效");
+        if (!"during".equals(phase)) com.yicai.life.service.QlExperienceOriginalService.validateNewNote(bo.getNote());
         miniAppMapper.upsertExperience(uuid(), bo.getRegistrationId(), customerId, sessionId, phase, nodeKey, bo.getEnergy(), bo.getRelaxation(), bo.getNote(), new Date());
     }
 

@@ -7,6 +7,9 @@ const domain = require('../utils/domain')
 const store = require('../utils/store')
 const demo = require('../data/demo')
 const runtime = require('../config/runtime')
+// This smoke test exercises explicit offline Demo and a synthetic legacy origin only.
+runtime.environment = 'demo'
+runtime.businessBaseUrl = ''
 runtime.legacyEnabled = true
 runtime.legacyBaseUrl = 'https://legacy.example.test'
 const api = require('../services/legacy-api')
@@ -35,7 +38,7 @@ async function run() {
   assert.equal(domain.homeTask(overlapping, demo.activities).activityId, 'session-017')
   const flow = page('camp-flow')
   store.updateState(s => { s.registration.status = 'confirmed'; s.checkedDays = []; return s })
-  flow.refresh()
+  await flow.refresh()
   flow.data.dayViews = [{ id: 'day-1', today: false }]
   flow.checkDay({ currentTarget: { dataset: { id: 'day-1' } } })
   assert.equal(Object.keys(store.getState().arrivalConfirmations || {}).length, 0)
@@ -45,19 +48,19 @@ async function run() {
   assert.equal(store.getState().checkedDays.length, 0, '辅助确认不得写真实签到')
   assert.equal(store.getState().registration.status, 'confirmed')
   store.updateState(s => { s.registration.status = 'completed'; return s })
-  flow.refresh()
+  await flow.refresh()
   assert.equal(flow.data.canReview, true, '缺少签到也可回顾')
   const beforeDraft = JSON.stringify(store.getState().registration)
   flow.data.view = 'register'
   flow.toggleParticipant({ currentTarget: { dataset: { id: 'person-child' } } })
   assert.equal(JSON.stringify(store.getState().registration), beforeDraft, '选择参与人不能提前修改原报名')
   const daily = page('friend-flow')
-  daily.refresh()
+  await daily.refresh()
   assert.equal(daily.data.dailyChoice, '')
-  daily.saveDaily()
+  await daily.saveDaily()
   assert.equal(Object.keys(store.getState().dailyRecords).length, 0, '未选择不能默认保存完成')
   daily.chooseDaily({ currentTarget: { dataset: { value: 'rest' } } })
-  daily.saveDaily()
+  await daily.saveDaily()
   assert.equal(store.getState().dailyRecords[daily.data.dailyKey].choice, 'rest')
   assert.equal(store.getState().dailyRecords[daily.data.dailyKey].private, true)
   assert.equal(store.getState().newPosts.length, demo.seedPosts.length, '私人保存不创建公开副本')

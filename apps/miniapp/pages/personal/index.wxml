@@ -1,8 +1,8 @@
 <ql-nav-space back title="{{title}}" />
-<view class="page personal-page">
+<view class="page personal-page personal-{{view}}">
   <view class="personal-heading">
     <view class="personal-title">{{title}}</view>
-    <view class="personal-intro">{{view === 'records' ? '留给自己的文字，只有自己可见。' : '查看每一期的参与和安排。'}}</view>
+    <view wx:if="{{view !== 'experiences'}}" class="personal-intro">{{view === 'records' ? '留给自己的文字，只有自己可见。' : '查看每一期的参与和安排。'}}</view>
   </view>
   <view wx:if="{{loading}}" class="personal-loading">正在读取…</view>
   <view wx:elif="{{error}}" class="personal-state">
@@ -31,7 +31,7 @@
       <view wx:if="{{!rows.length}}" class="personal-state">
         <view class="state-title">还没有参与经历</view>
         <view class="state-copy">报名后，可以在这里查看每一期的状态。</view>
-        <button class="secondary" bindtap="openCamp">看看轻体营</button>
+        <button class="secondary" bindtap="openCamp">看看清体营</button>
       </view>
     </view>
     <view wx:if="{{view !== 'experiences'}}" class="record-list">
@@ -39,8 +39,8 @@
       <view wx:for="{{records}}" wx:key="id" class="record-row">
         <view class="entry-title">{{item.name}}</view>
         <view class="record-stage">{{item.label}} · 仅自己可见</view>
-        <view class="record-body">{{item.note || '这一次，留下了一份状态记录。'}}</view>
-        <view wx:if="{{item.energy || item.relaxation}}" class="record-values">精力 {{item.energy || '未填'}} · 放松 {{item.relaxation || '未填'}}</view>
+        <view wx:if="{{item.note}}" class="record-body">{{item.note}}</view>
+        <view wx:if="{{(item.energy >= 1 && item.energy <= 5) || (item.relaxation >= 1 && item.relaxation <= 5)}}" class="record-values"><text wx:if="{{item.energy >= 1 && item.energy <= 5}}">精力 {{item.energy}}/5</text><text wx:if="{{item.relaxation >= 1 && item.relaxation <= 5}}">放松 {{item.relaxation}}/5</text></view>
         <view wx:if="{{item.recordTimeText}}" class="record-time">最近保存 · {{item.recordTimeText}}</view>
       </view>
       <view wx:if="{{!records.length}}" class="personal-state">

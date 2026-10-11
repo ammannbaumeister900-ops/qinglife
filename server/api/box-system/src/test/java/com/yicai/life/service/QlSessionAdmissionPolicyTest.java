@@ -46,6 +46,20 @@ class QlSessionAdmissionPolicyTest {
                 LocalDateTime.of(2026, 9, 23, 12, 0).atZone(QlSessionAdmissionPolicy.BUSINESS_ZONE).toInstant()));
     }
 
+    @Test void derivedActivityStateKeepsAnExplicitLegacyBookingWindowWithoutOverridingManualClosure() {
+        Map<String,Object> session = openSession();
+        session.put("configuredStatus", "open");
+        session.put("status", "in_progress");
+        session.put("registrationCloseAt", LocalDateTime.of(2026, 9, 23, 23, 59, 59));
+        Instant now = LocalDateTime.of(2026, 9, 23, 12, 0).atZone(QlSessionAdmissionPolicy.BUSINESS_ZONE).toInstant();
+        assertDoesNotThrow(() -> policy.requireNewRegistrationOpen(session, now));
+        session.put("configuredStatus", "closed");
+        assertThrows(CustomException.class, () -> policy.requireNewRegistrationOpen(session, now));
+        session.put("configuredStatus", "open");
+        session.put("status", "completed");
+        assertThrows(CustomException.class, () -> policy.requireNewRegistrationOpen(session, now));
+    }
+
     private Map<String,Object> openSession() {
         Map<String,Object> session = new HashMap<>();
         session.put("status", "open");

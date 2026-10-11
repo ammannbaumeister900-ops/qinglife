@@ -11,7 +11,7 @@
   top: 0;
   right: 0;
   left: 0;
-  background: #F6F1E8;
+  background: var(--ql-nav-bg, #F6F1E8);
 }
 
 .ql-nav-layer.overlay { background: transparent; }
@@ -58,3 +58,6 @@
   border-left: 1.6px solid #26231F;
   transform: translateX(2px) rotate(45deg);
 }
+
+.ql-nav-layer.ql-nav-brand { background: #f7f6ef; }
+.ql-brand-logo { position: absolute; left: 40rpx; bottom: 0; width: 152rpx; height: 96rpx; }

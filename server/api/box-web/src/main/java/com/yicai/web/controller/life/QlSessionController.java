@@ -24,6 +24,12 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/life/session")
 public class QlSessionController extends BaseController {
     private final IQlSessionService sessionService;
+    private final com.yicai.life.service.QlSessionSettings settings;
+
+    @PreAuthorize("@ss.hasPermi('life:session:add') or @ss.hasPermi('life:session:edit')")
+    @GetMapping("/guides")
+    public AjaxResult<?> guides() { return AjaxResult.success(settings.guides()); }
+
     private final com.yicai.life.service.IQlMiniAppService miniAppService;
 
     @PreAuthorize("@ss.hasPermi('life:session:edit')")

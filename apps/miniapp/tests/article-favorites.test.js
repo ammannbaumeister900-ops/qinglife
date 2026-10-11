@@ -39,6 +39,7 @@ function world(options = {}) {
     }
   }
   const business = {
+    isDemo: () => runtime.environment === 'demo',
     enabled: () => !!options.businessEnabled,
     reading: async id => {
       businessReads.push(id)

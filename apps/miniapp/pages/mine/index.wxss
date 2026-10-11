@@ -46,3 +46,15 @@
   .mine-page .refresh-note, .mine-page .primary, .mine-page .secondary, .mine-page .text-button { font-size: 14px; }
 }
 @media (prefers-reduced-motion: reduce) { .mine-page button { transition: none; } }
+
+/* The directory carries the task; supporting copy stays only when needed. */
+.mine-page .profile-head { padding-bottom: 36rpx; }
+.mine-page .profile-title { font-size: 36rpx; font-weight: 600; }
+.mine-page .asset { min-height: 96rpx; padding: 22rpx 0; }
+.mine-page .asset-name { font-size: 32rpx; }
+.mine-page .asset-description { font-size: 26rpx; }
+.mine-page .pass-ledger { margin-top: 36rpx; }
+.mine-page .pass-record-label, .mine-page .pass-record-date { font-size: 26rpx; }
+.mine-page .utility-list { margin-top: 28rpx; }
+.mine-page .contact-hint { font-size: 26rpx; }
+@media (max-width: 350px) { .mine-page .asset-name { font-size: 16px; } .mine-page .asset-description, .mine-page .contact-hint { font-size: 13px; } }

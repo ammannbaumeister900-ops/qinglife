@@ -1,0 +1,10 @@
+[Unit]
+Description=Backup only the isolated Qinglife UAT database, media and configuration
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+UMask=0077
+ExecStart=/usr/bin/flock -n /opt/qinglife-acceptance/20261011-uat/backup.lock /usr/bin/python3 /opt/qinglife-acceptance/20261011-uat/ops/uat_maintenance.py backup
+TimeoutStartSec=600

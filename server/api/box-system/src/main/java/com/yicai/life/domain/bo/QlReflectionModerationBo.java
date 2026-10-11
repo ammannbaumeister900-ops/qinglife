@@ -7,4 +7,5 @@ public class QlReflectionModerationBo {
  @Size(max=80) private String excerpt;
  @Size(max=300) private String displayNote;
  @Min(0) @Max(999) private Integer sortOrder;
+ @javax.validation.Valid private QlPublicationReviewBo publicationReview;
 }

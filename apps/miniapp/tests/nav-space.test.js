@@ -123,7 +123,9 @@ test('article, camp-flow and all other consumers keep their shared component con
   }
   assert.ok(users.includes('pages/camp-reflection/index'))
   const article = fs.readFileSync(path.join(root, 'pages/article/index.wxml'), 'utf8')
-  assert.match(article, /<ql-nav-space back(?: immersive)?\s*\/>/)
+  const articleNav = article.match(/<ql-nav-space\b[^>]*\/>/)[0]
+  assert.match(articleNav, /\bback(?:\s|\/)/)
+  assert.ok(!/\bimmersive(?:=|\s|\/)/.test(articleNav), 'article must retain the shared content spacer')
   const camp = fs.readFileSync(path.join(root, 'pages/camp-flow/index.wxml'), 'utf8')
   assert.match(camp, /<ql-nav-space title="[^"]*" back\s*\/>/)
   assert.ok(!camp.includes('back immersive='), 'decision-first camp detail must retain the measured content spacer')

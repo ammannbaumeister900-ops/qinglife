@@ -65,15 +65,17 @@ async function fixture(view = 'detail', status = 'confirmed') {
   const activity = { ...plain(require('../data/demo').activities[0]), id: 'session-live', sessionNumber: 101, startDate: '2099-01-01', endDate: '2099-01-03', date: '2099年1月1日—3日', fee: 300, returningFee: 0, theme: '本期饮食与身体体验', cover: '', sourceStatus: 'open' }
   const participants = [{ id: 'person-self', registrationId: 'self-reg', name: '小禾', relation: '本人', phone: '', selected: true }, { id: 'family', name: '家人', relation: '家人', phone: '', selected: true }]
   const registration = { activityId: activity.id, status, participants, serviceConsent: true }
-  const state = { backend: true, loggedIn: true, phoneLinked: true, phone: '13800000001', profile: { nickname: '小禾', minor: false }, registration, registrations: { [activity.id]: registration } }
+  const state = { backend: true, invitationEligible: true, loggedIn: true, phoneLinked: true, phone: '13800000001', profile: { nickname: '小禾', minor: false }, registration, registrations: { [activity.id]: registration } }
   const context = { activity, activities: [activity], state, overview: { customerId: 'owner', experienceRecords: [] } }
-  const writes = [], scrolls = [], callbacks = [], notices = [], links = []
+  const reflectionContext = { canBefore: false, canAfter: false }
+  const writes = [], scrolls = [], callbacks = [], notices = [], links = [], previews = []
   const business = { enabled: () => true, context: async () => context,
+    campReflection: async () => reflectionContext,
     register: async data => writes.push(plain(data)), saveExperience: async data => writes.push(plain(data)),
     createInvitation: async id => ({ path: '/pages/camp-flow/index?id=' + id }) }
   const mocks = { '../../services/business-api': business, '../../utils/navigation': { navigateTo: data => links.push(data.url), switchTab: data => links.push(data.url) } }
   vm.runInNewContext(fs.readFileSync(path.join(root, 'pages/camp-flow/index.js'), 'utf8'), {
-    Page: data => { page = data }, wx: { showToast: data => notices.push(data.title), pageScrollTo: data => scrolls.push(plain(data)) },
+    Page: data => { page = data }, wx: { previewImage: data => previews.push(data), getImageInfo: data => data.success({path:data.src}), showToast: data => notices.push(data.title), pageScrollTo: data => scrolls.push(plain(data)) },
     require: id => mocks[id] || require(path.resolve(root, 'pages/camp-flow', id))
   })
   page.data = plain(page.data)
@@ -81,26 +83,56 @@ async function fixture(view = 'detail', status = 'confirmed') {
   page.onLoad({ view, id: activity.id })
   await page.refresh()
   const tree = () => render(parse().children, page.data)
-  return { page, business, context, writes, scrolls, notices, links, tree, nodes: () => flatten(tree()), flush: () => { while (callbacks.length) callbacks.shift()() } }
+  return { page, business, context, reflectionContext, writes, scrolls, notices, links, previews, tree, nodes: () => flatten(tree()), flush: () => { while (callbacks.length) callbacks.shift()() } }
 }
 const event = (id, value) => ({ currentTarget: { dataset: { id } }, detail: { value } })
 
-test('detail puts real decisions before optional photography, preserves both fees and registration gates', async () => {
-  const f = await fixture(), a = f.page.data.activity
+test('detail follows the approved hierarchy with real content, both fees and existing admission gates', async () => {
+  const f = await fixture(), a = f.context.activity
   a.cover = 'https://example.test/session-cover.jpg'
-  let nodes = f.nodes(), facts = nodes.find(node => has(node, 'fact-card'))
-  assert(nodes.indexOf(facts) < nodes.findIndex(node => has(node, 'camp-cover')))
-  for (const text of [a.date, a.city + a.place, String(a.fee), '老轻友公开价', '0']) assert(content(facts).includes(text))
-  assert.equal(nodes.find(node => node.tag === 'image').attrs.src, a.cover)
-  assert.equal(control(nodes, 'openJourney').attrs.disabled, undefined)
-  f.page.setData({ isRegistered: false, availability: { canRegister: false, label: '已满' } })
-  assert.equal(control(f.nodes(), 'startRegistration').attrs.disabled, true)
-  a.cover = ''; a.returningFee = null
-  nodes = f.nodes()
-  assert(!nodes.some(node => has(node, 'camp-cover')))
-  assert(!content(nodes.find(node => has(node, 'fact-card'))).includes('老轻友公开价'))
-  a.theme = a.name; a.suitedFor = []; a.talkFirst = []
-  assert(!f.nodes().some(node => has(node, 'detail-theme') || has(node, 'fit-card')))
+  a.leader = '公主、大海、军军'
+  a.intro = '接口原文'
+  await f.page.refresh()
+  let nodes = f.nodes(), fees = nodes.find(node => has(node, 'detail-fees'))
+  assert(nodes.findIndex(node => has(node, 'camp-cover')) < nodes.indexOf(fees))
+  assert(nodes.findIndex(node => has(node, 'detail-guides')) < nodes.indexOf(fees))
+  const core = nodes.find(node => has(node, 'detail-core-facts'))
+  assert(content(core).includes('2099'));assert(content(core).includes('3天'));assert(content(core).includes(a.city))
+  assert(content(fees).includes(String(a.fee)));assert(content(fees).includes('老轻友公开价'))
+  assert.equal(content(nodes.filter(node => has(node, 'detail-fee-value'))[1]),'¥0/人')
+  assert.equal(nodes.find(node => has(node, 'camp-cover-image')).attrs.src,a.cover)
+  assert.equal(nodes.find(node => has(node, 'camp-cover-image')).attrs.mode,'widthFix')
+  assert.equal(content(nodes.find(node => has(node, 'detail-intro'))),a.intro)
+  assert.equal(control(nodes, 'openJourney').attrs.disabled,undefined)
+  f.page.setData({isRegistered:false,availability:{canRegister:false,label:'已满'}})
+  assert.equal(control(f.nodes(),'startRegistration').attrs.disabled,true)
+  a.cover='';a.returningFee=null;a.intro='';a.leader='其他导游'
+  await f.page.refresh();nodes=f.nodes()
+  assert(!nodes.some(node=>has(node,'camp-cover')||has(node,'detail-guide-photo')||has(node,'detail-intro')))
+  assert(!content(nodes.find(node=>has(node,'detail-fees'))).includes('老轻友公开价'))
+  assert(!source.includes('内部视觉样稿'));assert(!source.includes('一起吃饭、活动'))
+})
+
+test('detail schedule preserves all rows, media failures and existing service/registration entries',async()=>{
+  const f=await fixture('detail','none'),a=f.context.activity
+  a.startDate='2099-01-01';a.endDate='2099-01-17'
+  a.days=Array.from({length:17},(_,i)=>({id:'d'+i,dayNo:i+1,activityDate:'2099-01-'+String(i+1).padStart(2,'0')}))
+  a.cover='https://example.test/scene.jpg';await f.page.refresh()
+  assert.equal(f.page.data.detail.duration,17)
+  assert.equal(f.nodes().filter(n=>has(n,'detail-day-row')).length,0)
+  f.page.toggleDetailSchedule()
+  assert.equal(f.nodes().filter(n=>has(n,'detail-day-row')).length,17)
+  assert.equal(f.nodes().find(n=>has(n,'detail-full-schedule')).attrs.style,'height: 312px;')
+  f.page.toggleDetailSchedule();assert.equal(f.nodes().filter(n=>has(n,'detail-day-row')).length,0)
+  f.page.previewDetailImage({currentTarget:{dataset:{url:a.cover}}})
+  assert.deepEqual(plain(f.previews[0].urls),[a.cover])
+  f.page.detailImageFailed({currentTarget:{dataset:{url:a.cover}}})
+  assert(!f.nodes().some(n=>has(n,'camp-cover')))
+  f.page.previewDetailImage({currentTarget:{dataset:{url:a.cover}}});assert.equal(f.previews.length,1)
+  await f.page.startRegistration();assert.equal(f.page.data.view,'register');assert.equal(f.writes.length,0)
+  f.page.setData({view:'detail'});f.page.openJourney();assert.equal(f.page.data.view,'journey')
+  f.page.setData({view:'detail'});a.id='different-session';await f.page.refresh()
+  assert.equal(f.page.data.detailExpanded,false);assert.equal(f.page.data.detail.showCover,true)
 })
 
 test('registration renders inline participant feedback and preserves fields and draft through both steps', async () => {
@@ -137,11 +169,13 @@ test('registration consent, busy state and selected payload remain the existing 
   f.page.toggleConsent()
   assert.equal(control(f.nodes(), 'submitRegistration').attrs.disabled, true)
   f.page.toggleConsent()
+  f.business.registrationQuote = async payload => ({ participants: payload.participants.map((p,index) => ({ index,friendType:'new',unitPrice:'3800.00' })), quotedAmount:3800*payload.participants.length })
+  await f.page.loadQuote()
   await f.page.submitRegistration()
   assert.equal(f.writes.length, 1)
   assert.equal(f.writes[0].sessionId, f.page.data.activity.id)
   assert.equal(f.writes[0].participants[0].self, true)
-  assert.equal(f.page.data.view, 'journey')
+  assert.equal(f.page.data.view, 'success')
 })
 
 test('service keeps independent registration and settlement states with the original reflection eligibility', async () => {
@@ -149,19 +183,34 @@ test('service keeps independent registration and settlement states with the orig
   f.page.setData({ serviceStatus: { registration: '待确认', payment: '金额待确认', paymentNote: '待工作人员核对' } })
   const status = f.nodes().find(node => has(node, 'service-status-card'))
   assert(content(status).includes('待确认')); assert(content(status).includes('金额待确认'))
-  assert(!control(f.nodes(), 'openReflection'))
+  assert.equal(control(f.nodes(), 'openReflection').attrs.disabled, true)
+  assert(f.nodes().some(node => node.text?.includes('本人报名确认后可填写')))
   assert(f.nodes().some(node => node.text?.includes('当前不会自动发送确认通知')))
   f.page.data.registration.status = 'confirmed'
-  assert(control(f.nodes(), 'openReflection'))
-  f.page.setData({ canWriteReview: false })
-  assert(!control(f.nodes(), 'openReflection'))
+  await f.page.refresh()
+  assert.equal(control(f.nodes(), 'openReflection').attrs.disabled, true, 'confirmed future booking is still outside its server window')
+  f.reflectionContext.canBefore = true
+  await f.page.refresh()
+  assert.equal(control(f.nodes(), 'openReflection').attrs.disabled, false)
+  f.context.state.registrations[f.context.activity.id].participants = [{ id: 'family', selected: true }]
+  await f.page.refresh()
+  assert.equal(control(f.nodes(), 'openReflection'), undefined)
+  assert(!f.nodes().some(node => node.text?.includes('请由本期实际参与者填写')))
   assert(!control(f.nodes(), 'checkDay'))
   assert(!control(f.nodes(), 'toggleDay'))
 })
 
 test('feeling and experience keep private drafts, saved feedback and save-in-flight controls', async () => {
   const f = await fixture('feeling')
+  f.reflectionContext.canAfter = true
+  await f.page.refresh()
   f.page.setData({ canRecordFeeling: true, feelingPhase: 'after', feelingNote: '提交前的感受', feelingSaved: true })
+  assert.equal(control(f.nodes(), 'onFeelingInput'), undefined, 'formal after uses only the unified editor')
+  assert.ok(control(f.nodes(), 'openReflection'))
+  await f.page.saveFeeling()
+  assert.equal(f.links.at(-1), '/pages/camp-reflection/index?id=session-live')
+  assert.equal(f.writes.length, 0, 'after must never call the obsolete private writer')
+  f.page.setData({ feelingPhase: 'before' })
   assert.equal(control(f.nodes(), 'onFeelingInput').attrs.value, '提交前的感受')
   assert(content(f.nodes().find(node => has(node, 'feeling-editor'))).includes('默认仅自己可见'))
   f.page.onFeelingInput(event('', '新感受'))
@@ -188,6 +237,7 @@ test('invitation lists actual session name and date, retains exact IDs and share
   await f.page.prepareInvitation(event(row.attrs['data-id']))
   assert(f.nodes().some(node => node.attrs?.['open-type'] === 'share'))
   assert.equal(f.page.onShareAppMessage().path, '/pages/camp-flow/index?id=' + a.id)
+  assert.equal(f.page.data.preparedInviteId, a.id)
 })
 
 test('every branch excludes normal task controls during loading or failure and exposes the existing retry', async () => {
@@ -217,3 +267,73 @@ test('outcome preserves notification truth and all views retain the shared persi
 
 // The current-source layout verifier reuses this renderer; it is not app runtime code.
 module.exports = { parse, render, flatten, fixture, has, content }
+
+test('every reflection entry uses server windows, not the private feeling window or invitation eligibility', async () => {
+  const f = await fixture('journey')
+  assert.equal(f.page.data.reflectionAccess.allowed, false)
+  await f.page.openReflection()
+  assert.equal(f.links.length, 0)
+  f.context.state.invitationEligible = false
+  for (const permission of ['canBefore', 'canAfter']) {
+    Object.assign(f.reflectionContext, { canBefore: false, canAfter: false, [permission]: true })
+    await f.page.refresh()
+    for (const view of ['journey', 'experience', 'feeling']) {
+      f.page.setData({ view, feelingPhase: 'after' })
+      const button = control(f.nodes(), 'openReflection')
+      assert(button); assert.equal(button.attrs.disabled, false)
+      await f.page.openReflection()
+      assert.equal(f.links.at(-1), '/pages/camp-reflection/index?id=session-live')
+    }
+  }
+  Object.assign(f.reflectionContext, { canBefore: false, canAfter: false })
+  await f.page.refresh()
+  for (const view of ['journey', 'experience', 'feeling']) {
+    f.page.setData({ view, feelingPhase: 'after' })
+    assert.equal(control(f.nodes(), 'openReflection').attrs.disabled, true)
+  }
+})
+
+test('reflection access failures stay closed and retry does not break registration or private reading', async () => {
+  const f = await fixture('journey')
+  f.business.campReflection = async () => { throw Error('offline') }
+  await f.page.refresh()
+  assert.equal(f.page.data.loadError, '')
+  assert.equal(f.page.data.reflectionAccess.allowed, false)
+  assert.equal(f.page.data.reflectionAccess.retry, true)
+  assert(f.nodes().some(node => node.text?.includes('心声资格读取失败')))
+  assert(control(f.nodes(), 'refresh'))
+  f.business.campReflection = async () => ({ canAfter: true })
+  await f.page.refresh()
+  assert.equal(f.page.data.reflectionAccess.allowed, true)
+})
+
+test('reflection opening rechecks a closed window and ignores callbacks after leaving or changing identity', async () => {
+  const f = await fixture('journey')
+  f.reflectionContext.canBefore = true
+  await f.page.refresh()
+  f.reflectionContext.canBefore = false
+  await f.page.openReflection()
+  assert.equal(f.links.length, 0)
+  assert.equal(f.page.data.reflectionAccess.allowed, false)
+  f.reflectionContext.canBefore = true
+  await f.page.refresh()
+  let resolve
+  f.business.campReflection = () => new Promise(r => { resolve = r })
+  const pending = f.page.openReflection()
+  await f.page.openReflection()
+  f.page.onHide()
+  resolve({ canBefore: true })
+  await pending
+  assert.equal(f.links.length, 0)
+  assert.equal(f.page.data.reflectionOpening, false)
+  assert.equal(f.page.data.reflectionAccess.allowed, false)
+})
+
+test('first authoritative owner adoption does not discard the loaded activity', async () => {
+  const f = await fixture('journey')
+  f.business.context = async () => { f.page.clearInvitation(); return f.context }
+  await f.page.refresh()
+  assert.equal(f.page.data.activity.id, 'session-live')
+  assert.equal(f.page.data.loadError, '')
+  assert.equal(f.page.data.loading, false)
+})

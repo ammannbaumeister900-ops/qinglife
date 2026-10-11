@@ -98,3 +98,39 @@
   animation: detail-enter 180ms ease both;
 }
 @keyframes detail-enter { from { opacity: 0; transform: translateY(-6rpx); } to { opacity: 1; transform: translateY(0); } }
+
+/* Only the confirmed collections/privacy views; auth and legacy templates stay intact. */
+.flow-collections, .flow-privacy { padding: 28rpx 40rpx calc(64rpx + env(safe-area-inset-bottom)); background: var(--ql-bg); }
+.flow-collections::before, .flow-privacy::before { display: none; }
+.flow-collections .hero, .flow-privacy .hero { margin: 0 0 28rpx; padding: 0; border: none; border-radius: 0; background: transparent; box-shadow: none; }
+.flow-collections .hero-title, .flow-privacy .hero-title { margin: 0; font-family: inherit; font-size: 40rpx; font-weight: 600; letter-spacing: 0; }
+.flow-privacy .hero-copy { margin-top: 16rpx; font-size: 28rpx; }
+.flow-collections .card, .flow-privacy .card { margin: 0; padding: 28rpx 0; border: none; border-radius: 0; background: transparent; box-shadow: none; }
+.flow-collections .card + .card { border-top: 1rpx solid var(--ql-border); }
+.flow-collections .pill { padding: 0; min-height: 0; border-radius: 0; background: transparent; color: var(--ql-clay-deep); font-size: 24rpx; }
+.flow-collections .card-title { margin: 12rpx 0; font-size: 34rpx; font-weight: 600; }
+.flow-collections .card-copy { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; font-size: 28rpx; }
+.flow-privacy .card { padding-top: 8rpx; }
+.flow-privacy .list-row { align-items: flex-start; padding: 28rpx 0; }
+.flow-privacy .list-title { font-size: 30rpx; }
+.flow-privacy .list-note { margin-top: 12rpx; font-size: 28rpx; }
+.flow-privacy switch { flex: none; margin-top: 4rpx; }
+.flow-privacy .pill { flex: none; max-width: 200rpx; white-space: normal; font-size: 24rpx; color: #526449; }
+.flow-privacy .privacy-note { padding: 0; border: none; border-radius: 0; background: transparent; font-size: 26rpx; }
+.flow-collections .empty-state { padding: 40rpx 0; border: none; border-radius: 0; background: transparent; }
+.flow-collections .empty-copy { font-size: 28rpx; }
+.flow-privacy .text-button, .flow-collections .text-button { min-height: 44px; border-radius: 8rpx; font-size: 28rpx; }
+@media (max-width: 350px) { .flow-privacy .list-note, .flow-privacy .hero-copy, .flow-collections .card-copy { font-size: 14px; } .flow-privacy .privacy-note { font-size: 13px; } }
+
+/* Habit settings emphasize the authoritative plan and existing actions. */
+.flow-habit { padding: 28rpx 40rpx calc(64rpx + env(safe-area-inset-bottom)); background: var(--ql-bg); }
+.flow-habit::before { display: none; }
+.flow-habit .hero { margin: 0 0 28rpx; padding: 0; border: none; border-radius: 0; background: transparent; box-shadow: none; }
+.flow-habit .hero-title { margin: 0 0 20rpx; font-family: inherit; font-size: 40rpx; font-weight: 600; letter-spacing: 0; }
+.flow-habit .hero-copy, .flow-habit .card-copy { font-size: 28rpx; line-height: 1.8; }
+.flow-habit .card { margin: 0 0 28rpx; padding: 28rpx 0; border: none; border-top: 1rpx solid var(--ql-border); border-bottom: 1rpx solid var(--ql-border); border-radius: 0; background: transparent; box-shadow: none; }
+.flow-habit .card-title { margin: 0; font-size: 34rpx; }
+.flow-habit .habit-status { margin-top: 8rpx; font-size: 28rpx; color: var(--ql-ink-light); }
+.flow-habit .chip { min-height: 44px; border-radius: 8rpx; font-size: 28rpx; }
+.flow-habit .secondary { min-height: 48px; border-radius: 8rpx; background: transparent; font-size: 28rpx; }
+@media (max-width: 350px) { .flow-habit .hero-copy, .flow-habit .card-copy { font-size: 14px; } }

@@ -2,8 +2,9 @@ const samples = require('../../data/reading-samples')
 const runtime = require('../../config/runtime')
 const business = require('../../services/business-api')
 const navigation = require('../../utils/navigation')
+const { safeUrl } = require('../../utils/article-rich-text')
 Page({
-  data: { loading: false, loaded: false, error: '', query: '', topic: '', topics: [], articles: [], visibleArticles: [], page: 1, hasMore: true, sampleMode: false, stories: false },
+  data: { loading: false, loaded: false, error: '', query: '', topic: '', topics: [], articles: [], visibleArticles: [], page: 1, hasMore: true, sampleMode: false, stories: false, failedCovers: {} },
   onLoad(options = {}) { if (options.stories === '1') this.setData({ stories: true }) },
   onShow() {
     const tab = this.getTabBar && this.getTabBar(); if (tab) tab.setData({ selected: 2 })
@@ -51,7 +52,19 @@ Page({
     const visibleArticles = this.data.sampleMode
       ? this.data.articles.filter(item => (!this.data.topic || item.category === this.data.topic) && (item.title + item.summary + item.category).toLowerCase().includes(query))
       : this.data.articles
-    this.setData({ visibleArticles })
+    const seenCovers = new Set()
+    this.setData({ visibleArticles: visibleArticles.map(item => {
+      const cover = safeUrl(item.cover, runtime.businessBaseUrl)
+      const readingCover = cover && !this.data.failedCovers[cover] && !seenCovers.has(cover) ? cover : ''
+      if (readingCover) seenCovers.add(readingCover)
+      return { ...item, readingCover }
+    }) })
+  },
+  onReadingCoverError(event) {
+    const cover = event.currentTarget.dataset.cover
+    if (!cover) return
+    this.setData({ failedCovers: { ...this.data.failedCovers, [cover]: true } })
+    this.filterArticles()
   },
   restartArticles() {
     clearTimeout(this.searchTimer)

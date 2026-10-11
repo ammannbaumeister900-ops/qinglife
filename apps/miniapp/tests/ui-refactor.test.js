@@ -30,9 +30,13 @@ for (const page of navPages) {
 }
 
 const campDetail = fs.readFileSync(path.join(root, 'pages/camp-flow/index.wxml'), 'utf8')
-for (const marker of ['camp-cover', 'fact-card', 'rhythm-list', 'fit-grid', 'rules-card', 'detail-actionbar']) {
-  assert.ok(campDetail.includes(marker), `轻体营详情缺少 ${marker}`)
-}
+// Verify decision facts and actions rather than obsolete card-layout class names.
+const detail = campDetail.slice(campDetail.indexOf("view === 'detail' && detail.ready"), campDetail.indexOf("view === 'register'}}"));
+for (const binding of ['activity.name', 'activity.sessionNumber', 'detail.date', 'detail.place', 'activity.fee', 'activity.returningFee', 'activity.capacity', 'detail.changeRule', 'detail.fullDays']) assert.ok(detail.includes(binding), '详情缺少真实字段 ' + binding);
+assert.ok(detail.includes('bindtap="startRegistration"'));
+assert.ok(detail.includes('disabled="{{!availability.canRegister}}"'));
+assert.ok(detail.includes('bindtap="openJourney"'));
+assert.ok(detail.includes('bindtap="toggleDetailSchedule"'));
 
 const emptyStatePages = ['camp', 'content', 'friends', 'camp-flow', 'friend-flow', 'mine-flow']
 for (const page of emptyStatePages) {

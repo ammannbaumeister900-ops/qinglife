@@ -36,35 +36,35 @@ class QlCampReflectionServiceTest {
  QlReflectionModerationBo reviewBo(String text){QlReflectionModerationBo b=new QlReflectionModerationBo();b.setRevision(1);b.setDisplayNote(text);return b;}
  @Test void approvalAndPublicationAreOneRevisionWithFullEditableTextAndOriginalPreserved(){
   JdbcTemplate db=mock(JdbcTemplate.class);when(db.queryForList(anyString(),eq("voice"))).thenReturn(Collections.singletonList(reviewRow()));
-  QlCampReflectionService s=new QlCampReflectionService(null,null,db,null);String text=String.join("",Collections.nCopies(100,"轻"));s.moderate("voice","approvePublish",reviewBo(text),42L);
+  QlCampReflectionService s=new QlCampReflectionService(null,null,db,null,mock(QlExperienceOriginalService.class), mock(QlCommunityAccessPolicy.class), mock(QlReflectionPublicationReviewService.class));String text=String.join("",Collections.nCopies(100,"轻"));s.moderate("voice","approvePublish",reviewBo(text),42L);
   verify(db).update(startsWith("UPDATE ql_camp_reflection SET status="),eq("published"),eq(QlCampReflectionService.prefix(text,32)),eq(text),eq(100),any(Date.class),eq("voice"));
   verify(db).update(startsWith("INSERT INTO ql_camp_reflection_log"),anyString(),eq("voice"),eq("approvePublish"),eq(2),eq(42L),any(Date.class));
  }
  @Test void reviewOnlyRetainsPendingPublicationAndAcceptsEditedText(){
   JdbcTemplate db=mock(JdbcTemplate.class);when(db.queryForList(anyString(),eq("voice"))).thenReturn(Collections.singletonList(reviewRow()));
-  new QlCampReflectionService(null,null,db,null).moderate("voice","approve",reviewBo("慢慢来，期待新的变化"),42L);
+  new QlCampReflectionService(null,null,db,null,mock(QlExperienceOriginalService.class), mock(QlCommunityAccessPolicy.class), mock(QlReflectionPublicationReviewService.class)).moderate("voice","approve",reviewBo("慢慢来，期待新的变化"),42L);
   verify(db).update(startsWith("UPDATE ql_camp_reflection SET status="),eq("approved"),eq("慢慢来，期待新的变化"),eq("慢慢来，期待新的变化"),eq(100),any(Date.class),eq("voice"));
  }
  @Test void withdrawnChangedOrAlreadyPublishedSubmissionsCannotPassCombinedReview(){
-  JdbcTemplate db=mock(JdbcTemplate.class);Map<String,Object> row=reviewRow();when(db.queryForList(anyString(),eq("voice"))).thenReturn(Collections.singletonList(row));QlCampReflectionService s=new QlCampReflectionService(null,null,db,null);
+  JdbcTemplate db=mock(JdbcTemplate.class);Map<String,Object> row=reviewRow();when(db.queryForList(anyString(),eq("voice"))).thenReturn(Collections.singletonList(row));QlCampReflectionService s=new QlCampReflectionService(null,null,db,null,mock(QlExperienceOriginalService.class), mock(QlCommunityAccessPolicy.class), mock(QlReflectionPublicationReviewService.class));
   row.put("consent",0);assertThrows(CustomException.class,()->s.moderate("voice","approvePublish",reviewBo("展示内容"),42L));row.put("consent",1);row.put("revision",2);assertThrows(CustomException.class,()->s.moderate("voice","approvePublish",reviewBo("展示内容"),42L));row.put("revision",1);row.put("status","published");assertThrows(CustomException.class,()->s.moderate("voice","approvePublish",reviewBo("展示内容"),42L));
   verify(db,never()).update(anyString(),any(Object[].class));
  }
  @Test void fullDisplayTextRejectsEmptyOrOverLimitWithoutWriting(){
-  JdbcTemplate db=mock(JdbcTemplate.class);when(db.queryForList(anyString(),eq("voice"))).thenReturn(Collections.singletonList(reviewRow()));QlCampReflectionService s=new QlCampReflectionService(null,null,db,null);
+  JdbcTemplate db=mock(JdbcTemplate.class);when(db.queryForList(anyString(),eq("voice"))).thenReturn(Collections.singletonList(reviewRow()));QlCampReflectionService s=new QlCampReflectionService(null,null,db,null,mock(QlExperienceOriginalService.class), mock(QlCommunityAccessPolicy.class), mock(QlReflectionPublicationReviewService.class));
   for(String text:Arrays.asList("  ",String.join("",Collections.nCopies(151,"轻"))))assertThrows(CustomException.class,()->s.moderate("voice","approvePublish",reviewBo(text),42L));verify(db,never()).update(anyString(),any(Object[].class));
  }
 
  @Test void editingAnApprovedOrHiddenVoicePreservesItsStateAndOriginal(){
   for(String state:Arrays.asList("approved","hidden")){
    JdbcTemplate db=mock(JdbcTemplate.class);Map<String,Object> row=reviewRow();row.put("status",state);when(db.queryForList(anyString(),eq("voice"))).thenReturn(Collections.singletonList(row));
-   new QlCampReflectionService(null,null,db,null).moderate("voice","edit",reviewBo("修改后的完整展示文字"),42L);
+   new QlCampReflectionService(null,null,db,null,mock(QlExperienceOriginalService.class), mock(QlCommunityAccessPolicy.class), mock(QlReflectionPublicationReviewService.class)).moderate("voice","edit",reviewBo("修改后的完整展示文字"),42L);
    verify(db).update(startsWith("UPDATE ql_camp_reflection SET status="),eq(state),eq("修改后的完整展示文字"),eq("修改后的完整展示文字"),eq(100),any(Date.class),eq("voice"));
    verify(db).update(startsWith("INSERT INTO ql_camp_reflection_log"),anyString(),eq("voice"),eq("edit"),eq(2),eq(42L),any(Date.class));assertEquals("原始投稿，有一点紧张，也期待新的变化",row.get("note"));
   }
  }
  @Test void displayedWithdrawnOrStaleVoiceCannotBeEditedAndEmptyDisplayIsRejected(){
-  JdbcTemplate db=mock(JdbcTemplate.class);Map<String,Object> row=reviewRow();when(db.queryForList(anyString(),eq("voice"))).thenReturn(Collections.singletonList(row));QlCampReflectionService service=new QlCampReflectionService(null,null,db,null);
+  JdbcTemplate db=mock(JdbcTemplate.class);Map<String,Object> row=reviewRow();when(db.queryForList(anyString(),eq("voice"))).thenReturn(Collections.singletonList(row));QlCampReflectionService service=new QlCampReflectionService(null,null,db,null,mock(QlExperienceOriginalService.class), mock(QlCommunityAccessPolicy.class), mock(QlReflectionPublicationReviewService.class));
   for(String state:Arrays.asList("submitted","published","withdrawn","rejected")){row.put("status",state);assertThrows(CustomException.class,()->service.moderate("voice","edit",reviewBo("修改"),42L));}
   row.put("status","hidden");row.put("revision",2);assertThrows(CustomException.class,()->service.moderate("voice","edit",reviewBo("修改"),42L));row.put("revision",1);row.put("consent",0);assertThrows(CustomException.class,()->service.moderate("voice","edit",reviewBo("修改"),42L));row.put("consent",1);assertThrows(CustomException.class,()->service.moderate("voice","edit",reviewBo("  "),42L));verify(db,never()).update(anyString(),any(Object[].class));
  }

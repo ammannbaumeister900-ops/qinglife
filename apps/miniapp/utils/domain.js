@@ -67,18 +67,18 @@ function homeTask(state, activities, now = new Date()) {
   const priority = reg => {
     const activity = activities.find(item => item.id === reg.activityId)
     if (!activity) return 99
-    if (['cancelled', 'rescheduled'].includes(reg.status)) return 0
+    if (reg.status === 'rescheduled') return 0
     if (reg.status === 'confirmed') return activity.endDate && localDate(now) > activity.endDate ? 4 : 1
     if (['pending', 'waitlist', 'waitlisted'].includes(reg.status)) return 2
     return 5
   }
-  const candidates = Object.values(registrations).filter(reg => reg.status !== 'none').sort((a, b) => priority(a) - priority(b) || String((activities.find(item => item.id === a.activityId) || {}).startDate || '').localeCompare(String((activities.find(item => item.id === b.activityId) || {}).startDate || '')))
-  const reg = candidates[0] || state.registration || {}
+  const candidates = Object.values(registrations).filter(reg => reg.status !== 'none' && reg.status !== 'cancelled').sort((a, b) => priority(a) - priority(b) || String((activities.find(item => item.id === a.activityId) || {}).startDate || '').localeCompare(String((activities.find(item => item.id === b.activityId) || {}).startDate || '')))
+  const reg = candidates[0] || (state.registration && state.registration.status !== 'cancelled' ? state.registration : {}) || {}
   const activity = activities.find(item => item.id === reg.activityId)
   const today = localDate(now)
   const task = (title, copy, action, route, activityId) => ({ title, copy, action, route, activityId: activityId || '', kicker: '现在的一件事' })
   if (state.loggedIn && reg.status !== 'none' && activity) {
-    if (['cancelled', 'rescheduled'].includes(reg.status) || activity.status === '已取消') return task('本次活动安排有变化', '请查看当前安排，并联系工作人员核对。', '查看活动状态', 'journey', activity.id)
+    if (reg.status === 'rescheduled' || activity.status === '已取消') return task('本次活动安排有变化', '请查看当前安排，并联系工作人员核对。', '查看活动状态', 'journey', activity.id)
     if (reg.status === 'pending' || ['waitlist','waitlisted'].includes(reg.status)) return task(['waitlist','waitlisted'].includes(reg.status) ? '本次报名正在候补' : '报名已收到，等待确认', '名额尚未确认，可查看申请和活动信息。', '查看报名', 'journey', activity.id)
     if (reg.status === 'confirmed') return task(activity.startDate && today >= activity.startDate && today <= activity.endDate ? '查看今天的行程' : activity.endDate && today > activity.endDate ? '回看本次参与经历' : '为这次活动做一点准备', activity.date + ' · ' + activity.city + activity.place, activity.endDate && today > activity.endDate ? '查看本次经历' : '查看准备与行程', activity.endDate && today > activity.endDate ? 'experience' : 'journey', activity.id)
   }
@@ -97,15 +97,26 @@ function hasRegistration(registration) {
 }
 function campServiceStatus(registration = {}) {
   const statuses = { pending: '待确认', confirmed: '已确认', completed: '已结束', waitlist: '候补中', waitlisted: '候补中', cancelled: '已取消', rescheduled: '安排有调整', none: '尚未报名' }
-  const notes = { pending: '工作人员确认后，名额才会生效', waitlist: '名额尚未确认，请等候工作人员联系', waitlisted: '名额尚未确认，请等候工作人员联系', cancelled: '如需了解后续安排，请联系工作人员', rescheduled: '请与工作人员核对新的安排' }
+  const notes = { pending: '报名已提交，待确认；尚未占用名额', waitlist: '名额尚未确认，请等候工作人员联系', waitlisted: '名额尚未确认，请等候工作人员联系', cancelled: '如需了解后续安排，请联系工作人员', rescheduled: '请与工作人员核对新的安排' }
   const result = { registration: statuses[registration.status] || '待核对', registrationNote: notes[registration.status] || '', payment: '金额待确认', paymentNote: '最终费用由工作人员确认' }
+  const operationalRisk = registration.operationalRisk === true || ['confirmed', 'completed'].includes(registration.status)
+    && registration.paymentStatus !== 'paid' && !(registration.settlementType === 'pass' && registration.settlementStatus === 'confirmed')
+  result.operationalRisk = operationalRisk
+  if (operationalRisk) result.registrationNote = '历史状态保留，缴费和名额需运营核查'
+  if (registration.status === 'pending' && registration.paymentStatus === 'unpaid') {
+    result.registration = '待缴费 / 待确认'
+    result.registrationNote = '报名已提交，待缴费 / 待确认；尚未占用名额'
+    result.payment = '待缴费'
+    result.paymentNote = '缴费和报名确认尚未完成'
+  }
+  if (registration.mixedOrders) return { ...result, payment: '费用分别核对', paymentNote: '本期存在多笔报名记录，请与工作人员逐笔核对' }
   if (registration.settlementStatus !== 'confirmed') return result
   if (registration.settlementType === 'pass') return { ...result, payment: '已用卡次', paymentNote: '本次使用 ' + registration.passUnits + ' 次卡次' }
   if (registration.finalAmount == null || !Number.isFinite(Number(registration.finalAmount))) return result
   const amount = Number(registration.finalAmount)
-  return { ...result, payment: amount === 0 ? '无需付款' : registration.paymentStatus === 'paid' ? '已付款' : '待付款', paymentNote: '本次金额 ¥' + amount.toFixed(2) + (amount > 0 && registration.paymentStatus !== 'paid' ? ' · 请联系工作人员付款' : '') }
+  return { ...result, payment: registration.paymentStatus === 'paid' ? (amount === 0 ? '无需付款' : '已付款') : amount === 0 ? '费用待核对' : '待付款', paymentNote: '本次金额 ¥' + amount.toFixed(2) + (amount > 0 && registration.paymentStatus !== 'paid' ? ' · 请联系工作人员付款' : '') }
 }
-module.exports = { hasRegistration, campServiceStatus, localDate, activityState, homeTask,
+module.exports = { blocksRegistration: require('./registration-history').blocks, hasActiveRegistration: require('./registration-history').hasActive, hasRegistration, campServiceStatus, localDate, activityState, homeTask,
   dailyKey,
   cleanDisplayTitle,
   registrationStatus,

@@ -98,6 +98,12 @@ public class QlMiniAppController {
         return AjaxResult.success(friendAssessments.amend(token,id,bo));
     }
 
+    @PostMapping("/registrations/quote")
+    public AjaxResult<Map<String,Object>> registrationQuote(@RequestHeader(value="token",required=false) String token,
+            @Valid @RequestBody QlMiniAppQuoteBo bo) {
+        return AjaxResult.success(miniAppService.registrationQuote(token,bo));
+    }
+
     @PostMapping("/registrations")
     public AjaxResult<Map<String, Object>> register(@RequestHeader(value = "token", required = false) String token,
                                                     @Valid @RequestBody QlMiniAppRegistrationBo bo) {

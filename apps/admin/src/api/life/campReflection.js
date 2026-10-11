@@ -4,3 +4,6 @@ export function reviewReflection(id, action, data) { return request({ url: '/lif
 export function displayReflection(id, action, data) { return request({ url: '/life/camp-reflection/' + id + '/display/' + action, method: 'put', data }) }
 
 export function approveAndPublishReflection(id, data) { return request({ url: '/life/camp-reflection/' + id + '/approve-and-publish', method: 'put', data }) }
+
+export function deferReflection(id, data) { return request({ url: '/life/camp-reflection/' + id + '/review-check', method: 'put', data }) }
+export function reflectionReviewHistory(id) { return request({ url: '/life/camp-reflection/' + id + '/review-history', method: 'get' }) }

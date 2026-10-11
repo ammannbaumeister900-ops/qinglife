@@ -1,0 +1,101 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  miniapp:
+    name: Miniapp tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      # The runner and miniapp tests use only Node built-ins; no install or lockfile.
+      - run: npm run test:miniapp
+
+  java:
+    name: Java unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: server/api
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '8'
+          cache: maven
+          cache-dependency-path: server/api/**/pom.xml
+      # Surefire runs unit tests. Database/HTTP integration profiles stay opt-in.
+      - run: mvn --batch-mode --no-transfer-progress -pl box-web -am test
+
+  admin:
+    name: Admin changed-file lint and production build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v6
+        with:
+          version: '10.32.1'
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: pnpm
+          cache-dependency-path: apps/admin/pnpm-lock.yaml
+      - name: Install locked dependencies
+        id: dependencies
+        run: pnpm --dir apps/admin install --frozen-lockfile
+      - name: Lint changed Admin JS/Vue files
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          node <<'NODE'
+          const { execFileSync, spawnSync } = require('node:child_process')
+          const path = require('node:path')
+          const { EVENT_NAME, BASE_SHA, HEAD_SHA } = process.env
+          if (!BASE_SHA || !HEAD_SHA) throw new Error('Missing Git diff baseline or head')
+          if (!['pull_request', 'push'].includes(EVENT_NAME)) throw new Error('Unsupported event')
+          let base = BASE_SHA
+          if (/^0+$/.test(base)) {
+            base = execFileSync('git', ['hash-object', '-w', '-t', 'tree', '--stdin'], { input: '', encoding: 'utf8' }).trim()
+          } else if (spawnSync('git', ['cat-file', '-e', base + '^{commit}'], { stdio: 'ignore' }).status !== 0) {
+            execFileSync('git', ['fetch', '--no-tags', 'origin', base], { stdio: 'inherit' })
+          }
+          const range = base + (EVENT_NAME === 'pull_request' ? '...' : '..') + HEAD_SHA
+          const files = execFileSync('git', ['diff', '--find-renames', '--name-only', '--diff-filter=ACMRT', '-z', range, '--', 'apps/admin/src/'], { encoding: 'utf8' })
+            .split('\0').filter(file => /\.(js|vue)$/.test(file))
+          if (!files.length) {
+            console.log('No changed Admin JS/Vue files; lint skipped')
+            process.exit(0)
+          }
+          console.log('Linting changed Admin files:', files)
+          const admin = path.resolve('apps/admin')
+          const eslint = require.resolve('eslint/bin/eslint.js', { paths: [admin] })
+          const result = spawnSync(process.execPath, [eslint, '--no-ignore', '--max-warnings=0', ...files.map(file => path.relative(admin, path.resolve(file)))], { cwd: admin, stdio: 'inherit' })
+          if (result.error) throw result.error
+          process.exit(result.status ?? 1)
+          NODE
+      - name: Production build
+        # Still collect build results if lint fails; the job remains failed.
+        if: ${{ !cancelled() && steps.dependencies.outcome == 'success' }}
+        run: pnpm --dir apps/admin run build:prod

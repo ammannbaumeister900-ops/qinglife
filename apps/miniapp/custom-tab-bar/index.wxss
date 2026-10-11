@@ -58,3 +58,9 @@
     transition: none;
   }
 }
+
+/* Home retains the existing four-tab component with its confirmed paper palette. */
+.tabbar-home { background: #f7f6ef; border-top-color: #c5cbbd; box-shadow: none; }
+.tabbar-home .tab-item { color: #666e5e; }
+.tabbar-home .tab-item.active { color: #252b21; }
+.tabbar-home .selected-mark { display: none; }

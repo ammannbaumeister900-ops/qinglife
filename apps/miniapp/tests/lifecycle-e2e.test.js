@@ -21,8 +21,9 @@ async function clock(date) { now = date + 'T04:00:00Z'; await http('/__test/cloc
 async function clockAt(value) { now = value; await http('/__test/clock', 'POST', { now }) }
 const event = (dataset = {}, value) => ({ currentTarget: { dataset }, detail: { value } })
 async function actor(name, minor = false) {
-  const identity = (await http('/__test/actors', 'POST', { name, minor })).data
+  const identity = (await http('/__test/actors', 'POST', { name, minor, syntheticAdultVerified: !minor })).data
   const storage = new Map([['qinglife_business_base_url', base], ['qinglife_business_token:' + base, identity.token]])
+  const reflectionWindows = new Map()
   const cache = new Map(), toasts = [], requests = [], nav = []
   let offline = false
   class Clock extends Date { constructor(...args) { super(...(args.length ? args : [now])) } static now() { return new Date(now).getTime() } }
@@ -34,6 +35,21 @@ async function actor(name, minor = false) {
       assert.ok(options.url.startsWith(base + '/'), 'NO PRODUCTION NETWORK')
       requests.push({ url: options.url, data: options.data, method: options.method })
       if (offline) { options.fail({ errMsg: '测试断网' }); return }
+      // The loopback server predates the Java reflection API. Only its new entry-read boundary is an explicit fixture; no private write is simulated here.
+      const reflectionPrefix = base + '/app/qinglife/reflections/'
+      if (options.method === 'GET' && options.url.startsWith(reflectionPrefix)) {
+        const phase = reflectionWindows.get(decodeURIComponent(options.url.slice(reflectionPrefix.length)))
+        options.success({ statusCode: 200, data: { code: 200, data: { canBefore: phase === 'before', canAfter: phase === 'after' } } }); return
+      }
+      // This legacy Mock lifecycle suite does not certify prices; RegistrationPricingHttpIT does.
+      if (options.method === 'POST' && options.url === base + '/app/qinglife/registrations/quote') {
+        fetch(base + '/app/qinglife/sessions/' + encodeURIComponent(options.data.sessionId))
+          .then(res => res.json()).then(result => {
+            const price = result.data.standardPrice
+            options.success({ statusCode: 200, data: { code: 200, data: { participants: options.data.participants.map((p,index) => ({index,friendType:'new',unitPrice:price})), quotedAmount: Number(price)*options.data.participants.length } } })
+          }).catch(options.fail)
+        return
+      }
       fetch(options.url, { method: options.method || 'GET', headers: options.header, ...(['POST','PUT'].includes(options.method) ? { body: JSON.stringify(options.data) } : {}) })
         .then(async res => options.success({ statusCode: res.status, data: await res.json() })).catch(options.fail)
     }, login() { throw new Error('Fixture token missing; do not call WeChat login in this test') }
@@ -41,6 +57,8 @@ async function actor(name, minor = false) {
   function load(filename, pageCapture) {
     filename = path.resolve(filename)
     if (!path.extname(filename)) filename += '.js'
+    // Each actor has an isolated Demo runtime; production configuration is never mutated.
+    if (filename === path.join(root, 'config/runtime.js')) return { environment: 'demo', businessBaseUrl: base, legacyEnabled: false, allowedBusinessOrigins: [] }
     if (cache.has(filename) && !pageCapture) return cache.get(filename).exports
     const module = { exports: {} }; cache.set(filename, module)
     const requireLocal = target => target.startsWith('.') ? load(path.resolve(path.dirname(filename), target)) : require(target)
@@ -48,6 +66,7 @@ async function actor(name, minor = false) {
     return module.exports
   }
   return { ...identity, name, storage, requests, toasts, nav, setOffline: x => { offline = x }, auth: { token: identity.token },
+    setReflectionWindow: (sessionId, phase) => reflectionWindows.set(sessionId, phase),
     async page(name, options = {}) {
       let page
       load(path.join(root, 'pages', name, 'index.js'), value => { page = value })
@@ -70,11 +89,11 @@ async function signup(person, page) {
   page.startRegistration()
   assert.equal(page.data.view, 'register')
   page.onSelfName(event({}, person.name)); page.onSelfPhone(event({}, '1990000' + String(++count).padStart(4,'0')))
-  page.nextStep(); assert.equal(page.data.step, 2)
+  await page.nextStep(); assert.equal(page.data.step, 2)
   assert.equal(page.data.draft.serviceConsent, true)
   await Promise.all([page.submitRegistration(), page.submitRegistration()])
   assert.equal(page.data.loadError, '')
-  assert.equal(page.data.view, 'journey', person.toasts.join(';'))
+  assert.equal(page.data.view, 'success', person.toasts.join(';'))
   assert.notEqual(page.data.registration.status, 'none', person.toasts.join(';'))
   return page.data.registration.participants.find(p => p.id === 'person-self').registrationId
 }
@@ -143,10 +162,13 @@ async function main() {
       await http('/app/qinglife/experience-records', 'PUT', { registrationId:aReg, phase:'after', note:'越权' }, d.auth, 403)
     })
     await test('06 完成轻体可回顾并生成下期邀请，分享不包含私人记录或身份', async () => {
-      await clock('2026-09-10'); await status(first,'completed'); await p.refresh()
+      await clock('2026-09-10'); await status(first,'completed'); a.setReflectionWindow(first.id, 'after'); await p.refresh()
       assert.equal((await a.page('home')).data.view.route,'experience', '完成后的首页不得跳到本地演示记录');
       assert.equal(p.data.canReview,true); assert.ok(p.data.dayViews.every(day=>!day.checked))
-      p.openExperience(); p.onReviewInput(event({}, '测试完成后的私人感受')); await p.saveReview(); assert.equal(p.data.reviewSaved,true)
+      p.openExperience(); await p.saveReview(); assert.ok(a.nav.at(-1).startsWith('/pages/camp-reflection/index?id='+first.id)); assert.equal(p.data.reviewSaved,false, 'navigation is not a save');
+      // This existing HTTP Mock exposes the legacy private API. New editor + Java transaction are separately covered.
+      await http('/app/qinglife/experience-records','PUT',{registrationId:aReg,phase:'after',note:'测试完成后的私人感受'},a.auth);
+      await p.refresh();assert.equal(p.data.reviewNote,'测试完成后的私人感受');assert.equal(p.data.reviewSaved,true)
       p.openInvite(); await p.prepareInvitation(event({id:next.id})); aInvite=p.onShareAppMessage()
       assert.ok(aInvite.path.includes('invite=')); assert.equal(aInvite.title,next.name)
       assert.ok(!aInvite.path.includes(a.customerId)); assert.ok(!JSON.stringify(aInvite).includes('私人感受'))
@@ -172,14 +194,14 @@ async function main() {
       assert.equal((await overview(a)).experienceRecords.length,5)
       assert.equal((await overview(b)).registrations.length,2)
     })
-    await test('09 代报名不能代写私人感受；所有登录轻友均可邀请', async () => {
+    await test('09 代报名不能代写私人感受；未成年不能发起邀请', async () => {
       const parent=await actor('测试家长'), child=await actor('测试未成年',true)
       const body={sessionId:third.id,clientRequestId:'family',serviceConsent:true,contactName:parent.name,contactPhone:'19999990001',participants:[{self:true,name:parent.name,phone:'19999990001',minor:false},{self:false,name:'测试同行儿童',minor:true,relation:'子女'}]}
       const result=(await http('/app/qinglife/registrations','POST',body,parent.auth)).data
       const childReg=result.registrations.find(r=>r.customerId!==parent.customerId)
       assert.equal((await overview(parent)).registrations.length,2)
       await http('/app/qinglife/experience-records','PUT',{registrationId:childReg.registrationId,phase:'before',note:'代写'},parent.auth,403)
-      await http('/app/qinglife/sessions/'+third.id+'/invitations','POST',{},child.auth)
+      await http('/app/qinglife/sessions/'+third.id+'/invitations','POST',{},child.auth,403)
       await http('/app/qinglife/registrations','POST',{...body,clientRequestId:'forged-person',participants:[{name:'冒用参与者',customerId:a.customerId,phone:'19999990002'}]},parent.auth,403)
     })
     await test('10 无效邀请、错期邀请、满额、断网均无假成功，错误不退回演示活动', async () => {
@@ -196,7 +218,7 @@ async function main() {
       assert.equal((await overview(d)).registrations.length,1)
       const retry=await d.page('camp-flow',{id:third.id}); await retry.startRegistration(); retry.onSelfPhone(event({},'19999990009')); assert.equal(retry.data.draft.serviceConsent,true)
       d.setOffline(true); await retry.submitRegistration(); assert.equal(retry.data.view,'register'); assert.equal((await overview(d)).registrations.length,1); d.setOffline(false)
-      await retry.submitRegistration(); assert.equal(retry.data.view,'journey'); assert.equal((await overview(d)).registrations.length,2)
+      await retry.loadQuote(); await retry.submitRegistration(); assert.equal(retry.data.view,'success'); assert.equal((await overview(d)).registrations.length,2)
       a.storage.delete('qinglife_business_token:' + base); const guest=await a.page('mine'); assert.equal(guest.data.state.loggedIn,false); assert.equal(guest.data.passConsumptions.length,0)
     })
     fs.mkdirSync(path.join(root,'test-artifacts'),{recursive:true})

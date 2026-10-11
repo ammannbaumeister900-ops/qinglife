@@ -1,5 +1,9 @@
 import request from '@/utils/request'
 
+export function sessionGuides() {
+  return request({ url: '/life/session/guides', method: 'get' })
+}
+
 export function listSession(query) {
   return request({ url: '/life/session/list', method: 'get', params: query })
 }

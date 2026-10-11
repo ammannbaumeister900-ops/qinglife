@@ -21,7 +21,7 @@ function fixture(records = [], options = {}) {
   let page
   vm.runInNewContext(fs.readFileSync(path.join(root, 'pages/personal/index.js'), 'utf8'), {
     Page: value => { page = value }, require: name => ({ '../../services/business-api': business, '../../utils/store': store,
-      '../../data/demo': { activities: context.activities }, '../../utils/navigation': { navigateTo: x => links.push(x.url), switchTab: x => links.push(x.url) } })[name]
+      '../../utils/domain': require('../utils/domain'), '../../data/demo': { activities: context.activities }, '../../utils/navigation': { navigateTo: x => links.push(x.url), switchTab: x => links.push(x.url) } })[name]
   })
   page.data = plain(page.data)
   page.setData = patch => Object.assign(page.data, patch)
@@ -111,7 +111,8 @@ test('time is conditional secondary metadata and does not replace the stage or p
   const css = fs.readFileSync(path.join(root,'pages/personal/index.wxss'),'utf8')
   assert.ok(wxml.includes('{{item.label}} · 仅自己可见'))
   assert.ok(wxml.includes('wx:if="{{item.recordTimeText}}" class="record-time">最近保存 · {{item.recordTimeText}}'))
-  assert.ok(wxml.includes("{{item.note || '这一次，留下了一份状态记录。'}}"))
+  assert.ok(wxml.includes('wx:if="{{item.note}}" class="record-body">{{item.note}}'))
+  assert.ok(!wxml.includes('这一次，留下了一份状态记录。'))
   assert.match(css, /\.record-time[^}]*font-size:\s*28rpx/)
   assert.ok(wxml.indexOf('class="record-body"') < wxml.indexOf('class="record-time"'))
 })
@@ -165,7 +166,9 @@ test('rendered records retain individual stage, complete multiline body and cond
   assert.equal(rows.length,3)
   for (const row of rows) assert(text(row).includes('活动期间 · 仅自己可见'))
   assert.equal(text(flatten([rows[0]]).find(n => has(n,'record-body'))),'第一段感受\n第二段感受')
-  assert(text(rows[0]).includes('精力 3 · 放松 未填'))
+  assert(text(rows[0]).includes('精力 3/5'))
+  assert(!text(rows[0]).includes('放松'))
+  assert(!text(rows[0]).includes('未填'))
   assert(text(rows[0]).includes('09:10:01')); assert(text(rows[1]).includes('09:10:02'))
   assert(!flatten([rows[2]]).some(n => has(n,'record-time')))
 })
@@ -225,4 +228,26 @@ test('combined session view distinguishes arrangements from records without addi
   assert(!visible(f.page).some(n=>has(n,'personal-section-title')))
 })
 
+test('participation keeps historical unpaid state and flags operational review without writing it', async () => {
+  const f=fixture();f.page.onLoad({view:'experiences'})
+  const row={activityId:'session-1',status:'confirmed',paymentStatus:'unpaid',settlementStatus:'confirmed',settlementType:'money',finalAmount:3800,participants:[]}
+  f.context.state.registrations={first:row};const before=plain(f.context.state)
+  await f.page.refresh()
+  assert.deepEqual(visible(f.page).filter(n=>has(n,'participation-state')).map(text),['报名已确认','结算缴费和名额待运营核查'])
+  assert.deepEqual(plain(f.context.state),before);assert.equal(f.writes.length,0)
+  row.status='pending';await f.page.refresh()
+  assert.equal(f.page.data.rows[0].status,'待缴费 / 待确认')
+  row.finalAmount=0;await f.page.refresh()
+  assert.equal(f.page.data.rows[0].settlement,'费用待核对')
+})
+
 module.exports={parse,render,flatten,fixture,has,text}
+
+test('missing body and invalid optional scores never become invented record content', async () => {
+  const f=fixture([record('blank','2026-10-06 09:10:01',{note:'',energy:10,relaxation:null}),record('scored',null,{note:'',energy:5,relaxation:1})]);
+  await f.page.refresh();const rows=visible(f.page).filter(n=>has(n,'record-row'));
+  assert.equal(rows.length,2);assert(!flatten([rows[0]]).some(n=>has(n,'record-body')||has(n,'record-values')));
+  assert(text(rows[0]).includes('活动期间 · 仅自己可见'));assert(text(rows[0]).includes('09:10:01'));
+  assert(text(rows[1]).includes('精力 5/5'));assert(text(rows[1]).includes('放松 1/5'));
+  assert.equal(f.writes.length,0);
+});

@@ -8,7 +8,7 @@ function fixture() {
   let page
   let state = { habit: { id: 'plan-1', planLength: 14, currentDay: 3, paused: false, status: 'active', completedDays: [1, 3] } }
   const calls = [], messages = []
-  const business = { enabled: () => true,
+  const business = { isDemo: () => false, enabled: () => true,
     changeHabit: async (id, paused) => { calls.push({ id, paused }); return { ...state.habit, paused, status: paused ? 'paused' : 'active', completedDays: [1] } },
     applyHabit: habit => { state = { ...state, habit } }
   }

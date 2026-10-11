@@ -13,6 +13,7 @@ const nativeTags = [
   'input',
   'picker',
   'rich-text',
+  'scroll-view',
   'switch',
   'swiper',
   'swiper-item',
@@ -21,7 +22,7 @@ const nativeTags = [
   'view'
 ]
 
-assert.deepStrictEqual(app.tabBar.list.map((item) => item.text), ['首页', '轻体营', '轻读', '我的'])
+assert.deepStrictEqual(app.tabBar.list.map((item) => item.text), ['首页', '清体营', '轻读', '我的'])
 assert.strictEqual(new Set(app.pages).size, app.pages.length, '页面不能重复注册')
 
 const contentPage = fs.readFileSync(path.join(root, 'pages/content/index.wxml'), 'utf8')
@@ -57,7 +58,8 @@ for (const page of ['content', 'friends', 'mine', 'camp-flow', 'friend-flow', 'm
 }
 
 const articlePage = fs.readFileSync(path.join(root, 'pages/article/index.wxml'), 'utf8')
-assert.ok(!articlePage.includes('article-cover') && articlePage.includes('article-body') && articlePage.includes('article-actionbar'), '文章详情正文优先，保留收藏与分享操作栏')
+assert.ok(articlePage.includes('wx:if="{{presentation.cover}}"') && articlePage.includes('mode="widthFix"') && articlePage.includes('nodes="{{presentation.nodes}}"') && articlePage.includes('article-actionbar'), '故事按真实封面呈现，原生富文本与收藏分享保留')
+assert.ok(articlePage.includes('wx:if="{{presentation.showHealthNote}}"'), '健康提示必须依文章类型显示，不能统一追加到人物故事')
 
 for (const page of app.pages) {
   const base = path.join(root, page)

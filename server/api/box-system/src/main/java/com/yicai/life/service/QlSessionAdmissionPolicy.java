@@ -12,13 +12,22 @@ import java.util.Map;
 @Service
 public class QlSessionAdmissionPolicy {
     static final ZoneId BUSINESS_ZONE = ZoneId.of("Asia/Shanghai");
+    // One database-clock expression shared by list filters, API projections and the locked admission gate.
+    public static final String CLOCK_SQL = "CONVERT_TZ(UTC_TIMESTAMP(3),'+00:00','+08:00')";
+    public static final String STATUS_SQL = "CASE WHEN s.status NOT IN ('open','in_progress') THEN s.status "
+            + "WHEN s.end_date < DATE(" + CLOCK_SQL + ") THEN 'completed' "
+            + "WHEN s.start_date <= DATE(" + CLOCK_SQL + ") THEN 'in_progress' "
+            + "WHEN s.registration_open_at > " + CLOCK_SQL + " OR s.registration_close_at < " + CLOCK_SQL + " THEN 'closed' "
+            + "ELSE 'open' END";
 
     public void requireNewRegistrationOpen(Map<String, Object> session) {
         requireNewRegistrationOpen(session, Instant.now());
     }
 
     void requireNewRegistrationOpen(Map<String, Object> session, Instant now) {
-        if (!"open".equals(String.valueOf(session.get("status")))) {
+        // A manually extended booking window remains compatible with legacy 'open' sessions.
+        Object configured = session.containsKey("configuredStatus") ? session.get("configuredStatus") : session.get("status");
+        if (!"open".equals(String.valueOf(configured)) || "completed".equals(session.get("status"))) {
             throw new CustomException("当前期次不接受报名", 400);
         }
         Object opens = value(session, "registration_open_at", "registrationOpenAt");

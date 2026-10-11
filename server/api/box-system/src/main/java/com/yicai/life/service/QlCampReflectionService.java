@@ -19,30 +19,39 @@ public class QlCampReflectionService {
  private final QlCustomerIdentityService identities;
  private final JdbcTemplate db;
  private final QlReflectionVoiceService voice;
+ private final QlExperienceOriginalService originals;
+ private final QlCommunityAccessPolicy communityAccess;
+ private final QlReflectionPublicationReviewService publicationReviews;
  private static final ZoneId ZONE=ZoneId.of("Asia/Shanghai");
  private static final String OWNER_SQL="SELECT r.id AS registrationId,r.registration_status AS registrationStatus,s.id AS sessionId,s.status AS sessionStatus,s.session_number AS sessionNumber,s.name,c.nickname AS authorName,s.start_date AS startDate,s.end_date AS endDate,(SELECT end_time FROM ql_session_day d WHERE d.session_id=s.id AND d.status<>'cancelled' ORDER BY day_no DESC LIMIT 1) AS endTime FROM ql_registration r JOIN ql_session s ON s.id=r.session_id JOIN ql_customer c ON c.id=r.customer_id WHERE r.customer_id=? AND s.id=?";
 
  public Map<String,Object> mine(String token,String sessionId) {
   String customer=customerId(token);
-  List<Map<String,Object>> owners=db.queryForList(OWNER_SQL,customer,sessionId);
+  List<Map<String,Object>> owners=db.queryForList(OWNER_SQL+" ORDER BY r.active_registration_slot DESC,r.registered_at DESC,r.id DESC LIMIT 1",customer,sessionId);
   if(owners.isEmpty())throw new CustomException("请由本期实际参与者留下心声",403);
   Map<String,Object> owner=owners.get(0), out=new LinkedHashMap<>();
   out.put("registrationId",owner.get("registrationId"));out.put("sessionNumber",owner.get("sessionNumber"));out.put("name",owner.get("name"));out.put("authorName",Objects.toString(owner.get("authorName"),"").trim());
   out.put("canBefore",canWrite(owner,"before",LocalDateTime.now(ZONE)));out.put("canAfter",canWrite(owner,"after",LocalDateTime.now(ZONE)));
-  out.put("records",db.queryForList("SELECT phase,draft_note AS note,draft_anonymous AS anonymous,shared_note AS sharedNote,status,share_consent AS shareConsent,share_anonymous AS shareAnonymous,revision FROM ql_camp_reflection WHERE customer_id=? AND session_id=?",customer,sessionId));
+  out.put("records",db.queryForList("SELECT phase,draft_note AS note,draft_anonymous AS anonymous,shared_note AS sharedNote,status,share_consent AS shareConsent,share_anonymous AS shareAnonymous,revision FROM ql_camp_reflection WHERE customer_id=? AND registration_id=?",customer,owner.get("registrationId")));
+  out.put("unifiedAfter",true);
+  Map<String,Object> original=originals.read(customer,String.valueOf(owner.get("registrationId")),false);
+  out.put("experienceRecord",original);out.put("originalVersion",originals.version(original));
   out.put("voiceAvailable",voice.available());return out;
  }
 
  @Transactional
  public Map<String,Object> save(String token,QlCampReflectionBo bo) {
   String customer=customerId(token);
+  validateSubmissionContract(bo);
   Map<String,Object> owner=ownedRegistration(customer,bo.getRegistrationId(),true);
   if(!canWrite(owner,bo.getPhase(),LocalDateTime.now(ZONE)))throw new CustomException("报名确认后，本期心声从开营当天起开放",403);
+  boolean submitting="submit".equals(bo.getAction());
+  if("after".equals(bo.getPhase())&&(bo.getOriginalVersion()!=null||submitting))return saveAfter(token,customer,owner,bo);
   String note=validateNote(bo.getNote());
   boolean submit="submit".equals(bo.getAction());
   boolean anonymous=!Boolean.FALSE.equals(bo.getAnonymous());
   String author=anonymous?null:Objects.toString(owner.get("authorName"),"").trim();
-  if(submit&&!anonymous&&author.isEmpty())throw new CustomException("请先完善轻生活小名，或选择匿名发布",400);
+  if(submit&&!anonymous&&author.isEmpty())throw new CustomException("请先完善轻生活小名",400);
   if(submit&&!Boolean.TRUE.equals(bo.getShareConsent()))throw new CustomException("分享需要本人明确同意",400);
   if(!submit&&!"private".equals(bo.getAction()))throw new CustomException("保存方式无效",400);
   List<Map<String,Object>> rows=db.queryForList("SELECT id,revision,status FROM ql_camp_reflection WHERE registration_id=? AND phase=? FOR UPDATE",bo.getRegistrationId(),bo.getPhase());
@@ -65,7 +74,7 @@ public class QlCampReflectionService {
  @Transactional
  public void withdraw(String token,String sessionId,String phase) {
   String customer=customerId(token);
-  List<Map<String,Object>> rows=db.queryForList("SELECT id,revision FROM ql_camp_reflection WHERE customer_id=? AND session_id=? AND phase=? FOR UPDATE",customer,sessionId,phase);
+  List<Map<String,Object>> rows=db.queryForList("SELECT f.id,f.revision FROM ql_camp_reflection f WHERE f.customer_id=? AND f.session_id=? AND f.phase=? AND f.registration_id=(SELECT r.id FROM ql_registration r WHERE r.customer_id=? AND r.session_id=? ORDER BY r.active_registration_slot DESC,r.registered_at DESC,r.id DESC LIMIT 1) FOR UPDATE",customer,sessionId,phase,customer,sessionId);
   if(rows.isEmpty())return;
   Map<String,Object> row=rows.get(0);int rev=((Number)row.get("revision")).intValue()+1;Date now=new Date();
   db.update("UPDATE ql_camp_reflection SET share_consent=0,status='withdrawn',revision=?,updated_at=? WHERE id=?",rev,now,row.get("id"));
@@ -97,10 +106,16 @@ public class QlCampReflectionService {
 
  @Transactional
  public void moderate(String id,String action,QlReflectionModerationBo bo,Long operator) {
-  List<Map<String,Object>> rows=db.queryForList("SELECT shared_note AS note,status,revision,share_consent AS consent,display_excerpt AS excerpt,display_note AS displayNote,sort_order AS sortOrder FROM ql_camp_reflection WHERE id=? FOR UPDATE",id);
+  moderate(id,action,bo,operator,Collections.emptySet());
+ }
+
+ @Transactional
+ public void moderate(String id,String action,QlReflectionModerationBo bo,Long operator,Set<String> readableTypes) {
+  List<Map<String,Object>> rows=db.queryForList("SELECT customer_id AS customerId,registration_id AS registrationId,session_id AS sessionId,consent_version AS consentVersion,consent_at AS consentAt,shared_note AS note,status,revision,share_consent AS consent,display_excerpt AS excerpt,display_note AS displayNote,sort_order AS sortOrder FROM ql_camp_reflection WHERE id=? FOR UPDATE",id);
   if(rows.isEmpty()||((Number)rows.get(0).get("consent")).intValue()!=1)throw new CustomException("心声不存在或分享已撤回",404);
   Map<String,Object> row=rows.get(0);int revision=((Number)row.get("revision")).intValue();
   if(!Integer.valueOf(revision).equals(bo.getRevision()))throw new CustomException("心声已变化，请刷新后审核",409);
+  if(("approvePublish".equals(action)||"publish".equals(action))&&bo.getPublicationReview()==null)communityAccess.requirePublicationReview();
   String state=String.valueOf(row.get("status")),next,excerpt=Objects.toString(row.get("excerpt"),""),displayNote=(String)row.get("displayNote");
   switch(action) {
    case "approvePublish":
@@ -112,19 +127,26 @@ public class QlCampReflectionService {
    case "edit": if(!Arrays.asList("approved","hidden").contains(state))throw new CustomException("请先下架再编辑心声",409);next=state;displayNote=validateNote(bo.getDisplayNote());excerpt=prefix(displayNote,32);break;
    case "reject": if(!Arrays.asList("submitted","approved").contains(state))throw new CustomException("请先下架已展示的心声",409);next="rejected";break;
    case "publish": if(!Arrays.asList("approved","hidden").contains(state)||excerpt.isEmpty())throw new CustomException("请先审核通过",409);next="published";break;
+   case "defer": if(!Arrays.asList("approved","hidden").contains(state))throw new CustomException("请先完成内容审核",409);next=state;break;
    case "hide": if(!"published".equals(state))throw new CustomException("此心声尚未展示",409);next="hidden";break;
    case "order": if(!"published".equals(state)||bo.getSortOrder()==null)throw new CustomException("只能调整已展示心声的顺序",409);next=state;break;
    default:throw new CustomException("操作无效",400);
   }
-  int order=bo.getSortOrder()==null?((Number)row.get("sortOrder")).intValue():bo.getSortOrder();
+  int order="defer".equals(action)||bo.getSortOrder()==null?((Number)row.get("sortOrder")).intValue():bo.getSortOrder();
   if(order<0||order>999)throw new CustomException("顺序必须为0至999",400);
-  Date now=new Date();db.update("UPDATE ql_camp_reflection SET status=?,display_excerpt=?,display_note=?,sort_order=?,revision=revision+1,updated_at=? WHERE id=?",next,excerpt,displayNote,order,now,id);log(id,action,revision+1,operator,now);
+  String reviewJson=null;
+  if(Arrays.asList("publish","approvePublish","defer").contains(action)) {
+   String decision=bo.getPublicationReview()==null?null:bo.getPublicationReview().getDecision();
+   if(bo.getPublicationReview()!=null&&!("defer".equals(action)?"deferred":"ready").equals(decision))throw new CustomException("核对结论与操作不符，依据不足请暂缓",409);
+   reviewJson=publicationReviews.prepare(row,bo.getPublicationReview(),operator,readableTypes,displayNote==null?String.valueOf(row.get("note")):displayNote);
+  }
+  Date now=new Date();db.update("UPDATE ql_camp_reflection SET status=?,display_excerpt=?,display_note=?,sort_order=?,revision=revision+1,updated_at=? WHERE id=?",next,excerpt,displayNote,order,now,id);log(id,action,revision+1,operator,now,reviewJson);
  }
 
  private Map<String,Object> ownedRegistration(String customer,String registration,boolean lock) {
   List<Map<String,Object>> sessions=db.queryForList("SELECT session_id AS sessionId FROM ql_registration WHERE id=? AND customer_id=?"+(lock?" FOR UPDATE":""),registration,customer);
   if(sessions.isEmpty())throw new CustomException("只能保存本人参加期次的心声",403);
-  List<Map<String,Object>> owners=db.queryForList(OWNER_SQL,customer,sessions.get(0).get("sessionId"));
+  List<Map<String,Object>> owners=db.queryForList(OWNER_SQL+" AND r.id=?",customer,sessions.get(0).get("sessionId"),registration);
   if(owners.isEmpty())throw new CustomException("报名不存在",403);return owners.get(0);
  }
  static boolean canWrite(Map<String,Object> row,String phase,LocalDateTime now) {
@@ -139,9 +161,55 @@ public class QlCampReflectionService {
  static String validateNote(String raw) {String note=raw==null?"":raw.trim();if(note.isEmpty()||note.codePointCount(0,note.length())>150)throw new CustomException("请留下一至150字的心声",400);return note;}
  static String prefix(String s,int count){return s.substring(0,s.offsetByCodePoints(0,Math.min(count,s.codePointCount(0,s.length()))));}
  private void log(String id,String action,int rev,Long operator,Date now){db.update("INSERT INTO ql_camp_reflection_log(id,reflection_id,action,revision,operator_id,created_at) VALUES(?,?,?,?,?,?)",UUID.randomUUID().toString(),id,action,rev,operator,now);}
+ private void log(String id,String action,int rev,Long operator,Date now,String reviewJson) {
+  if(reviewJson==null){log(id,action,rev,operator,now);return;}
+  db.update("INSERT INTO ql_camp_reflection_log(id,reflection_id,action,revision,operator_id,created_at,publication_review) VALUES(?,?,?,?,?,?,?)",UUID.randomUUID().toString(),id,action,rev,operator,now,reviewJson);
+ }
+ public Map<String,Object> reviewHistory(String id,Set<String> readableTypes){return publicationReviews.history(id,readableTypes);}
  private String customerId(String token) {
   if(StrUtil.isBlank(token))throw new CustomException("请先登录",401);Object cached=redis.getCacheObject("appToken:"+token);
   if(cached==null)throw new CustomException("登录已失效，请重新登录",401);
   try{return identities.resolve(Long.valueOf(String.valueOf(cached)));}catch(NumberFormatException e){throw new CustomException("登录信息无效",401);}
  }
+ /** Checked before bean validation at the HTTP boundary so old public clients get code 426. */
+ public static void validateSubmissionContract(QlCampReflectionBo bo) {
+  if(!"submit".equals(bo.getAction())&&!(bo.getAction()==null&&Boolean.TRUE.equals(bo.getShareConsent())))return;
+  if(StrUtil.isBlank(bo.getRegistrationId())||StrUtil.isBlank(bo.getPhase())||bo.getRevision()==null||bo.getNote()==null
+    ||bo.getAction()==null||!Boolean.FALSE.equals(bo.getAnonymous())||bo.getShareConsent()==null
+    ||"after".equals(bo.getPhase())&&(StrUtil.isBlank(bo.getOriginalVersion())||bo.getSource()==null))
+   throw new CustomException("请升级小程序后使用统一编辑器实名发表，并明确授权公开",426);
+ }
+ // Called inside save's transaction: registration -> original -> public snapshot.
+ private Map<String,Object> saveAfter(String token,String customer,Map<String,Object> owner,QlCampReflectionBo bo) {
+  if(bo.getOriginalVersion()==null||bo.getSource()==null)throw new CustomException("请升级小程序后使用统一感受编辑器",426);
+  boolean submit="submit".equals(bo.getAction());
+  if(!submit&&!"private".equals(bo.getAction()))throw new CustomException("保存方式无效",400);
+  String note=bo.getNote()==null?"":bo.getNote().trim();
+  QlExperienceOriginalService.validateNewNote(note);
+  String author=Objects.toString(owner.get("authorName"),"").trim();
+  if(submit) {
+   validateNote(note);
+   if(!Boolean.TRUE.equals(bo.getShareConsent()))throw new CustomException("分享需要本人明确同意",400);
+   if(author.isEmpty())throw new CustomException("请先完善轻生活小名",400);
+  }
+  Map<String,Object> original=originals.read(customer,bo.getRegistrationId(),true);
+  if(!originals.version(original).equals(bo.getOriginalVersion()))throw new CustomException("私人原稿已变化，请重新读取后选择",409);
+  List<Map<String,Object>> rows=db.queryForList("SELECT id,revision,draft_note AS note FROM ql_camp_reflection WHERE registration_id=? AND phase='after' AND customer_id=? FOR UPDATE",bo.getRegistrationId(),customer);
+  Map<String,Object> old=rows.isEmpty()?null:rows.get(0);
+  int revision=old==null?0:((Number)old.get("revision")).intValue();
+  if(!Integer.valueOf(revision).equals(bo.getRevision()))throw new CustomException("心声已变化，请重新读取后选择",409);
+  boolean validSource="experience".equals(bo.getSource())?original!=null:"reflection".equals(bo.getSource())?old!=null:"new".equals(bo.getSource())&&original==null&&old==null;
+  if(!validSource)throw new CustomException("请选择已有原稿来源",409);
+  Date now=new Date();
+  originals.save(customer,bo.getRegistrationId(),String.valueOf(owner.get("sessionId")),note,now);
+  if(submit) {
+   String id=old==null?UUID.randomUUID().toString():String.valueOf(old.get("id"));
+   if(old==null)db.update("INSERT INTO ql_camp_reflection(id,registration_id,customer_id,session_id,phase,draft_note,draft_anonymous,created_at,updated_at) VALUES(?,?,?,?,'after','',0,?,?)",id,bo.getRegistrationId(),customer,owner.get("sessionId"),now,now);
+   db.update("UPDATE ql_camp_reflection SET shared_note=?,share_consent=1,share_anonymous=0,shared_author=?,consent_version=?,consent_at=?,status='submitted',display_excerpt=NULL,display_note=NULL,revision=?,updated_at=? WHERE id=?",note,author,CONSENT_VERSION,now,revision+1,now,id);
+   log(id,"submit",revision+1,null,now);
+  }
+  Map<String,Object> result=new LinkedHashMap<>();result.put("context",mine(token,String.valueOf(owner.get("sessionId"))));return result;
+ }
+
+
 }

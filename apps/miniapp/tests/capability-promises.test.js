@@ -8,6 +8,7 @@ const plain = value => JSON.parse(JSON.stringify(value))
 const event = key => ({ currentTarget: { dataset: { key } } })
 
 function fixture(storage = new Map(), business = { enabled: () => false }) {
+  business.isDemo = () => false
   const modals = [], toasts = []
   let failStorage = false
   const wx = {
@@ -109,7 +110,7 @@ test('settings label each switch as local and do not promise server consent chan
   assert.match(privacy, /当前不会发送提醒消息/)
 })
 
-test('successful API registration opens the pending journey with a received-only acknowledgement', async () => {
+test('successful API registration opens the pending result with a received-only acknowledgement', async () => {
   const submissions = []
   const state = plain(require('../utils/store').defaultState())
   const activity = { ...require('../data/demo').activities[0], id: 'session-test', days: [] }
@@ -126,9 +127,11 @@ test('successful API registration opens the pending journey with a received-only
   const page = f.page('camp-flow')
   page.setData({ activity, state, draft: { serviceConsent: true, contactName: '测试轻友', contactPhone: '13800000000',
     participants: [{ id: 'person-self', name: '测试轻友', selected: true, phone: '' }] } })
+  business.registrationQuote = async payload => ({participants:payload.participants.map((p,index)=>({index,friendType: 'new',unitPrice: '3800.00'})),quotedAmount:3800*payload.participants.length})
+  await page.loadQuote()
   await page.submitRegistration()
   assert.equal(submissions.length, 1)
-  assert.equal(page.data.view, 'journey')
+  assert.equal(page.data.view, 'success')
   assert.equal(page.data.registration.status, 'pending')
   assert.equal(page.data.submitting, false)
   assert.deepEqual(f.toasts.map(value => value.title), ['报名已收到'])
@@ -138,7 +141,7 @@ test('success and actual pending journey direct users to status lookup without p
   const source = fs.readFileSync(path.join(root, 'pages/camp-flow/index.wxml'), 'utf8')
   for (const view of ['success', 'journey']) {
     const section = source.split('<block wx:elif="{{view === \'' + view + '\'}}">')[1].split('</block>')[0]
-    assert.match(section, /wx:if="{{(?:state\.)?registration\.status === 'pending'}}" class="privacy-note">请返回轻体营查看本期报名状态，或联系工作人员确认。当前不会自动发送确认通知。/)
+    assert.match(section, /wx:if="{{(?:state\.)?registration\.status === 'pending'}}" class="privacy-note">请返回清体营查看本期报名状态，或联系工作人员确认。当前不会自动发送确认通知。/)
     assert.doesNotMatch(section, /确认后将通知你|确认后会通知|将自动通知|会自动通知/)
   }
 })

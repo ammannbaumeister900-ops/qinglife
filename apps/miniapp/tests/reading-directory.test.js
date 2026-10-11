@@ -6,7 +6,8 @@ function page(api, navigation = {}) {
   vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../pages/content/index.js'),'utf8'), {
     Page: value => { result=value }, setTimeout,clearTimeout,
     require: id => id.includes('reading-samples') ? [{id:'demo-only',title:'Demo',summary:'Demo',category:'Demo'}]
-      : id.includes('runtime') ? {environment:'staging'} : id.includes('business-api') ? api : navigation
+      : id.includes('runtime') ? {environment:'staging'} : id.includes('business-api') ? api
+        : id.includes('article-rich-text') ? require('../utils/article-rich-text') : navigation
   })
   result.data=JSON.parse(JSON.stringify(result.data));result.setData=patch=>Object.assign(result.data,patch);return result
 }

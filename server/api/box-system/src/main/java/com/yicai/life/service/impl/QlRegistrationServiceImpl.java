@@ -72,10 +72,12 @@ public class QlRegistrationServiceImpl
         entity.setId(UUID.randomUUID().toString());
         entity.setRegistrationStatus(StrUtil.blankToDefault(entity.getRegistrationStatus(), "pending"));
         validateRegistrationStatus(entity.getRegistrationStatus());
+        if ("confirmed".equals(entity.getRegistrationStatus())) throw new CustomException("缴费核验后的报名确认尚未接通，不能新增已确认报名",400);
         entity.setPaymentStatus("unpaid");
         entity.setRegistrationSource(StrUtil.blankToDefault(entity.getRegistrationSource(), "web_admin"));
         if ("cancelled".equals(entity.getRegistrationStatus())) throw new CustomException("不能新增已取消报名",400);
-        policy.admit(bo.getSessionId(), "waitlisted".equals(entity.getRegistrationStatus()) ? 0 : 1, true);
+        policy.admit(bo.getSessionId(), 0, true);
+        policy.requireNoActiveRegistration(bo.getCustomerId(), bo.getSessionId());
         com.yicai.life.domain.QlSession session = sessionMapper.selectById(bo.getSessionId());
         if (session == null) throw new CustomException("期次不存在", 400);
         entity.setUnitPrice(pricing.price(bo.getCustomerId(), session.getStandardPrice(), session.getReturningPrice()));
@@ -111,7 +113,7 @@ public class QlRegistrationServiceImpl
         String next = StrUtil.blankToDefault(bo.getRegistrationStatus(),current.getRegistrationStatus());
         policy.transition(current.getId(),current.getRegistrationStatus(),next,current.getPaymentStatus(),current.getBatchId());
         if (!next.equals(current.getRegistrationStatus()) && Arrays.asList("pending","confirmed").contains(next))
-            policy.admit(current.getSessionId(), "waitlisted".equals(current.getRegistrationStatus()) ? 1 : 0, false);
+            policy.admit(current.getSessionId(), 0, false);
         QlRegistration entity = BeanUtil.toBean(bo, QlRegistration.class);
         entity.setCustomerId(null);
         entity.setSessionId(null);
@@ -166,6 +168,8 @@ public class QlRegistrationServiceImpl
             if (current == null || !"confirmed".equals(current.getRegistrationStatus())) throw new CustomException("请先确认报名", 400);
         }
         QlRegistrationVo current = registrationMapper.selectVoById(id);
+        if(transactionMapper.countUnallocatedReceipts(id,StrUtil.emptyToNull(snapshot.getBatchId()))>0)
+            throw new CustomException("已有待处理到账记录，请通过收款记录核查，不能重复记账",409);
         String paid = StrUtil.blankToDefault(current.getBatchPaymentStatus(), current.getPaymentStatus());
         if ("paid".equals(paid)) throw new CustomException("付款已确认，请刷新后查看", 409);
         if (!Objects.equals(StrUtil.emptyToNull(bo.getExpectedSettlementId()), StrUtil.emptyToNull(current.getCurrentSettlementId())))
@@ -216,6 +220,7 @@ public class QlRegistrationServiceImpl
             }
             Integer balanceAfter = null;
             if ("pass".equals(bo.getSettlementType())) {
+                policy.requirePaidCapacity(snapshot.getSessionId(), participants.stream().map(QlRegistration::getId).collect(java.util.stream.Collectors.toList()));
                 balanceAfter = passService.consume(bo.getPassAccountId(), String.valueOf(batch.get("buyerCustomerId")),
                         snapshot.getSessionId(), null, snapshot.getBatchId(), settlementId,
                         bo.getPassUnits(), bo.getNote(), operatorId, now);
@@ -241,6 +246,7 @@ public class QlRegistrationServiceImpl
         }
         Integer balanceAfter = null;
         if ("pass".equals(bo.getSettlementType())) {
+            policy.requirePaidCapacity(current.getSessionId(), java.util.Collections.singletonList(id));
             balanceAfter = passService.consume(bo.getPassAccountId(), current.getCustomerId(), current.getSessionId(),
                     id, null, settlementId, bo.getPassUnits(), bo.getNote(), operatorId, now);
         }
@@ -438,6 +444,7 @@ public class QlRegistrationServiceImpl
             return true;
         }
         if ("paid".equals(bo.getPaymentStatus())) {
+            if(transactionMapper.countUnallocatedReceipts(id,null)>0)throw new CustomException("已有待处理到账记录，请先人工核查",409);
             if (!"confirmed".equals(current.getRegistrationStatus())) {
                 throw new CustomException("请先确认报名", 400);
             }
@@ -445,10 +452,13 @@ public class QlRegistrationServiceImpl
             if (quote == null || !"confirmed".equals(quote.getSettlementStatus())) throw new CustomException("请先确认最终结算结果", 400);
             if (!"money".equals(quote.getSettlementType())) throw new CustomException("卡次结算不能登记现金收款", 400);
             validateFullPayment(bo, quote.getFinalAmount());
+            policy.requirePaidCapacity(current.getSessionId(), java.util.Collections.singletonList(id));
         } else if (StrUtil.isBlank(bo.getChangeReason())) {
             throw new CustomException("撤销已付款必须填写原因", 400);
         }
 
+        if ("unpaid".equals(bo.getPaymentStatus()) && transactionMapper.countReceiptedPayment(id,null)>0)
+            throw new CustomException("已核实的到账事实不能通过撤销付款登记抹除，请人工核对退款事实",409);
         Date now = new Date();
         int rows = registrationMapper.updatePaymentStatus(id, current.getPaymentStatus(),
                 bo.getPaymentStatus(), operatorId, now);
@@ -500,6 +510,7 @@ public class QlRegistrationServiceImpl
             return true;
         }
         if ("paid".equals(bo.getPaymentStatus())) {
+            if(transactionMapper.countUnallocatedReceipts(null,batchId)>0)throw new CustomException("已有待处理到账记录，请先人工核查",409);
             List<QlRegistration> participants = registrationMapper.selectBatchRegistrationsForUpdate(batchId);
             if (participants.isEmpty()) throw new CustomException("报名订单没有参与人", 400);
             for (QlRegistration participant : participants) {
@@ -511,10 +522,13 @@ public class QlRegistrationServiceImpl
             if (!"money".equals(String.valueOf(batch.get("settlementType")))) throw new CustomException("卡次结算不能登记现金收款", 400);
             Object amount = batch.get("finalAmount");
             validateFullPayment(bo, amount == null ? null : new BigDecimal(amount.toString()));
+            policy.requirePaidCapacity(sessionId, participants.stream().map(QlRegistration::getId).collect(java.util.stream.Collectors.toList()));
         } else if (StrUtil.isBlank(bo.getChangeReason())) {
             throw new CustomException("撤销已付款必须填写原因", 400);
         }
 
+        if ("unpaid".equals(bo.getPaymentStatus()) && transactionMapper.countReceiptedPayment(null,batchId)>0)
+            throw new CustomException("已核实的到账事实不能通过撤销付款登记抹除，请人工核对退款事实",409);
         Date now = new Date();
         int rows = registrationMapper.updateBatchPaymentStatus(batchId, currentStatus,
                 bo.getPaymentStatus(), operatorId, now);
