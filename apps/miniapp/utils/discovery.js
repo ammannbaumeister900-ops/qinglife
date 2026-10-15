@@ -2,6 +2,8 @@ const domain = require('./domain')
 function activities(list) {
   const today = domain.localDate()
   return list.filter(a => a.sourceStatus !== 'draft').map(a => {
+    if (a.stateContractVersion != null) return { ...a, canRegister: domain.activityState(a).canRegister }
+    // Legacy/demo records keep their existing fallback until the read contract is available.
     const beforeOpen = a.registrationOpenAt && today < String(a.registrationOpenAt).slice(0, 10)
     const afterClose = a.registrationCloseAt && today > String(a.registrationCloseAt).slice(0, 10)
     const ended = a.endDate && today > a.endDate

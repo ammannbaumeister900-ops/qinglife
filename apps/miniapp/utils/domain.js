@@ -54,6 +54,8 @@ function localDate(now = new Date()) {
 }
 function activityState(activity) {
   if (!activity) return { label: '暂无活动', tone: 'disabled', canRegister: false }
+  const readState = require('./session-state').availability(activity)
+  if (readState) return readState
   const closed = ['已取消', '已结束', '已满'].includes(activity.status)
   return {
     label: activity.status === '已取消' || activity.status === '已结束' ? activity.status : activity.status === '候补中' ? '候补中' : activity.seatsLeft === 0 ? '已满' : activity.statusTone === 'planned' ? '尚未开放' : activity.seatsLeft > 0 ? '余 ' + activity.seatsLeft + ' 席' : activity.status,

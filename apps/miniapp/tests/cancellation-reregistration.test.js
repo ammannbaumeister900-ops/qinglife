@@ -67,7 +67,7 @@ test('real API context keeps own cancellation separate from active companions an
  {registrationId:'valid-family',customerId:'family',isSelf:0,sessionId:'s',batchId:'old-order',registrationStatus:'pending',activeRegistration:1,registeredAt:'2026-10-10'}]
  const wx={getStorageSync:()=> 'synthetic-token',request:o=>o.success({statusCode:200,data:{code:200,data:o.url.endsWith('/sessions')?[session]:o.url.endsWith('/sessions/s')?session:{customerId:'owner',profile:{nickname:'本人'},registrations:rows}}})}
  const factory=vm.runInNewContext('(function(require,module,exports){'+fs.readFileSync(path.join(root,'services/business-api.js'),'utf8')+'\n})',{wx})
- factory(id=>id.includes('runtime')?{environment:'staging',businessBaseUrl:'https://synthetic.invalid'}:id.includes('registration-history')?history:{getState:()=>({})},module,module.exports)
+ factory(id=>id.includes('runtime')?{environment:'staging',businessBaseUrl:'https://synthetic.invalid'}:id.includes('session-state')?require('../utils/session-state'):id.includes('registration-history')?history:{getState:()=>({})},module,module.exports)
  let context=await module.exports.context('s'),reg=context.state.registrations.s
  assert.equal(reg.status,'cancelled');assert.equal(reg.participants.find(p=>p.id==='family').status,'pending');assert.equal(reg.canReapply,true);assert.equal(reg.mixedOrders,true)
  const view=require('../utils/camp-arrangements-presentation').present([{...reg,activity:context.activity}],reg,context.overview)

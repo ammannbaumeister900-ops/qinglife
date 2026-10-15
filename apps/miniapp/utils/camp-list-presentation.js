@@ -11,7 +11,7 @@ const FILTERS = [
 // Consume discovery's result; do not decide admission or change its order.
 function group(activity) {
   if (activity.canRegister) return 'open'
-  if (activity.status === '尚未开放') return 'planned'
+  if (activity.registrationWindowState === 'not_open' || activity.status === '尚未开放') return 'planned'
   if (activity.status === '已结束') return 'ended'
   return 'other'
 }

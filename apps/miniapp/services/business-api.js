@@ -122,6 +122,7 @@ function request(path, method = 'GET', data, auth = true, timeout = 10000, expec
     }))
   })
 }
+const sessionState = require('../utils/session-state')
 function activity(raw) {
   const statuses = { open: '开放报名', in_progress: '进行中', completed: '已结束', cancelled: '已取消', closed: '已关闭', draft: '未发布' }
   const seats = Math.max(0, Number(raw.capacity) - Number(raw.registeredCount || 0))
@@ -130,9 +131,10 @@ function activity(raw) {
     seatsLeft: seats, fee: raw.standardPrice, returningFee: raw.returningPrice, place: raw.venue || '', leader: raw.leaderName || '', theme: raw.theme || raw.name, cover: raw.coverUrl || '',
     suitedFor: [], talkFirst: ['如有身体或饮食方面的顾虑，请先与工作人员沟通。'],
     rules: { change: raw.cancelPolicy || '改期与取消请联系工作人员确认。', body: '出现不适可以暂停，并告知工作人员。', privacy: '个人感受仅自己可见，不会随邀请分享。' },
-    days: (raw.days || []).map(day => ({ ...day, label: '第' + day.dayNo + '天', time: [day.startTime,day.endTime].filter(Boolean).join('—') })) }
+    days: (raw.days || []).map(day => ({ ...day, label: '第' + day.dayNo + '天', time: [day.startTime,day.endTime].filter(Boolean).join('—') })),
+    publicListed: false, ...sessionState.fromApi(raw) }
 }
-async function sessions() { return (await request('/sessions', 'GET', null, false)).map(activity) }
+async function sessions() { return (await request('/sessions', 'GET', null, false)).map(raw => ({ ...activity(raw), publicListed: true })) }
 function normalizeHabit(raw) {
   return raw ? { ...raw, paused: raw.status === 'paused', completedDays: raw.completedDays || [] }
     : { id: '', planLength: 14, currentDay: 1, status: 'none', paused: false, completedDays: [], canRecordToday: false }

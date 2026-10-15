@@ -1,0 +1,37 @@
+<ql-nav-space id="about-nav" title="了解轻生活" back />
+<view class="about-page" style="--about-font-scale:{{fontScale}};">
+  <view class="about-intro" id="about-entry">
+    <view class="about-title about-serif">{{entry.title}}</view><view class="about-body about-intro-copy">{{entry.intro}}</view>
+  </view>
+  <view wx:if="{{founders}}" class="about-origin" id="about-founders">
+    <view class="about-origin-kicker">{{founders.peopleLabel}}</view><view class="about-heading about-serif">{{founders.title}}</view>
+    <view wx:if="{{founders.photo && !failedImages[founders.photo.id]}}" class="about-archive-photo"><image src="{{founders.photo.url}}" class="about-archive-image" mode="widthFix" data-id="{{founders.photo.id}}" binderror="imageFailed" aria-label="{{founders.photo.alt}}" /><view wx:if="{{founders.photo.caption}}" class="about-caption">{{founders.photo.caption}}</view></view>
+    <view wx:elif="{{founders.archivePlaceholder}}" class="about-photo-slot" role="img" aria-label="{{founders.archivePlaceholder.alt}}"><view class="about-caption">{{founders.archivePlaceholder.label}}</view><view class="about-heading about-serif">{{founders.archivePlaceholder.title}}</view><view class="about-caption">{{founders.archivePlaceholder.state}}</view></view>
+    <view wx:for="{{founders.paragraphs}}" wx:key="*this" class="about-body about-origin-paragraph">{{item}}</view>
+    <view class="about-body about-origin-foot">{{founders.startOfCamps}}</view>
+  </view>
+  <view class="about-everyday" id="about-everyday">
+    <view class="about-experience-head"><view class="about-heading about-serif">{{everyday.title}}</view><view class="about-body about-experience-lead">{{everyday.lead}}</view></view>
+    <view wx:if="{{everyday.photo && !failedImages[everyday.photo.id]}}" class="about-experience-photo"><image class="about-experience-image" src="{{everyday.photo.url}}" mode="aspectFill" data-id="{{everyday.photo.id}}" binderror="imageFailed" aria-label="{{everyday.photo.alt}}" /><view wx:if="{{everyday.photo.caption}}" class="about-caption">{{everyday.photo.caption}}</view></view>
+    <view class="about-experience-copy"><view class="about-subheading">{{everyday.heading}}</view><view class="about-body about-experience-body">{{everyday.body}}</view></view>
+    <view class="about-continuation"><view class="about-subheading about-serif">{{everyday.continuationHeading}}</view><view class="about-body about-continuation-body">{{everyday.continuation}}</view></view>
+  </view>
+  <view id="about-story-evidence">
+    <view wx:if="{{story}}" class="about-story">
+      <view class="about-story-head"><view class="about-caption">{{story.label}}</view><view class="about-heading about-serif">{{story.heading}}</view></view>
+      <view wx:if="{{story.portrait && !failedImages[story.portrait.id]}}" class="about-portrait"><image class="about-portrait-image" src="{{story.portrait.url}}" mode="widthFix" data-id="{{story.portrait.id}}" binderror="imageFailed" aria-label="{{story.portrait.alt}}" /><view wx:if="{{story.portrait.caption}}" class="about-caption">{{story.portrait.caption}}</view></view>
+      <view class="about-person"><view class="about-person-name about-serif">{{story.name}}</view><view class="about-person-history">{{story.historyText}}</view><view class="about-body about-person-intro">{{story.intro}}</view><view class="about-person-quote about-serif">“{{story.quote}}”</view><view class="about-quote-source">{{story.attribution}}</view></view>
+      <view class="about-story-after"><view class="about-body">{{story.after}}</view><view class="about-closing-quote about-serif">“{{story.closingQuote}}”</view><view class="about-caption about-experience-notice">{{story.experienceNotice}}</view><button wx:if="{{story.articleUrl}}" class="about-full-story" bindtap="openFullStory"><text>阅读完整故事</text><text>→</text></button></view>
+    </view>
+    <view wx:if="{{history}}" class="about-history">
+      <view class="about-history-pair"><view><view class="about-history-number">{{history.foundedYear}}年</view><view class="about-caption">轻生活创办</view></view><view><view class="about-history-number">{{history.campsLabel}}</view><view class="about-caption">累计举办清体营</view></view></view>
+      <view wx:if="{{stats}}" class="about-ratio"><view class="about-ratio-top"><text class="about-ratio-number">{{stats.percent}}%</text><text class="about-caption">{{stats.returningOccurrences}} / {{stats.participantOccurrences}} 人次</text></view><view class="about-ratio-heading">{{stats.year}}年老轻友参营人次占比</view><view class="about-ratio-bar" role="img" aria-label="{{stats.year}}年{{stats.participantOccurrences}}参营人次中，{{stats.returningOccurrences}}人次来自老轻友，占{{stats.percent}}%"><view style="width:{{stats.percent}}%;"></view></view><view class="about-body">全年{{stats.campCount}}期，共{{stats.participantOccurrences}}参营人次，<text class="about-line-break">其中{{stats.returningOccurrences}}为老轻友参营人次。</text></view><view class="about-body about-definition">{{stats.definition}}</view></view>
+    </view>
+  </view>
+  <view class="about-transparent" id="about-transparency"><view class="about-heading about-serif">{{transparency.title}}</view><view class="about-body about-transparent-intro">{{transparency.intro}}</view>
+    <view class="about-facts"><view wx:for="{{transparency.participation}}" wx:key="label" class="about-fact-row"><view class="about-caption about-fact-label">{{item.label}}</view><view class="about-body about-fact-text"><block wx:if="{{item.parts}}"><text wx:for="{{item.parts}}" wx:for-item="part" wx:key="text" class="{{part.emphasis ? 'about-emphasis' : ''}}">{{part.text}}</text></block><text wx:else>{{item.text}}</text></view></view></view>
+    <view class="about-risk"><view class="about-risk-heading">{{transparency.riskTitle}}</view><view wx:for="{{transparency.risks}}" wx:key="*this" class="about-body about-risk-paragraph">{{item}}</view></view>
+  </view>
+  <view class="about-endnote about-serif">{{transparency.endnote}}</view>
+</view>
+<view class="about-actions" style="--about-font-scale:{{fontScale}};"><button class="about-share" open-type="share">分享给朋友</button><button class="about-primary" bindtap="learnRegistration">了解报名</button></view>

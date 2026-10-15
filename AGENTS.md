@@ -75,6 +75,6 @@ mvn --batch-mode --no-transfer-progress -pl box-web -am test
 
 ## Qinglife Design Skill 版本源
 
-- 仓库内 `docs/design/qinglife-design/SKILL.md` 是 `qinglife-design` 的唯一版本化源（canonical source），设计规则以该文件为准。
-- 外部已安装 Skill 仅作为运行副本，不作为独立规则源。
-- 后续修改外部 Skill 时必须同步回仓库版本，并确保两份内容一致；常规更新优先修改仓库内源文件，再同步到外部运行副本。
+- 正式采用 `qinglife-design` V2。仓库内 `docs/design/qinglife-design/`（含 `SKILL.md`、`references/`、`tools/`）是唯一版本化源（canonical source），设计规则与引用文件以该完整包为准。
+- Codex 自动发现入口为 `.agents/skills/qinglife-design`；工作区上级目录的同名入口及外部 `F:/轻生活项目/轻生活/qinglife-design` 均为指向上述规范源的目录联接，不维护独立副本。新会话可用 `$qinglife-design` 显式调用，或按描述自动触发。
+- 后续只修改仓库内完整 Skill 包；目录联接即时共享同一内容。备份、评审输入包及历史上下文资料包不是活动版本，不从中加载规则或覆盖当前规范源。

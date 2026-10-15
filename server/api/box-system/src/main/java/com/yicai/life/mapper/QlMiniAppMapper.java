@@ -57,7 +57,7 @@ public interface QlMiniAppMapper {
 
     @Select("SELECT s.id, s.session_number AS sessionNumber, s.name, s.theme, s.cover_url AS coverUrl, s.intro, s.start_date AS startDate, " +
             "s.end_date AS endDate, s.capacity, s.standard_price AS standardPrice, s.returning_price AS returningPrice, s.public_venue AS venue, " +
-            "s.city, " + com.yicai.life.service.QlSessionAdmissionPolicy.STATUS_SQL + " AS status, s.registration_confirm_mode AS confirmMode, s.registration_open_at AS registrationOpenAt, " +
+            "s.city, s.status AS configuredStatus, TIMESTAMPDIFF(MICROSECOND,'1970-01-01 00:00:00',UTC_TIMESTAMP(3)) DIV 1000 AS stateClockMillis, " + com.yicai.life.service.QlSessionAdmissionPolicy.STATUS_SQL + " AS status, s.registration_confirm_mode AS confirmMode, s.registration_open_at AS registrationOpenAt, " +
             "s.registration_close_at AS registrationCloseAt, s.leader_name AS leaderName, s.cancel_policy AS cancelPolicy, " +
             "(SELECT COUNT(*) FROM ql_registration r LEFT JOIN ql_registration_batch b ON b.id=r.batch_id WHERE r.session_id=s.id AND " + com.yicai.life.service.QlRegistrationPolicy.PAID_SEAT_SQL + ") AS registeredCount " +
             "FROM ql_session s WHERE s.status IN ('open','in_progress') ORDER BY s.start_date ASC")
@@ -225,7 +225,7 @@ public interface QlMiniAppMapper {
                            @Param("grantedAt") Date grantedAt, @Param("revokedAt") Date revokedAt,
                            @Param("now") Date now);
 
-    @Select("SELECT s.id, s.session_number AS sessionNumber, s.name, s.theme, s.cover_url AS coverUrl, s.intro, s.start_date AS startDate, s.end_date AS endDate, s.capacity, s.standard_price AS standardPrice, s.returning_price AS returningPrice, s.public_venue AS venue, s.city, s.status AS configuredStatus, " + com.yicai.life.service.QlSessionAdmissionPolicy.STATUS_SQL + " AS status, s.registration_confirm_mode AS confirmMode, s.registration_open_at AS registrationOpenAt, s.registration_close_at AS registrationCloseAt, s.leader_name AS leaderName, s.cancel_policy AS cancelPolicy, (SELECT COUNT(*) FROM ql_registration r LEFT JOIN ql_registration_batch b ON b.id=r.batch_id WHERE r.session_id=s.id AND " + com.yicai.life.service.QlRegistrationPolicy.PAID_SEAT_SQL + ") AS registeredCount FROM ql_session s WHERE s.id=#{id} AND s.status<>'draft'")
+    @Select("SELECT s.id, s.session_number AS sessionNumber, s.name, s.theme, s.cover_url AS coverUrl, s.intro, s.start_date AS startDate, s.end_date AS endDate, s.capacity, s.standard_price AS standardPrice, s.returning_price AS returningPrice, s.public_venue AS venue, s.city, s.status AS configuredStatus, TIMESTAMPDIFF(MICROSECOND,'1970-01-01 00:00:00',UTC_TIMESTAMP(3)) DIV 1000 AS stateClockMillis, " + com.yicai.life.service.QlSessionAdmissionPolicy.STATUS_SQL + " AS status, s.registration_confirm_mode AS confirmMode, s.registration_open_at AS registrationOpenAt, s.registration_close_at AS registrationCloseAt, s.leader_name AS leaderName, s.cancel_policy AS cancelPolicy, (SELECT COUNT(*) FROM ql_registration r LEFT JOIN ql_registration_batch b ON b.id=r.batch_id WHERE r.session_id=s.id AND " + com.yicai.life.service.QlRegistrationPolicy.PAID_SEAT_SQL + ") AS registeredCount FROM ql_session s WHERE s.id=#{id} AND s.status<>'draft'")
     Map<String, Object> selectSessionDetail(@Param("id") String id);
 
     @Insert("INSERT INTO ql_invitation(code,session_id,owner_customer_id,source,created_at) VALUES(#{code},#{sessionId},#{ownerId},#{source},#{now})")

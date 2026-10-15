@@ -57,6 +57,7 @@ public class QlMiniAppServiceImpl implements IQlMiniAppService {
         for (Map<String, Object> session : sessions) {
             session.put("days", daysBySession.getOrDefault(String.valueOf(session.get("id")), Collections.emptyList()));
             session.put("coverUrl", publicMediaUrl(session.get("coverUrl")));
+            com.yicai.life.service.QlSessionReadState.apply(session, admissionPolicy);
         }
         return sessions;
     }
@@ -376,6 +377,7 @@ public class QlMiniAppServiceImpl implements IQlMiniAppService {
         if (session == null) throw new CustomException("活动不存在或未发布", 404);
         session.put("coverUrl", publicMediaUrl(session.get("coverUrl")));
         session.put("days", miniAppMapper.selectSessionDays(sessionId));
+        com.yicai.life.service.QlSessionReadState.apply(session, admissionPolicy);
         return session;
     }
 

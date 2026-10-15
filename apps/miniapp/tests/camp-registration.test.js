@@ -20,7 +20,7 @@ test('business context maps real nickname without falling back to real name', as
   const module = { exports: {} }
   vm.runInNewContext('(function(require,module,exports){' + fs.readFileSync(path.join(root,'services/business-api.js'),'utf8') + '\n})', {
     wx: { getStorageSync: () => 'fixture-token', request: options => options.success({statusCode:200,data:{code:200,data: options.url.endsWith('/sessions') ? [{id:'s',startDate:'2099-01-01',endDate:'2099-01-03',status:'open',capacity:5}] : {customerId:'own',profile:{name:'真实姓名',nickname,phone:'13800000001'},registrations:[{sessionId:'s',isSelf:1,participantName:'真实姓名',registrationStatus:'pending'}]}}}) }
-  })(id => id.includes('runtime') ? {environment:'staging',businessBaseUrl:'https://example.test'} : id.includes('registration-history') ? require('../utils/registration-history') : {getState:()=>({})},module,module.exports)
+  })(id => id.includes('runtime') ? {environment:'staging',businessBaseUrl:'https://example.test'} : id.includes('session-state') ? require('../utils/session-state') : id.includes('registration-history') ? require('../utils/registration-history') : {getState:()=>({})},module,module.exports)
   let result = await module.exports.context()
   assert.equal(result.state.profile.nickname,'小禾'); assert.equal(result.state.profile.name,'真实姓名'); assert.equal(result.state.registrations.s.participants[0].name,'小禾')
   nickname = ''

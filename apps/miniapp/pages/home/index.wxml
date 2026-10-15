@@ -1,85 +1,67 @@
 <launch-splash />
 <ql-nav-space brand="{{true}}" />
-<view class="page home-page">
+<view class="page home-page" style="--home-font-scale:{{fontScale}};">
+  <view class="home-motion-probe" aria-hidden="true"></view>
+  <view class="welcome-block">
+    <view class="welcome-opening">
+      <view class="welcome-title">{{brand.openingLine}}<text class="welcome-title-serif">{{brand.openingInvitation}}</text></view>
+      <view class="welcome-copy">{{brand.openingCopy}}</view>
+    </view>
+    <view wx:if="{{brand.heroUrl && !failedImages[brand.heroUrl]}}" class="home-hero">
+      <image class="home-hero-image" src="{{brand.heroUrl}}" mode="aspectFill" data-src="{{brand.heroUrl}}" binderror="imageFailed" aria-label="轻生活导游，从左至右为军军、公主、大海" />
+      <view class="home-photo-caption">{{brand.heroCaption}}</view>
+    </view>
+  </view>
   <view wx:if="{{refreshing}}" class="refresh-note">正在更新…</view>
-  <view wx:if="{{loading}}" class="empty-state">正在读取…</view>
+  <view wx:if="{{loading}}" class="empty-state">正在读取近期安排…</view>
   <view wx:if="{{loadError}}" class="empty-state">{{loadError}}<button class="text-button" bindtap="onShow">重试</button></view>
   <block wx:if="{{!loading && !loadError}}">
     <view wx:if="{{cancellationNotice}}" class="cancellation-notice">
       <button class="cancellation-link" bindtap="openCancellation"><text class="cancellation-icon" aria-hidden="true">○</text><text>{{cancellationNotice.label}} · <text class="cancellation-action">查看详情</text></text></button>
       <button class="cancellation-close" bindtap="dismissCancellation" aria-label="关闭本次报名取消通知">×</button>
     </view>
-    <view wx:if="{{state.loggedIn && (showHomeTask || view.route === 'journey' || view.route === 'experience' || view.route === 'habit' || view.route === 'daily')}}" class="home-task">
-      <view class="home-task-context">{{taskContext}}</view>
-      <view class="home-task-title">{{view.title}}</view>
-      <view class="home-task-copy">{{view.copy}}</view>
-      <button class="primary home-task-action" bindtap="openPrimary">{{view.action}}</button>
+    <view wx:if="{{showHomeTask}}" class="home-task">
+      <view class="home-task-copy"><view class="home-task-title">{{view.title}}</view><view class="home-task-context">{{taskContext}}</view></view>
+      <button class="home-task-action" bindtap="openPrimary">{{view.action}} →</button>
     </view>
-    <view wx:else class="welcome-block">
-      <view class="welcome-opening">
-        <view class="welcome-title">有空，<text class="welcome-title-serif">来坐坐。</text></view>
-        <view class="welcome-copy">见见面，也说说最近的日子。</view>
-      </view>
-      <view wx:if="{{brand.heroUrl && !failedImages[brand.heroUrl]}}" class="home-hero">
-        <image class="home-hero-image" src="{{brand.heroUrl}}" mode="widthFix" data-src="{{brand.heroUrl}}" binderror="imageFailed" aria-label="轻生活导游" />
-        <view wx:if="{{brand.heroCaption}}" class="home-photo-caption">{{brand.heroCaption}}</view>
-      </view>
-    </view>
-
     <view class="home-camp">
-      <view class="home-section-head home-camp-meta"><text class="index-label">近期清体营</text><text wx:if="{{featured.sessionNumber}}" class="home-section-note">第 {{featured.sessionNumber}} 期</text></view>
-      <button wx:if="{{featured}}" class="home-camp-entry {{!featured.cover || failedImages[featured.cover] ? 'home-camp-no-image' : ''}}" data-view="detail" bindtap="openActivity" aria-label="{{featured.name}}，查看活动详情">
-        <view class="home-camp-copy">
-          <view class="home-camp-title">{{featured.title}}<text wx:if="{{featured.kind}}" class="home-camp-kind">{{featured.kind}}</text></view>
-          <view class="home-camp-date">{{featured.dateLabel}}<text wx:if="{{featured.city}}"> · {{featured.city}}</text></view>
-          <view wx:if="{{featured.place}}" class="home-camp-place">{{featured.place}}</view>
-          <view class="home-camp-support">{{featured.kind ? '三天，一起吃饭、活动，也好好休息。' : '一起吃饭、活动，也好好休息。'}}</view>
-          <view class="home-camp-footer"><text class="home-camp-detail">查看活动详情</text><text wx:if="{{featured.status}}" class="home-camp-status">{{featured.status}}</text><text aria-hidden="true">↗</text></view>
-        </view>
-        <image wx:if="{{featured.cover && !failedImages[featured.cover]}}" class="home-camp-cover" src="{{featured.cover}}" mode="widthFix" data-src="{{featured.cover}}" binderror="imageFailed" />
-      </button>
-      <button wx:else class="home-camp-entry home-camp-empty" bindtap="openCamp"><text>暂无开放期次</text><text class="home-section-link">全部期次 ↗</text></button>
-    </view>
-
-    <view wx:if="{{stories.length}}" class="home-stories">
-      <view class="home-section-head"><text class="index-label">轻友的轻生活</text></view>
-      <view class="home-section-intro">一些近况，一些各自的日常。</view>
-      <view class="home-story-list">
-        <block wx:for="{{stories}}" wx:key="id">
-          <button wx:if="{{index === 0}}" class="home-story-row home-story-lead {{item.title.length > 20 ? 'home-long-title' : ''}} {{!item.cover || failedImages[item.cover] ? 'home-story-no-image' : ''}}" data-id="{{item.id}}" data-title="{{item.title}}" bindtap="openArticle" aria-label="{{item.title}}，阅读全文">
-            <image wx:if="{{item.cover && !failedImages[item.cover]}}" class="home-story-cover" src="{{item.cover}}" mode="aspectFill" data-src="{{item.cover}}" binderror="imageFailed" />
-            <view class="home-story-copy"><view class="home-story-title">{{item.title}}</view><view wx:if="{{item.summary}}" class="home-story-summary">{{item.summary}}</view><view class="home-story-action">阅读全文</view></view>
-          </button>
-        </block>
-        <scroll-view wx:if="{{stories.length > 1}}" class="home-story-scroll {{stories.length === 2 ? 'home-story-scroll-single' : ''}}" scroll-x="{{stories.length > 2}}" aria-label="轻友故事，左右滑动">
-          <view class="home-story-track">
-            <block wx:for="{{stories}}" wx:key="id">
-              <button wx:if="{{index > 0 && index < 6}}" class="home-story-row home-story-secondary {{item.title.length > 20 ? 'home-long-title' : ''}} {{index % 2 === 0 ? 'home-story-offset' : ''}} {{!item.cover || failedImages[item.cover] ? 'home-story-no-image' : ''}}" data-id="{{item.id}}" data-title="{{item.title}}" bindtap="openArticle" aria-label="{{item.title}}，阅读全文">
-                <image wx:if="{{item.cover && !failedImages[item.cover]}}" class="home-story-cover" src="{{item.cover}}" mode="aspectFill" data-src="{{item.cover}}" binderror="imageFailed" />
-                <view class="home-story-title">{{item.title}}</view>
-                <view wx:if="{{item.summary}}" class="home-story-summary">{{item.summary}}</view>
-                <view class="home-story-action">阅读全文</view>
-              </button>
-            </block>
-          </view>
-        </scroll-view>
+      <view class="home-section-head"><text>近期清体营</text></view>
+      <view wx:if="{{camps[1]}}" class="home-camp-tabs" role="tablist" aria-label="选择营期">
+        <button wx:for="{{camps}}" wx:key="id" role="tab" aria-selected="{{selectedCampId === item.id}}" class="home-camp-tab {{selectedCampId === item.id ? 'selected' : ''}}" data-id="{{item.id}}" bindtap="chooseCamp">{{item.periodLabel}}</button>
       </view>
-      <view class="home-stories-footer"><button class="home-section-link home-more-stories" bindtap="openStories">更多轻友故事</button><text wx:if="{{stories.length > 2}}" class="home-section-note">左右滑动</text></view>
-    </view>
-
-    <view class="home-readings">
-      <view class="home-section-head home-reading-head"><text class="index-label">精选轻读</text><button class="home-section-link" bindtap="openReading">全部轻读 ↗</button></view>
-      <view class="home-section-intro">有空时，读一篇。</view>
-      <view wx:if="{{readingError}}" class="home-reading-message"><view>{{readingError}}</view><button class="text-button" bindtap="onShow">重试</button></view>
-      <view wx:elif="{{featuredReadings.length}}" class="home-reading-list">
-        <block wx:for="{{featuredReadings}}" wx:key="id">
-          <button wx:if="{{index < 2}}" class="home-reading-row {{item.title.length > 18 ? 'home-long-title' : ''}} {{index === 0 ? 'home-reading-lead' : 'home-reading-secondary'}}" data-id="{{item.id}}" data-title="{{item.title}}" bindtap="openArticle" aria-label="{{item.title}}，阅读全文">
-            <view class="home-reading-copy"><view class="home-reading-title">{{item.title}}</view><view wx:if="{{index === 0 && item.summary}}" class="home-reading-summary">{{item.summary}}</view><view wx:if="{{index === 0}}" class="home-reading-action">阅读全文 ↗</view></view>
-            <text wx:if="{{index > 0}}" class="home-entry-arrow" aria-hidden="true">↗</text>
-          </button>
-        </block>
+      <view wx:if="{{featured}}" class="home-camp-entry">
+        <view class="home-camp-meta"><text class="home-camp-title">{{featured.title}}</text><text class="home-camp-status">{{featured.status}}</text></view>
+        <view class="home-camp-date">{{featured.dateLabel}}</view>
+        <view class="home-camp-fact"><text class="home-fact-label">时间</text><text>{{featured.timeLabel}}</text></view>
+        <view class="home-camp-fact"><text class="home-fact-label">地点</text><text>{{featured.placeLabel}}</text></view>
+        <button class="home-camp-detail home-link-row" data-view="detail" bindtap="openActivity">查看课程介绍 <text aria-hidden="true">→</text></button>
       </view>
-      <view wx:else class="home-reading-message">暂时没有可查看的精选轻读，可以前往轻读看看。</view>
+      <view wx:else class="home-camp-entry home-camp-empty"><view>暂无可查看的近期营期。</view><button class="home-link-row" bindtap="openCamp">查看清体营 <text aria-hidden="true">→</text></button></view>
     </view>
   </block>
+  <view wx:if="{{voiceCards.length}}" class="home-voices" bindtouchstart="pauseVoiceReading" bindtouchend="resumeVoiceReading" bindtouchcancel="resumeVoiceReading">
+    <view class="home-section-head"><text>亲友心声</text><text class="home-section-note">生活里的小片段</text></view>
+    <view class="home-voices-intro">来自轻友的原文摘句</view>
+    <view class="home-voice-grid">
+      <button wx:for="{{voiceCards}}" wx:key="id" class="home-voice-card" data-id="{{item.id}}" bindtap="openVoice" bindfocus="pauseVoiceReading" bindblur="resumeVoiceReading" aria-label="{{item.author}}，{{item.excerpt}}，查看摘录">
+        <view class="home-voice-text">{{item.excerpt}}</view><view class="home-voice-meta"><text>{{item.author}}</text><text>查看摘录</text></view>
+      </button>
+    </view>
+    <view wx:if="{{voiceGroups[1]}}" class="home-voice-controls"><text wx:if="{{reducedMotion}}">手动换组</text><button wx:else bindtap="toggleVoicePause" aria-pressed="{{voicePaused}}">{{voicePaused ? '继续换组' : '暂停换组'}}</button><text>{{voiceGroup + 1}} / {{voiceGroups.length}}</text><button bindtap="nextVoices">换一组 →</button></view>
+  </view>
+  <view class="home-discover">
+    <view class="home-section-note">了解轻生活</view><view class="home-discover-title">{{discoverTitle}}</view>
+    <button class="home-link-row" bindtap="about">认识轻生活 <text aria-hidden="true">→</text></button>
+    <view wx:if="{{readingError}}" class="home-reading-message">{{readingError}}<button class="text-button" bindtap="onShow">重试</button></view>
+    <view wx:elif="{{featuredReadings.length}}" class="home-featured"><text class="home-section-note">一篇精选</text><button class="home-reading-row" data-id="{{featuredReadings[0].id}}" data-title="{{featuredReadings[0].title}}" bindtap="openArticle">{{featuredReadings[0].title}}</button></view>
+    <button wx:if="{{stories.length}}" class="home-more-stories" bindtap="openStories">轻友故事 →</button>
+    <button class="home-more-reading" bindtap="openReading">更多文章</button>
+  </view>
+</view>
+<view wx:if="{{expandedVoice}}" class="home-voice-layer" style="--home-font-scale:{{fontScale}};">
+  <view class="home-voice-mask" bindtap="closeVoice" catchtouchmove="retainVoiceDialog"></view>
+  <view class="home-voice-dialog" role="dialog" aria-modal="true" aria-label="原文摘录">
+    <view class="home-voice-dialog-head"><text>{{expandedVoice.author}}的原文摘录</text><button bindtap="closeVoice" aria-label="关闭">×</button></view>
+    <scroll-view scroll-y="{{true}}" class="home-voice-dialog-body"><view class="home-voice-full">“{{expandedVoice.fullExcerpt}}”</view><view class="home-section-note">个人体验，不代表课程疗效。</view></scroll-view>
+  </view>
 </view>

@@ -83,10 +83,11 @@ Page({
         const context = await business.context(id)
         if (!context.activity) throw new Error('活动不存在或未发布')
         const { activity, state, overview } = context
-        const version = this.invitationVersion
         const registration = state.registrations[activity.id] || { activityId: activity.id, status: 'none', participants: [], serviceConsent: false }
         const self = registration.participants.find(person => person.id === 'person-self')
         const scope = business.identityScope ? business.identityScope() : null
+        // Initial guest scope adoption can notify identity listeners before this read begins.
+        const version = this.invitationVersion
         const reflectionAccess = await reflection.readEntry(() => business.campReflection(activity.id, scope), registration, activity)
         if (business.assertIdentity) business.assertIdentity(scope)
         if (version !== this.invitationVersion) return

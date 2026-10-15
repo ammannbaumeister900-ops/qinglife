@@ -44,7 +44,7 @@ assert.ok(!minePage.includes('timeline-title') && !minePage.includes('timeline-n
 assert.ok(!minePage.includes('我的轻习惯') && !minePage.includes('切换演示阶段'), '我的页面不能展示轻习惯或演示控制')
 assert.deepStrictEqual(demoData.participations.map((item) => item.sessionNumber), [501, 357, 100], '一级参与经历需按明确期次展示')
 assert.ok(mineFlowPage.includes('experience-accordion') && mineFlowPage.includes('toggleExperienceDetail'), '二级经历页需折叠展示当天节点')
-assert.ok(homePage.includes('home-camp-entry') && homePage.includes('featuredReadings') && homePage.includes('home-story-list') && homePage.includes('bindtap="openStories"') && !homePage.includes('<swiper'), '首页需保留活动入口、精选轻读和可继续查看的静态轻友故事')
+assert.ok(homePage.includes('home-camp-entry') && homePage.includes('featuredReadings') && homePage.includes('home-voice-grid') && homePage.includes('bindtap="chooseCamp"') && homePage.includes('bindtap="nextVoices"') && homePage.includes('bindtap="openStories"') && !homePage.includes('<swiper'), '首页保留真实营期、原位切换、四卡心声及文章/故事入口')
 assert.ok(campFlowPage.includes('主要联系人') && campFlowPage.includes('手机号（选填）'), '报名需区分可靠联系人和可缺失手机号的参与人')
 assert.ok(campFlowPage.includes('serviceStatus.registration') && campFlowPage.includes('serviceStatus.payment') && !campFlowPage.slice(campFlowPage.indexOf("view === 'journey'"), campFlowPage.indexOf("view === 'feeling'")).includes('bindtap="checkDay"'), '服务页聚焦报名、付款和心声，不提供签到动作')
 assert.ok(minePage.includes('当前剩余') && minePage.includes('卡次消耗记录'), '轻友端需展示当前卡次余额和消耗记录')

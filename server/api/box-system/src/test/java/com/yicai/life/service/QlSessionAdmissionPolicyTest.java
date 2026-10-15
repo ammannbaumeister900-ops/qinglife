@@ -60,6 +60,15 @@ class QlSessionAdmissionPolicyTest {
         assertThrows(CustomException.class, () -> policy.requireNewRegistrationOpen(session, now));
     }
 
+    @Test void readWindowUsesTheSamePreciseDecisionAsTheWriteGate() {
+        Map<String,Object> s=openSession();s.put("registrationCloseAt",LocalDateTime.of(2026,10,15,12,0));
+        Instant close=Instant.parse("2026-10-15T04:00:00Z");
+        assertTrue(policy.registrationWindow(s,close).allowed);
+        assertDoesNotThrow(() -> policy.requireNewRegistrationOpen(s,close));
+        assertEquals("closed",policy.registrationWindow(s,close.plusMillis(1)).state);
+        assertThrows(CustomException.class,() -> policy.requireNewRegistrationOpen(s,close.plusMillis(1)));
+    }
+
     private Map<String,Object> openSession() {
         Map<String,Object> session = new HashMap<>();
         session.put("status", "open");
