@@ -1,4 +1,4 @@
-// Quill HTML stays the storage contract. Only native rich-text nodes leave this adapter.
+// Quill HTML stays the storage contract. Safe rich-text and native video blocks leave this adapter.
 const ALLOWED = new Set('p div span br strong b em i u s del strike h1 h2 h3 h4 h5 h6 ul ol li blockquote pre code img a hr sub sup figure figcaption table thead tbody tfoot tr td th caption'.split(' '))
 const BLOCKED = new Set('script style iframe object embed form input button select textarea svg math template link meta base video audio source'.split(' '))
 const VOID = new Set('br img hr input embed link meta source'.split(' '))
@@ -77,7 +77,7 @@ function parse(html) {
 }
 
 function visible(node) {
-  return node.type === 'text' ? !!node.text.replace(/[\s\u00a0\u200b]/g, '') : node.name === 'img' || node.children.some(visible)
+  return node.type === 'text' ? !!node.text.replace(/[\s\u00a0\u200b]/g, '') : node.type === 'video' || node.name === 'img' || node.children.some(visible)
 }
 
 function arrangeList(node) {
@@ -100,11 +100,58 @@ function arrangeList(node) {
   })
 }
 
+// Lift media out of rich-text while retaining the surrounding paragraph/list/quote structure.
+function mediaBlocks(nodes) {
+  const blocks = []
+  function append(part) {
+    const last = blocks[blocks.length - 1]
+    if (part.type === 'rich' && last && last.type === 'rich') last.nodes.push(...part.nodes)
+    else blocks.push(part)
+  }
+  function split(node) {
+    if (node.type === 'video') return [node]
+    if (!node.children || !node.children.length) return [{ type: 'rich', nodes: [node] }]
+    const parts = [], start = Number(node.attrs.start || 1)
+    let pending = [], itemNumber = start, pendingStart = start, continued = false
+    const flush = () => {
+      if (!pending.length) return
+      const attrs = { ...node.attrs }
+      if (node.name === 'ol') attrs.start = String(pendingStart)
+      if (node.name === 'li' && continued) attrs.style += 'list-style-type:none;'
+      parts.push({ type: 'rich', nodes: [{ ...node, attrs, children: pending }] })
+      pending = []; continued = true
+    }
+    node.children.forEach(child => {
+      split(child).forEach(part => {
+        if (part.type === 'video') { flush(); parts.push(part) }
+        else { if (!pending.length) pendingStart = itemNumber; pending.push(...part.nodes) }
+      })
+      if (child.name === 'li') itemNumber++
+    })
+    flush()
+    return parts
+  }
+  nodes.forEach(node => split(node).forEach(append))
+  return blocks.map((block, i) => block.type === 'video'
+    ? { ...block, id: 'article-video-' + i, failed: !block.src }
+    : { ...block, id: 'article-text-' + i, nodes: [{ name: 'div', attrs: { style: BODY }, children: block.nodes }] })
+}
+
+function nativeVideo(node, baseUrl) {
+  const direct = safeUrl(node.attrs.src, baseUrl)
+  const sources = node.children.filter(n => n.name === 'source')
+    .filter(n => !n.attrs.type || /^video\//i.test(n.attrs.type))
+  sources.sort((a, b) => Number(/^video\/mp4(?:;|$)/i.test(b.attrs.type || '')) - Number(/^video\/mp4(?:;|$)/i.test(a.attrs.type || '')))
+  const src = direct || sources.map(n => safeUrl(n.attrs.src, baseUrl)).find(Boolean) || ''
+  return { type: 'video', src, poster: safeUrl(node.attrs.poster, baseUrl) }
+}
+
 function richText(html, options = {}) {
   const warnings = new Set(), images = []
   function convert(nodes) {
     return nodes.reduce((result, n) => {
       if (n.type === 'text') { result.push(n); return result }
+      if (n.name === 'video') { result.push(nativeVideo(n, options.baseUrl)); return result }
       if (BLOCKED.has(n.name)) {
         if (n.name === 'video' || n.name === 'audio' || n.name === 'iframe') warnings.add('本文包含当前阅读页暂不支持的音视频内容。')
         return result
@@ -148,14 +195,16 @@ function richText(html, options = {}) {
   while (children.length && children[children.length - 1].type === 'text' && !children[children.length - 1].text.trim()) children.pop()
   if (children[0] && children[0].attrs) children[0].attrs.style += 'margin-top:0;'
   const first = children[0]
-  const textOf = n => n.type === 'text' ? n.text : n.children.map(textOf).join('')
+  const textOf = n => n.type === 'text' ? n.text : (n.children || []).map(textOf).join('')
   if (options.story && first && first.name === 'p' && !images.length && textOf(first).trim().length <= 24) {
     // Never split or duplicate source prose to manufacture a lead or a pull quote.
     first.attrs.style += SERIF + 'font-size:23px;line-height:1.8;margin-bottom:27px;'
   }
   const stripInternal = list => list.forEach(n => { delete n.indent; if (n.children) stripInternal(n.children) })
   stripInternal(children)
-  return { nodes: [{ name: 'div', attrs: { style: BODY }, children }], images, warnings: [...warnings] }
+  const hasVideo = list => list.some(n => n.type === 'video' || n.children && hasVideo(n.children))
+  const blocks = hasVideo(children) ? mediaBlocks(children) : [{ type: 'rich', id: 'article-text-0', nodes: [{ name: 'div', attrs: { style: BODY }, children }] }]
+  return { nodes: blocks.filter(b => b.type === 'rich').flatMap(b => b.nodes), blocks, images, warnings: [...warnings] }
 }
 
 module.exports = { richText, safeUrl }

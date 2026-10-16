@@ -12,7 +12,7 @@ const nativeTags = [
   'image',
   'input',
   'picker',
-  'rich-text',
+  'rich-text', 'video',
   'scroll-view',
   'switch',
   'swiper',

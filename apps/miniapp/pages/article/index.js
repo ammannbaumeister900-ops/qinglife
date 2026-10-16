@@ -5,6 +5,7 @@ const demo = require('../../data/demo')
 const business = require('../../services/business-api')
 const runtime = require('../../config/runtime')
 const { presentArticle } = require('../../utils/article-presentation')
+const { routeText, resolveSource } = require('../../utils/article-source')
 
 Page({
   data: {
@@ -15,14 +16,15 @@ Page({
     error: '',
     article: {},
     presentation: {},
-    source: 'demo',
+    source: '',
     collected: false
   },
 
-  onLoad(options) {
-    const id = decodeURIComponent(options.id || '')
-    const routeTitle = decodeURIComponent(options.title || '')
-    const routeSource = ['legacy', 'business'].includes(options.source) ? options.source : ''
+  onLoad(options = {}) {
+    this._unloaded = false
+    const id = routeText(options.id)
+    const routeTitle = routeText(options.title)
+    const routeSource = routeText(options.source)
     this.setData({ id, routeTitle, routeSource })
     return this.loadArticle()
   },
@@ -30,26 +32,56 @@ Page({
   async loadArticle() {
     if (this._articleLoading) return
     this._articleLoading = true
+    this.pauseVideos()
     this.setData({ loading: true, error: '' })
     try {
+      if (!this.data.id) throw new Error('文章链接缺少编号')
       const sample = samples.concat(demo.articles).find(a => String(a.id) === this.data.id)
+      const source = resolveSource(this.data.routeSource, runtime, () => business.enabled(), sample)
       let result
-      if (this.data.routeSource === 'legacy') result = await legacyApi.getArticle(this.data.id)
-      else if (sample) result = { item: sample, source: 'demo' }
-      else if (this.data.routeSource === 'business' || business.enabled()) result = { item: await business.reading(this.data.id), source: 'business' }
-      else result = await legacyApi.getArticle(this.data.id)
+      if (source === 'legacy') {
+        // The old adapter has a demo shortcut; explicit legacy routes must never enter it.
+        if (sample || this.data.id.startsWith('demo-')) throw new Error('历史文章编号无效')
+        result = await legacyApi.getArticle(this.data.id)
+      } else if (source === 'demo') result = { item: sample, source }
+      else result = { item: await business.reading(this.data.id), source }
       if (result.error) throw new Error(result.error)
       const article = result.item || {}
+      if (article.id && String(article.id) !== this.data.id || result.source !== source) throw new Error('未找到可查看的文章')
       if (this.data.routeTitle && article.title === '未命名文章') article.title = this.data.routeTitle
       const collected = await favorites.isCollected(article.id, result.source)
-      this.setData({ article, presentation: presentArticle(article, runtime.businessBaseUrl), source: result.source, collected })
+      if (this._unloaded) return
+      const baseUrl = source === 'legacy' ? runtime.legacyBaseUrl : runtime.businessBaseUrl
+      this.setData({ article, presentation: presentArticle(article, baseUrl), source, collected })
     } catch (error) {
-      this.setData({ error: error.message || '文章暂时无法读取，请重试', article: {}, presentation: {}, collected: false })
+      if (!this._unloaded) this.setData({ error: error.message || '文章暂时无法读取，请重试', article: {}, presentation: {}, source: '', collected: false })
     } finally {
       this._articleLoading = false
-      this.setData({ loading: false })
+      if (!this._unloaded) this.setData({ loading: false })
     }
   },
+
+  pauseVideos(exceptId) {
+    const blocks = this.data.presentation.blocks || []
+    blocks.forEach(block => {
+      if (block.type !== 'video' || block.id === exceptId || !wx.createVideoContext) return
+      try { wx.createVideoContext(block.id, this).pause() } catch (error) { /* Already detached. */ }
+    })
+  },
+
+  onVideoPlay(event) { this.pauseVideos(event.currentTarget.id) },
+  onVideoError(event) {
+    const index = Number(event.currentTarget.dataset.index)
+    const block = (this.data.presentation.blocks || [])[index]
+    if (block && block.type === 'video') this.setData({ ['presentation.blocks[' + index + '].failed']: true })
+  },
+  retryVideo(event) {
+    const index = Number(event.currentTarget.dataset.index)
+    const block = (this.data.presentation.blocks || [])[index]
+    if (block && block.type === 'video' && block.src) this.setData({ ['presentation.blocks[' + index + '].failed']: false })
+  },
+  onHide() { this.pauseVideos() },
+  onUnload() { this._unloaded = true; this.pauseVideos() },
 
   onCoverError() {
     this.setData({ 'presentation.cover': '' })
@@ -72,6 +104,7 @@ Page({
 
   onShareAppMessage() {
     const title = this.data.article.title || '轻生活内容'
-    return { title, path: `/pages/article/index?id=${encodeURIComponent(this.data.id)}&title=${encodeURIComponent(title)}` }
+    if (!this.data.article.id || !this.data.source) return { title: '轻生活', path: '/pages/content/index' }
+    return { title, path: `/pages/article/index?id=${encodeURIComponent(this.data.id)}&title=${encodeURIComponent(title)}&source=${encodeURIComponent(this.data.source)}` }
   }
 })

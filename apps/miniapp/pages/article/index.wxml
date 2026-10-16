@@ -13,7 +13,19 @@
         <view wx:if="{{source === 'demo'}}" class="demo-note">演示内容 · 用于预览阅读效果，非真实轻友投稿。</view>
       </view>
       <image wx:if="{{presentation.cover}}" class="story-photograph" src="{{presentation.cover}}" mode="widthFix" binderror="onCoverError" aria-label="文章封面" />
-      <view class="article-body"><rich-text nodes="{{presentation.nodes}}"></rich-text></view>
+      <view class="article-body">
+        <rich-text wx:if="{{!presentation.hasVideo}}" nodes="{{presentation.nodes}}"></rich-text>
+        <block wx:if="{{presentation.hasVideo}}" wx:for="{{presentation.blocks}}" wx:key="id">
+          <rich-text wx:if="{{item.type === 'rich'}}" nodes="{{item.nodes}}"></rich-text>
+          <view wx:else class="article-video-block">
+            <video wx:if="{{!item.failed}}" id="{{item.id}}" class="article-video" src="{{item.src}}" poster="{{item.poster}}" controls="{{true}}" autoplay="{{false}}" show-center-play-btn="{{true}}" show-fullscreen-btn="{{true}}" enable-play-gesture="{{true}}" object-fit="contain" data-index="{{index}}" bindplay="onVideoPlay" binderror="onVideoError" aria-label="文章视频" />
+            <view wx:else class="article-video-error">
+              <view>{{item.src ? '视频暂时无法播放，请检查网络后重试。' : '视频地址不可用，暂时无法播放。'}}</view>
+              <button wx:if="{{item.src}}" class="article-video-retry" data-index="{{index}}" bindtap="retryVideo">重新加载视频</button>
+            </view>
+          </view>
+        </block>
+      </view>
       <view wx:for="{{presentation.warnings}}" wx:key="*this" class="content-warning">{{item}}</view>
       <view wx:if="{{presentation.showHealthNote}}" class="health-note">健康相关内容仅用于日常生活方式参考；明显、持续或突然出现的不适，应停止练习并寻求专业评估。</view>
     </view>

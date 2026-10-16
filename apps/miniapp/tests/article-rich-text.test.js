@@ -59,11 +59,13 @@ test('only explicit safe network URLs and same API profile paths are accepted', 
   assert.equal(safeUrl('https://safe.invalid/a?x=1&amp;y=2'), 'https://safe.invalid/a?x=1&y=2')
   assert.equal(safeUrl('/profile/public/a.jpg','https://api.invalid/stage'), 'https://api.invalid/stage/profile/public/a.jpg')
 })
-test('unsupported video is reported instead of pretending it can play; unrelated tags preserve their text', () => {
+test('video becomes a native block; unrelated tags preserve their text', () => {
   const r = richText('<custom>保留<mark>文字</mark></custom><video src="https://test.invalid/v.mp4"></video>')
   assert.equal(text(r.nodes),'保留文字')
   assert.equal(named(r, 'video').length, 0)
-  assert.match(r.warnings[0], /暂不支持/)
+  assert.equal(r.blocks[1].type, 'video')
+  assert.equal(r.blocks[1].src, 'https://test.invalid/v.mp4')
+  assert.equal(r.warnings.length, 0)
 })
 test('short story first paragraph can lead, without splitting, repeating, or forcing sections', () => {
   const raw = '<p>原文短句。</p><p>第二段。</p>'
@@ -104,3 +106,30 @@ test('large content is not truncated and mixed normal inline nodes retain exact 
   assert.ok(text(r.nodes).endsWith('普通换行。'))
 })
 
+
+test('mixed media preserves exact order, nested quotes, lists and safe MP4 source selection', () => {
+  const r = richText('<h2>前言</h2><blockquote><p>引用之前</p><video poster="/profile/public/p.jpg"><source src="javascript:bad" type="video/mp4"><source src="https://test.invalid/a.webm" type="video/webm"><source src="https://test.invalid/b.mp4" type="video/mp4"></video><p>引用之后</p></blockquote><ol start="3"><li>甲</li><li>乙<video src="https://test.invalid/c.mp4"></video>续乙</li><li>丙</li></ol><p>结束<img src="https://test.invalid/end.jpg"></p>', { baseUrl: 'https://api.invalid' })
+  assert.deepEqual(r.blocks.map(b => b.type), ['rich', 'video', 'rich', 'video', 'rich'])
+  assert.deepEqual(r.blocks.filter(b => b.type === 'rich').map(b => text(b.nodes)), ['前言引用之前', '引用之后甲乙', '续乙丙结束'])
+  assert.equal(r.blocks[1].src, 'https://test.invalid/b.mp4')
+  assert.equal(r.blocks[1].poster, 'https://api.invalid/profile/public/p.jpg')
+  assert.equal(named({ nodes: r.blocks[2].nodes }, 'blockquote').length, 1)
+  const last = { nodes: r.blocks[4].nodes }
+  assert.equal(named(last, 'ol')[0].attrs.start, '4')
+  assert.match(named(last, 'li')[0].attrs.style, /list-style-type:none/)
+  assert.deepEqual(r.images, ['https://test.invalid/end.jpg'])
+})
+
+test('invalid videos fail visibly without executable attributes or autoplay; blocked containers cannot leak media', () => {
+  const r = richText('<script><video src="https://bad.invalid/a.mp4"></video></script><iframe><video src="https://bad.invalid/b.mp4"></video></iframe><video src="javascript:bad" poster="data:bad" autoplay onplay="bad()"></video><p>仍可阅读</p><audio src="https://test.invalid/a.mp3"></audio>')
+  const video = r.blocks.filter(b => b.type === 'video')
+  assert.equal(video.length, 1); assert.equal(video[0].src, ''); assert.equal(video[0].failed, true)
+  assert.equal(video[0].poster, ''); assert.equal(text(r.nodes), '仍可阅读')
+  assert.doesNotMatch(JSON.stringify(r), /javascript|autoplay|onplay|bad.invalid/)
+  assert.match(r.warnings[0], /暂不支持/)
+})
+
+test('text-only articles use precisely the same normalized tree in the sole rich block', () => {
+  const r = richText('<p>原文<strong>完整</strong></p><ul><li>清单</li></ul><blockquote>引用</blockquote>')
+  assert.equal(r.blocks.length, 1); assert.deepEqual(r.blocks[0].nodes, r.nodes)
+})

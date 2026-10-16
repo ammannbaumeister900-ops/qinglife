@@ -42,6 +42,17 @@ class QlMiniAppReadingServiceTest {
             assertEquals(Boolean.FALSE,service(mapper).readingDetail(2L).get("isStory"));
         }
     }
+    @Test void publicVideoWithoutCoverKeepsMediaAndNeverLooksUpAReaderIdentity() {
+        QlMiniAppMapper mapper=mock(QlMiniAppMapper.class);
+        Map<String,Object> row=new HashMap<>();row.put("id","8");row.put("cover",null);
+        row.put("content","<p>原文</p><video poster=\"https://example.invalid/p.jpg\"><source src=\"https://example.invalid/v.mp4\" type=\"video/mp4\"></video><p>之后</p>");
+        when(mapper.selectPublicReading(8L)).thenReturn(row);
+        Map<String,Object> detail=service(mapper).readingDetail(8L);
+        assertEquals("",detail.get("cover"));
+        String html=(String)detail.get("content");
+        assertTrue(html.contains("<video"));assertTrue(html.contains("<source"));assertTrue(html.contains("controls"));assertTrue(html.contains("之后"));
+        verify(mapper).selectPublicReading(8L);verifyNoMoreInteractions(mapper);
+    }
     @Test void unpublishedOrMissingArticleKeepsTheExistingFailureBoundary() {
         QlMiniAppMapper mapper=mock(QlMiniAppMapper.class);
         when(mapper.selectPublicReading(99L)).thenReturn(null);

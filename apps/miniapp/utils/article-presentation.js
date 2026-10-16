@@ -10,7 +10,7 @@ function presentArticle(article = {}, baseUrl = '') {
   const cover = safeUrl(article.cover, baseUrl)
   const date = String(article.date || article.publishedAt || '')
   return {
-    isStory: story, nodes: content.nodes, warnings: content.warnings,
+    isStory: story, nodes: content.nodes, blocks: content.blocks, hasVideo: content.blocks.some(block => block.type === 'video'), warnings: content.warnings,
     cover: story && cover && !content.images.includes(cover) ? cover : '',
     dateLabel: /^\d{4}-\d{2}-\d{2}/.test(date) ? date.slice(0, 10).replace(/-/g, '.') : date,
     // Keep the existing note for other reading types; never infer medical relevance from prose.

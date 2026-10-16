@@ -144,3 +144,10 @@ page { background: #f7f6ef; }
 .article-method .article-actionbar { padding-right: 40rpx; padding-left: 40rpx; }
 .article-method .share-button { border-radius: 8rpx; }
 @media (max-width: 350px) { .article-method .article-body { font-size: 16px; } .article-method .health-note { font-size: 14px; } }
+
+/* Native media is local to article reading; text-only layout remains unchanged. */
+.article-video-block { margin: 25px 0; }
+.article-video { display: block; width: 100%; height: 184px; background: #20251e; }
+.article-video-error { padding: 24px 16px; background: #ecefe5; color: #59634f; font-size: 15px; line-height: 1.8; }
+.article-video-retry { min-height: 44px; width: auto; margin: 16px 0 0; padding: 8px 14px; border: 1px solid #b8c1ad; border-radius: 5px; background: transparent; color: #435e3c; font-size: 15px; line-height: 1.8; }
+@media (max-width: 350px) { .article-video { height: 158px; } }
