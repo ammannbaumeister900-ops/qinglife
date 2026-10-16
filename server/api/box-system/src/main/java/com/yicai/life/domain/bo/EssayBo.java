@@ -59,12 +59,17 @@ public class EssayBo extends BaseEntity {
     /**
      * 创建时间
      */
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
     private Date insertTime;
 
     /**
      * 作者
      */
     private Long author;
+
+    /** Editorial byline, independent of the administrator who saves the article. */
+    @Size(max = 128)
+    private String authorName;
 
     /**
      * 封面

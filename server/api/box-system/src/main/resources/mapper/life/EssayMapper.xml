@@ -14,6 +14,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="orderNum" column="order_num"/>
         <result property="insertTime" column="insert_time"/>
         <result property="author" column="author"/>
+        <result property="authorName" column="author_name"/>
         <result property="titleUrl" column="title_url"/>
         <result property="updateTime" column="update_time"/>
         <result property="updateUser" column="update_user"/>

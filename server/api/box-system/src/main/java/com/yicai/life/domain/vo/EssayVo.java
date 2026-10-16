@@ -72,6 +72,9 @@ public class EssayVo {
 	@Excel(name = "作者")
 	private Long author;
 
+    /** Preserved source byline; never an authentication identity. */
+    private String authorName;
+
 	private String authorNickName;
 
     /**

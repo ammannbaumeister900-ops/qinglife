@@ -70,6 +70,9 @@ public class Essay implements Serializable {
      */
     private Long author;
 
+    /** Preserved source byline; never an authentication identity. */
+    private String authorName;
+
     /**
      * 封面
      */

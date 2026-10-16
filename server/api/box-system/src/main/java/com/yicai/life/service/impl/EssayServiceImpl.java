@@ -70,8 +70,8 @@ public class EssayServiceImpl extends ServicePlusImpl<EssayMapper, Essay, EssayV
             if(StringUtils.isNotBlank(vo.getTitleUrl())){
                 vo.setTitleUrl(PublicMediaUpload.url(vo.getTitleUrl()));
             }
-            SysUser user = sysUserMapper.selectUserById(vo.getAuthor());
-            vo.setAuthorNickName(user.getNickName());
+            SysUser user = vo.getAuthor() == null ? null : sysUserMapper.selectUserById(vo.getAuthor());
+            vo.setAuthorNickName(StringUtils.isNotBlank(vo.getAuthorName()) ? vo.getAuthorName() : user == null ? "轻生活" : user.getNickName());
 
             String tags = "";
             LambdaQueryWrapper<EssayLabel> lqw = new LambdaQueryWrapper();
@@ -120,7 +120,11 @@ public class EssayServiceImpl extends ServicePlusImpl<EssayMapper, Essay, EssayV
     public Boolean insertByBo(EssayBo bo) {
         boolean result = true;
         Essay add = BeanUtil.toBean(bo, Essay.class);
-        add.setInsertTime(LocalDateTimeUtil.now());
+        // An omitted status is a private draft; only explicit enablement creates unread rows.
+        if (add.getStatus() == null) add.setStatus(0);
+        if (add.getHomeFeatured() == null) add.setHomeFeatured(0);
+        add.setInsertTime(bo.getInsertTime() == null ? LocalDateTimeUtil.now() :
+            java.time.LocalDateTime.ofInstant(bo.getInsertTime().toInstant(), java.time.ZoneId.of("Asia/Shanghai")));
         add.setAuthor(SecurityUtils.getLoginUser().getUser().getUserId());
         validEntityBeforeSave(add);
         int row = baseMapper.insert(add);
@@ -133,6 +137,7 @@ public class EssayServiceImpl extends ServicePlusImpl<EssayMapper, Essay, EssayV
                     essayLabelMapper.insert(essayLabel);
                 }
             }
+            if (!Integer.valueOf(1).equals(add.getStatus())) return result;
             List<AppEssayUser> essayUsers = new ArrayList<>();
             // 获取appUserList
             LambdaQueryWrapper<AppUserInfo> lqw = new LambdaQueryWrapper<>();
@@ -165,7 +170,7 @@ public class EssayServiceImpl extends ServicePlusImpl<EssayMapper, Essay, EssayV
         result = updateById(update);
 
         if(result){
-            if(bo.isUpdateNotRead()){
+            if(bo.isUpdateNotRead() && Integer.valueOf(1).equals(update.getStatus())){
                 LambdaQueryWrapper<AppEssayUser> essayUserLqw = new LambdaQueryWrapper<>();
                 essayUserLqw.eq(AppEssayUser::getEssayId, update.getId());
                 List<AppEssayUser> essayUsers = essayUserMapper.selectList(essayUserLqw);
