@@ -1,7 +1,8 @@
 const api = require('../../services/staff-api')
 const labels = {pending:'待确认',confirmed:'已确认',cancelled:'已取消',waitlisted:'候补',completed:'已结束',open:'报名中',in_progress:'开课中',paid:'已收款',unpaid:'待收款'}
+const sessionLabel = row => (row.sessionNumber == null || String(row.sessionNumber).trim() === '' ? '' : '【'+String(row.sessionNumber).trim()+'】')+(row.name||row.sessionName||'')
 const needsCashPayment = row => row.paymentStatus==='unpaid' && !(row.settlementStatus==='confirmed' && Number(row.finalAmount)===0)
-const decorate = rows => rows.map(r=>({...r,statusText:labels[r.registrationStatus||r.status]||r.registrationStatus||r.status,paymentText:r.paymentStatus==='paid'?'已收款':needsCashPayment(r)?'待收款':'无需现金收款'}))
+const decorate = rows => rows.map(r=>({...r,sessionLabel:sessionLabel(r),statusText:labels[r.registrationStatus||r.status]||r.registrationStatus||r.status,paymentText:r.paymentStatus==='paid'?'已收款':needsCashPayment(r)?'待收款':'无需现金收款'}))
 const withAvatar = rows => rows.map(p=>({...p,avatar:(p.nickname||'友').slice(0,1)}))
 const summarizeSession = async session => {
  const roster=decorate(await api.request('/sessions/'+session.id+'/registrations'))
@@ -9,8 +10,8 @@ const summarizeSession = async session => {
  return {...session,roster:active,allCount:active.length,pendingCount:active.filter(r=>r.registrationStatus==='pending').length,unpaidCount:active.filter(needsCashPayment).length}
 }
 Page({
- data:{assessmentSessions:[],assessmentSharePath:'',sharePreparing:false,paymentMethods:['微信扫码','支付宝扫码','银行转账','现金','其他'],paymentMethodIndex:0,settlementTypes:['现金','消耗卡次'],settlementValues:['money','pass'],settlementTypeIndex:0,passAccounts:[],passAccountIndex:0,view:'desk',rows:[],people:[],suggestions:[],interviews:[],sessions:[],roster:[],images:[],attachments:[],profile:{},profileAvatar:'',meAvatar:'',today:'',attendanceText:'',form:{nickname:'',realName:'',city:'上海',birthMonth:'',referralSource:'',content:''},tab:'timeline',filter:'all',loading:true,canOperate:false,canPayment:false},
- onLoad(o){const now=new Date();this.setData({view:o.view||'desk',id:o.id||'',filter:o.filter||'all',today:(now.getMonth()+1)+' 月 '+now.getDate()+' 日 · 周'+'日一二三四五六'[now.getDay()]});this.requestId='staff-'+Date.now()+'-'+Math.random().toString(36).slice(2)},
+ data:{assessmentSessions:[],assessmentSharePath:'',sharePreparing:false,paymentMethods:['微信扫码','支付宝扫码','银行转账','现金','其他'],paymentMethodIndex:0,settlementTypes:['现金','消耗卡次'],settlementValues:['money','pass'],settlementTypeIndex:0,passAccounts:[],passAccountIndex:0,view:'desk',rows:[],people:[],suggestions:[],searchQuery:'',searchEmpty:false,searching:false,enrollPerson:null,selectedPerson:'',sessionIndex:0,interviews:[],sessions:[],roster:[],images:[],attachments:[],profile:{},profileAvatar:'',meAvatar:'',today:'',attendanceText:'',form:{nickname:'',realName:'',city:'上海',birthMonth:'',referralSource:'',content:''},tab:'timeline',filter:'all',loading:true,canOperate:false,canPayment:false},
+ onLoad(o){const now=new Date();this.setData({view:o.view||'desk',id:o.id||'',filter:o.filter||'all',today:(now.getMonth()+1)+' 月 '+now.getDate()+' 日 · 周'+'日一二三四五六'[now.getDay()]});if(o.view==='enroll')this.setData({selectedPerson:o.id||''});this.requestId='staff-'+Date.now()+'-'+Math.random().toString(36).slice(2)},
  onShow(){this.refresh()},
  async refresh(){this.setData({loading:true,error:'',assessmentSharePath:'',assessmentSessions:[]});try{const me=await api.request('/me');this.setData({me,meAvatar:(me.name||'工').slice(0,1),canOperate:!!Number(me.can_operate),canPayment:!!Number(me.can_payment)});const v=this.data.view,id=encodeURIComponent(this.data.id);
  if(v==='desk'||v==='sessions'||v==='history'){const source=decorate(await api.request('/sessions?history='+(v==='history')));const sessions=v==='history'?source:await Promise.all(source.map(summarizeSession));this.setData({sessions,roster:v==='history'||!sessions.length?[]:sessions[0].roster});if(v==='desk')this.setData({interviews:await api.request('/interviews')})}
@@ -20,9 +21,17 @@ Page({
  if(v==='roster'){let rows=decorate(await api.request('/sessions/'+id+'/registrations'));rows=rows.filter(r=>r.registrationStatus!=='cancelled');if(this.data.filter==='pending')rows=rows.filter(r=>r.registrationStatus==='pending');if(this.data.filter==='unpaid')rows=rows.filter(needsCashPayment);this.setData({rows})}
  if(v==='interviews')this.setData({interviews:await api.request('/interviews')});
  if(v==='interview'){const people=await this.formPeople();this.setData({people,personIndex:Math.max(0,people.findIndex(p=>p.id===(this.data.selectedPerson||this.data.id))),selectedPerson:this.data.selectedPerson||this.data.id||people[0]?.id||''})}
- if(v==='enroll'){const [people,sessions]=await Promise.all([this.formPeople(),api.request('/sessions')]);this.setData({people,sessions,personIndex:Math.max(0,people.findIndex(p=>p.id===(this.data.selectedPerson||this.data.id))),selectedPerson:this.data.selectedPerson||this.data.id||people[0]?.id||'',selectedSession:sessions[0]?.id||''})}
+ if(v==='enroll'){
+  const sessions=decorate(await api.request('/sessions'))
+  const selectedId=this.data.selectedPerson
+  const person=selectedId?await api.request('/people/'+encodeURIComponent(selectedId)):null
+  const sessionIndex=Math.max(0,sessions.findIndex(s=>s.id===this.data.selectedSession))
+  const values={sessions,sessionIndex,selectedSession:sessions[sessionIndex]?.id||''}
+  if(this.data.selectedPerson===selectedId)Object.assign(values,{enrollPerson:person?withAvatar([person])[0]:null,selectedPerson:person?.id||''})
+  this.setData(values)
+ }
  if(v==='registration'||v==='payment'||v==='settlement'){const registration=await api.request('/registrations/'+id);if(!registration)throw new Error('报名不存在');const attendance=await api.request('/registrations/'+id+'/attendance');const arrived=attendance.filter(a=>a.attendanceStatus==='checked_in').length;const ownerId=registration.batchId?registration.buyerCustomerId:registration.customerId;const owner=await api.request('/people/'+ownerId);const passAccounts=(owner.passes||[]).filter(item=>Number(item.usable)&&Number(item.balance)>0);const typeIndex=Math.max(0,this.data.settlementValues.indexOf(registration.settlementType||'money'));this.setData({registration:{...registration,statusText:labels[registration.registrationStatus],paymentText:registration.paymentStatus==='paid'?'已收款':needsCashPayment(registration)?'待收款':'无需现金收款'},settlementTypeIndex:typeIndex,passAccounts,passAccountIndex:Math.max(0,passAccounts.findIndex(item=>item.id===registration.passAccountId)),form:{...this.data.form,amount:registration.finalAmount,finalAmount:registration.finalAmount==null?(registration.quotedAmount==null?registration.standardPrice:registration.quotedAmount):registration.finalAmount,passUnits:registration.passUnits||'',settlementNote:registration.settlementNote||''},attendance,attendanceText:attendance.length?(arrived?arrived+'/'+attendance.length+' 天已到场':'未到场'):'待安排'})}
- }catch(e){this.setData({error:e.message});if(e.code===401||e.code===403)this.setData({me:null,rows:[],people:[],interviews:[],profile:{},roster:[],sessions:[],suggestions:[],attachments:[],profileAvatar:'',meAvatar:''})}finally{this.setData({loading:false})}},
+ }catch(e){this.setData({error:e.message});if(e.code===401||e.code===403)this.setData({me:null,rows:[],people:[],interviews:[],profile:{},roster:[],sessions:[],suggestions:[],enrollPerson:null,selectedPerson:'',attachments:[],profileAvatar:'',meAvatar:''})}finally{this.setData({loading:false})}},
  async prepareAssessmentShare(e){if(this.data.sharePreparing||!this.data.canOperate)return;const id=e.currentTarget.dataset.id;this.setData({sharePreparing:true,assessmentSharePath:''});try{const result=await api.request('/sessions/'+encodeURIComponent(id)+'/assessment-invitations','POST',{});this.setData({assessmentSharePath:result.path,assessmentShareTitle:'第 '+result.sessionNumber+' 期 · 轻友登记表',assessmentShareNumber:result.sessionNumber})}catch(e){this.fail(e)}finally{this.setData({sharePreparing:false})}},
  onShareAppMessage(){return {title:this.data.assessmentShareTitle||'轻生活',path:this.data.canOperate&&this.data.assessmentSharePath||'/pages/home/index'}},
  async formPeople(){const people=await api.request('/people');const selected=this.data.selectedPerson||this.data.id;if(selected&&!people.some(p=>p.id===selected))people.unshift(await api.request('/people/'+encodeURIComponent(selected)));return withAvatar(people)},
@@ -33,14 +42,33 @@ Page({
  returnMine(){wx.switchTab({url:'/pages/mine/index'})},
  setTab(e){this.setData({tab:e.currentTarget.dataset.tab})},
  field(e){this.setData({['form.'+e.currentTarget.dataset.key]:e.detail.value})},
- async search(e){const q=e.detail.value.trim();this.setData({searchQuery:q,searchEmpty:false});const seq=(this.searchSeq||0)+1;this.searchSeq=seq;if(!q){this.setData({suggestions:[]});return}try{const suggestions=await api.request('/people?q='+encodeURIComponent(q)+'&limit=5');if(this.searchSeq===seq)this.setData({suggestions:withAvatar(suggestions),searchEmpty:!suggestions.length})}catch(e){if(this.searchSeq===seq){this.setData({suggestions:[]});this.fail(e)}}},
+ // Native input handlers must not return the Promise from the search request.
+ search(e){this.searchPeople(e.detail.value)},
+ async searchPeople(value){
+  const q=String(value==null?'':value).trim(),enrolling=this.data.view==='enroll'
+  const seq=(this.searchSeq||0)+1;this.searchSeq=seq
+  this.setData({searchQuery:q,searchEmpty:false,searching:!!q,...(enrolling?{selectedPerson:'',enrollPerson:null,suggestions:[]}:{})})
+  if(!q){this.setData({suggestions:[]});return}
+  try{
+   const suggestions=await api.request('/people?q='+encodeURIComponent(q)+'&limit='+(enrolling?20:5))
+   if(this.searchSeq===seq)this.setData({suggestions:withAvatar(suggestions),searchEmpty:!suggestions.length})
+  }catch(e){if(this.searchSeq===seq){this.setData({suggestions:[]});this.fail(e)}}
+  finally{if(this.searchSeq===seq)this.setData({searching:false})}
+ },
+ chooseEnrollPerson(e){
+  const person=this.data.suggestions.find(p=>p.id===e.currentTarget.dataset.id)
+  if(!person)return
+  this.searchSeq=(this.searchSeq||0)+1
+  this.setData({selectedPerson:person.id,enrollPerson:person,searchQuery:'',suggestions:[],searchEmpty:false,searching:false})
+ },
+ onUnload(){this.searchSeq=(this.searchSeq||0)+1},
  selectPaymentMethod(e){this.setData({paymentMethodIndex:Number(e.detail.value)})},
  selectSettlementType(e){const settlementTypeIndex=Number(e.detail.value),type=this.data.settlementValues[settlementTypeIndex];this.setData({settlementTypeIndex,'form.finalAmount':type==='pass'?0:this.data.form.finalAmount,'form.passUnits':type==='money'?'':this.data.form.passUnits})},selectPassAccount(e){this.setData({passAccountIndex:Number(e.detail.value)})},
  selectPerson(e){this.setData({selectedPerson:this.data.people[Number(e.detail.value)].id,personIndex:Number(e.detail.value)})},
  selectSession(e){this.setData({selectedSession:this.data.sessions[Number(e.detail.value)].id,sessionIndex:Number(e.detail.value)})},
  fail(e){wx.showToast({title:e.message||'操作失败，请重试',icon:'none'})},
  async saveCustomer(){if(this.data.saving)return;this.setData({saving:true});try{const r=await api.request('/people','POST',this.data.form);wx.redirectTo({url:'/staff/workspace/index?view=profile&id='+r.id})}catch(e){this.fail(e)}finally{this.setData({saving:false})}},
- async enroll(){if(this.data.saving)return;this.setData({saving:true});try{await api.request('/registrations','POST',{customerId:this.data.selectedPerson,sessionId:this.data.selectedSession});wx.redirectTo({url:'/staff/workspace/index?view=roster&id='+this.data.selectedSession})}catch(e){this.fail(e)}finally{this.setData({saving:false})}},
+ async enroll(){if(this.data.saving)return;if(!this.data.selectedPerson||!this.data.enrollPerson)return this.fail(new Error('请先搜索并选择轻友'));if(!this.data.selectedSession)return this.fail(new Error('请选择报名期次'));this.setData({saving:true});try{await api.request('/registrations','POST',{customerId:this.data.selectedPerson,sessionId:this.data.selectedSession});wx.redirectTo({url:'/staff/workspace/index?view=roster&id='+this.data.selectedSession})}catch(e){this.fail(e)}finally{this.setData({saving:false})}},
  confirm(){wx.showModal({title:'确认报名',content:'确认报名不代表已付款。',success:async r=>{if(!r.confirm)return;try{await api.request('/registrations/'+this.data.id+'/confirm','PUT');this.refresh()}catch(e){this.fail(e)}}})},
  async settle(){if(this.data.saving)return;const finalAmount=Number(this.data.form.finalAmount),type=this.data.settlementValues[this.data.settlementTypeIndex],passUnits=Number(this.data.form.passUnits||0),account=this.data.passAccounts[this.data.passAccountIndex];if(!Number.isFinite(finalAmount)||finalAmount<0)return this.fail(new Error('请输入最终金额，可填写0'));if(type==='pass'&&passUnits<1)return this.fail(new Error('请填写本次使用卡次'));if(type==='pass'&&!account)return this.fail(new Error('没有可用卡次账户，请先到电脑后台核验'));this.setData({saving:true});try{await api.request('/registrations/'+this.data.id+'/settlement','PUT',{finalAmount,settlementType:type,passUnits:type==='pass'?passUnits:null,passAccountId:type==='pass'?account.id:null,note:this.data.form.settlementNote||''});wx.navigateBack()}catch(e){this.fail(e)}finally{this.setData({saving:false})}},
  async pay(){if(this.data.saving)return;const amount=Number(this.data.form.amount);if(!Number.isFinite(amount)||amount<=0)return this.fail(new Error('请输入实际收款金额'));wx.showModal({title:'登记线下收款',content:'确认实际收到 ¥'+amount+'？不发起在线支付。',success:async r=>{if(!r.confirm)return;this.setData({saving:true});try{await api.request('/registrations/'+this.data.id+'/payment','PUT',{paymentStatus:'paid',amount,paymentMethod:['wechat_scan','alipay_scan','transfer','cash','other'][this.data.paymentMethodIndex],changeReason:this.data.form.paymentRemark||'工作人员移动工作台登记'});wx.navigateBack()}catch(e){this.fail(e)}finally{this.setData({saving:false})}}})},

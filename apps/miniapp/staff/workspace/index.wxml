@@ -27,7 +27,7 @@
     <view class="section"><text class="section-title">当前轻体营</text><text class="section-link" data-view="history" bindtap="go">历史期次 ›</text></view>
     <view wx:for="{{sessions}}" wx:key="id" class="card session-card">
       <text class="tag">当前服务期次</text>
-      <view class="title session-title">{{item.name}}</view>
+      <view class="title session-title">{{item.sessionLabel}}</view>
       <view class="sub">{{item.startDate}} — {{item.endDate}}</view>
       <view class="sub">{{item.city}} · 导游 {{item.leaderName}}</view>
       <view class="counts">
@@ -91,7 +91,7 @@
     </view>
     <block wx:if="{{tab==='activities'}}">
       <view wx:for="{{profile.activities}}" wx:key="id" class="card">
-        <view class="row between"><view class="title">第{{item.sessionNumber}}期 · {{item.sessionName}}</view><text class="tag {{item.registrationStatus==='pending'?'warm':''}}">{{item.statusText}}</text></view>
+        <view class="row between"><view class="title">{{item.sessionLabel}}</view><text class="tag {{item.registrationStatus==='pending'?'warm':''}}">{{item.statusText}}</text></view>
         <view class="sub">{{item.startDate}} — {{item.endDate}}</view>
         <view wx:if="{{item.sessionStatus==='completed'}}" class="sub">期次已结束</view>
         <button class="secondary small" data-view="registration" data-id="{{item.id}}" bindtap="go">查看报名</button>
@@ -132,7 +132,7 @@
     <view class="heading">过去的相聚。</view>
     <view class="note">已结束期次与参与名单</view>
     <view wx:for="{{sessions}}" wx:key="id" class="card" data-view="roster" data-id="{{item.id}}" bindtap="go">
-      <view class="row between"><view class="title">{{item.name}}</view><text class="arrow">›</text></view>
+      <view class="row between"><view class="title">{{item.sessionLabel}}</view><text class="arrow">›</text></view>
       <view class="sub">{{item.startDate}} — {{item.endDate}}</view>
       <view class="sub">查看名单 ›</view>
     </view>
@@ -169,7 +169,23 @@
     <view class="heading">{{view==='interview'?'新增回访':'人工报名'}}</view>
     <view wx:if="{{view==='enroll'}}" class="notice">选择参与人 → 核对期次 → 提交报名</view>
     <text class="label">选择轻友</text>
-    <picker range="{{people}}" range-key="nickname" value="{{personIndex||0}}" bindchange="selectPerson"><view class="card picker-card">选择轻友：{{people[personIndex||0].nickname}}</view></picker>
+    <block wx:if="{{view==='enroll'}}">
+      <input class="search" value="{{searchQuery}}" placeholder="输入姓名、称呼或手机号" bindinput="search" maxlength="100"/>
+      <view wx:if="{{searching}}" class="note">正在查询…</view>
+      <view wx:for="{{suggestions}}" wx:key="id" class="card person-card" data-id="{{item.id}}" bindtap="chooseEnrollPerson">
+        <view class="avatar">{{item.avatar}}</view>
+        <view class="grow"><view class="title">{{item.nickname}} · {{item.realName}}</view><view class="sub">{{item.phone || '未登记手机号'}}<text wx:if="{{item.city}}"> · {{item.city}}</text></view></view>
+        <text class="section-link">选择</text>
+      </view>
+      <view wx:if="{{searchQuery && searchEmpty}}" class="note">暂无匹配轻友，请调整姓名、称呼或手机号</view>
+      <view wx:if="{{enrollPerson}}" class="card person-card">
+        <view class="avatar">{{enrollPerson.avatar}}</view>
+        <view class="grow"><view class="title">{{enrollPerson.nickname}} · {{enrollPerson.realName}}</view><view class="sub">{{enrollPerson.phone || '未登记手机号'}}</view></view>
+        <text class="tag">已选择</text>
+      </view>
+      <view wx:if="{{!enrollPerson && !searchQuery}}" class="note">输入中英文或数字，从查询结果中选择要报名的轻友</view>
+    </block>
+    <picker wx:else range="{{people}}" range-key="nickname" value="{{personIndex||0}}" bindchange="selectPerson"><view class="card picker-card">选择轻友：{{people[personIndex||0].nickname}}</view></picker>
     <block wx:if="{{view==='interview'}}">
       <view class="note">回访人：{{me.name}} · 时间自动记录</view>
       <text class="label">本次评价与感受</text>
@@ -180,8 +196,8 @@
     </block>
     <block wx:else>
       <text class="label">报名期次</text>
-      <picker range="{{sessions}}" range-key="name" bindchange="selectSession"><view class="card picker-card">{{sessions[sessionIndex||0].name||'暂无可报名期次'}}</view></picker>
-      <button class="primary" disabled="{{saving||!selectedSession}}" loading="{{saving}}" bindtap="enroll">核对并提交</button>
+      <picker range="{{sessions}}" range-key="sessionLabel" value="{{sessionIndex||0}}" bindchange="selectSession"><view class="card picker-card">{{sessions[sessionIndex||0].sessionLabel||'暂无可报名期次'}}</view></picker>
+      <button class="primary" disabled="{{saving||searching||!selectedPerson||!selectedSession}}" loading="{{saving}}" bindtap="enroll">核对并提交</button>
     </block>
   </block>
 
