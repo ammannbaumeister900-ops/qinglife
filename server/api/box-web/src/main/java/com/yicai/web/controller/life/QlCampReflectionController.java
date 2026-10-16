@@ -13,7 +13,12 @@ import java.util.*;
 public class QlCampReflectionController {
  private final QlCampReflectionService reflections;
  private final Validator validator;
- @GetMapping("/camp-voices/{sessionId}") public AjaxResult<List<Map<String,Object>>> publicVoices(@PathVariable String sessionId){return AjaxResult.success(reflections.publicVoices(sessionId));}
+ @GetMapping("/camp-voices/{sessionId}") public AjaxResult<?> publicVoices(@PathVariable String sessionId,
+   @RequestParam(required=false) Integer pageSize,@RequestParam(required=false) String cursor,@RequestParam(required=false) String voiceId){
+  if(voiceId!=null){if(pageSize!=null||cursor!=null)throw new com.yicai.common.exception.CustomException("心声查询参数冲突",400);return AjaxResult.success(reflections.publicVoice(sessionId,voiceId));}
+  if(pageSize==null){if(cursor!=null)throw new com.yicai.common.exception.CustomException("请指定分页大小",400);return AjaxResult.success(reflections.publicVoices(sessionId));}
+  return AjaxResult.success(reflections.publicVoicePage(sessionId,pageSize,cursor));
+ }
  @GetMapping("/reflections/{sessionId}") public AjaxResult<Map<String,Object>> mine(@RequestHeader(value="token",required=false) String token,@PathVariable String sessionId){return AjaxResult.success(reflections.mine(token,sessionId));}
  @PutMapping("/reflections") public AjaxResult<Map<String,Object>> save(@RequestHeader(value="token",required=false) String token,@RequestBody QlCampReflectionBo bo){
   QlCampReflectionService.validateSubmissionContract(bo);

@@ -41,14 +41,15 @@
   </block>
   <view wx:if="{{voiceCards.length}}" class="home-voices" bindtouchstart="pauseVoiceReading" bindtouchend="resumeVoiceReading" bindtouchcancel="resumeVoiceReading">
     <view class="home-section-head"><text>亲友心声</text><text class="home-section-note">生活里的小片段</text></view>
-    <view class="home-voices-intro">来自轻友的原文摘句</view>
+    <view class="home-voices-intro">来自{{featured.periodLabel}}轻友的公开心声</view>
     <view class="home-voice-grid">
-      <button wx:for="{{voiceCards}}" wx:key="id" class="home-voice-card" data-id="{{item.id}}" bindtap="openVoice" bindfocus="pauseVoiceReading" bindblur="resumeVoiceReading" aria-label="{{item.author}}，{{item.excerpt}}，查看摘录">
-        <view class="home-voice-text">{{item.excerpt}}</view><view class="home-voice-meta"><text>{{item.author}}</text><text>查看摘录</text></view>
+      <button wx:for="{{voiceCards}}" wx:key="id" class="home-voice-card" data-id="{{item.id}}" bindtap="openVoice" bindfocus="pauseVoiceReading" bindblur="resumeVoiceReading" aria-label="{{item.author}}，{{item.excerpt}}，查看全文">
+        <view class="home-voice-text">{{item.excerpt}}</view><view class="home-voice-meta"><text>{{item.author}}</text><text>查看全文</text></view>
       </button>
     </view>
-    <view wx:if="{{voiceGroups[1]}}" class="home-voice-controls"><text wx:if="{{reducedMotion}}">手动换组</text><button wx:else bindtap="toggleVoicePause" aria-pressed="{{voicePaused}}">{{voicePaused ? '继续换组' : '暂停换组'}}</button><text>{{voiceGroup + 1}} / {{voiceGroups.length}}</text><button bindtap="nextVoices">换一组 →</button></view>
+    <view wx:if="{{voiceGroups[1] || voiceHasMore || voicePage > 1}}" class="home-voice-controls"><text wx:if="{{reducedMotion}}">手动换组</text><button wx:else bindtap="toggleVoicePause" aria-pressed="{{voicePaused}}">{{voicePaused ? '继续换组' : '暂停换组'}}</button><text>{{voiceGroup + 1}} / {{voiceGroups.length}}{{voiceHasMore ? '＋' : ''}}</text><button disabled="{{voiceLoading}}" bindtap="nextVoices" aria-label="继续浏览本期全部公开心声">换一组 →</button></view>
   </view>
+  <view wx:if="{{voiceError}}" class="home-voice-status">{{voiceError}}<button class="text-button" bindtap="retryVoices">重试</button></view>
   <view class="home-discover">
     <view class="home-section-note">了解轻生活</view><view class="home-discover-title">{{discoverTitle}}</view>
     <button class="home-link-row" bindtap="about">认识轻生活 <text aria-hidden="true">→</text></button>
@@ -60,8 +61,8 @@
 </view>
 <view wx:if="{{expandedVoice}}" class="home-voice-layer" style="--home-font-scale:{{fontScale}};">
   <view class="home-voice-mask" bindtap="closeVoice" catchtouchmove="retainVoiceDialog"></view>
-  <view class="home-voice-dialog" role="dialog" aria-modal="true" aria-label="原文摘录">
-    <view class="home-voice-dialog-head"><text>{{expandedVoice.author}}的原文摘录</text><button bindtap="closeVoice" aria-label="关闭">×</button></view>
+  <view class="home-voice-dialog" role="dialog" aria-modal="true" aria-label="公开心声">
+    <view class="home-voice-dialog-head"><text>{{expandedVoice.author}}的公开心声</text><button bindtap="closeVoice" aria-label="关闭">×</button></view>
     <scroll-view scroll-y="{{true}}" class="home-voice-dialog-body"><view class="home-voice-full">“{{expandedVoice.fullExcerpt}}”</view><view class="home-section-note">个人体验，不代表课程疗效。</view></scroll-view>
   </view>
 </view>

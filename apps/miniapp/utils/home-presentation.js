@@ -32,4 +32,14 @@ function voiceGroups(records = []) {
   }
   return groups
 }
-module.exports = { camps, voiceGroups }
+function publicVoiceRecords(response, sessionId) {
+  if (!response || response.contractVersion !== 1 || response.sessionId !== sessionId || !Array.isArray(response.list) || response.list.length > 16 || typeof response.hasMore !== 'boolean' || response.hasMore && !response.nextCursor) throw new Error('心声服务版本或分页数据无效')
+  return response.list.map(v => {
+    const note = typeof v.note === 'string' ? v.note : ''
+    if (v.sessionId !== sessionId || !text(v.id) || !text(v.personKey) || !note.trim() || Array.from(note).length > 150) throw new Error('心声归属或正文无效')
+    const excerpt = text(v.excerpt)
+    const complete = /[。！？!?；;]$/.test(excerpt) && note.includes(excerpt)
+    return { id: v.id, sessionId, personKey: v.personKey, author: text(v.author) || '本期轻友', excerpt: complete ? excerpt : note, fullExcerpt: note, state: 'releaseReady', authorization: 'confirmed', review: 'approved', source: { kind: 'camp-reflection', sessionId, voiceId: v.id } }
+  })
+}
+module.exports = { camps, voiceGroups, publicVoiceRecords }

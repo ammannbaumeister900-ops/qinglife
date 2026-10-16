@@ -88,8 +88,43 @@ public class QlCampReflectionService {
   return voice.transcribe(customer,bo);
  }
 
+ // Public reading uses the same eligibility for legacy list, bounded pages and full text.
+ private static final String PUBLIC_COLUMNS="f.id,f.phase,f.display_excerpt AS excerpt,COALESCE(f.display_note,f.shared_note) AS note,CASE WHEN f.share_anonymous=1 THEN '本期轻友' ELSE f.shared_author END AS author";
+ private static final String PUBLIC_FROM=" FROM ql_camp_reflection f JOIN ql_session s ON s.id=f.session_id JOIN ql_registration r ON r.id=f.registration_id AND r.customer_id=f.customer_id AND r.session_id=f.session_id JOIN ql_customer c ON c.id=f.customer_id JOIN ql_camp_reflection_log l ON l.id=(SELECT x.id FROM ql_camp_reflection_log x WHERE x.reflection_id=f.id AND x.action IN ('publish','approvePublish') ORDER BY x.revision DESC,x.created_at DESC,x.id DESC LIMIT 1)"
+  +" WHERE f.session_id=? AND f.share_consent=1 AND f.consent_version IS NOT NULL AND f.consent_at IS NOT NULL AND f.status='published' AND s.status NOT IN ('draft','cancelled') AND r.registration_status='confirmed' AND c.deleted_at IS NULL"
+  +" AND l.operator_id IS NOT NULL AND JSON_UNQUOTE(JSON_EXTRACT(l.publication_review,'$.decision'))='ready'"
+  +" AND JSON_UNQUOTE(JSON_EXTRACT(l.publication_review,'$.displayHash'))=SHA2(COALESCE(f.display_note,f.shared_note),256)"
+  +" AND JSON_UNQUOTE(JSON_EXTRACT(l.publication_review,'$.consentVersion'))=f.consent_version"
+  +" AND (JSON_UNQUOTE(JSON_EXTRACT(l.publication_review,'$.authorizationConclusion'))='not_applicable' OR (JSON_UNQUOTE(JSON_EXTRACT(l.publication_review,'$.authorizationConclusion'))='satisfied'"
+  +" AND (SELECT COUNT(*) FROM JSON_TABLE(l.publication_review,'$.references[*]' COLUMNS (kind VARCHAR(32) PATH '$.type',refId VARCHAR(36) PATH '$.id')) refs WHERE refs.kind='consent')>0"
+  +" AND 0=(SELECT COUNT(*) FROM JSON_TABLE(l.publication_review,'$.references[*]' COLUMNS (kind VARCHAR(32) PATH '$.type',refId VARCHAR(36) PATH '$.id')) refs LEFT JOIN ql_consent_record cr ON cr.id=refs.refId AND cr.customer_id=f.customer_id LEFT JOIN ql_attachment a ON a.id=cr.evidence_attachment_id AND a.customer_id=cr.customer_id WHERE refs.kind='consent' AND (cr.id IS NULL OR cr.consent_type<>'brand_reuse' OR cr.status<>'granted' OR cr.withdrawn_at IS NOT NULL OR cr.granted_at IS NULL OR cr.recorded_by IS NULL OR a.id IS NULL OR a.scan_status<>'clean' OR a.visibility_scope<>'internal' OR (a.retention_until IS NOT NULL AND a.retention_until<CURRENT_DATE())))))";
+
  public List<Map<String,Object>> publicVoices(String sessionId) {
-  return db.queryForList("SELECT f.id,f.phase,f.display_excerpt AS excerpt,COALESCE(f.display_note,f.shared_note) AS note,CASE WHEN f.share_anonymous=1 THEN '本期轻友' ELSE f.shared_author END AS author FROM ql_camp_reflection f JOIN ql_session s ON s.id=f.session_id JOIN ql_registration r ON r.id=f.registration_id JOIN ql_customer c ON c.id=f.customer_id WHERE f.session_id=? AND f.share_consent=1 AND f.status='published' AND s.status NOT IN ('draft','cancelled') AND r.registration_status='confirmed' AND c.deleted_at IS NULL ORDER BY f.sort_order,f.updated_at DESC,f.id LIMIT 24",sessionId);
+  return db.queryForList("SELECT "+PUBLIC_COLUMNS+PUBLIC_FROM+" ORDER BY f.sort_order,f.updated_at DESC,f.id LIMIT 24",sessionId);
+ }
+
+ public Map<String,Object> publicVoicePage(String sessionId,Integer pageSize,String cursor) {
+  if(pageSize==null||pageSize<1||pageSize>24)throw new CustomException("分页大小须为1至24",400);
+  List<Object> args=new ArrayList<>();args.add(sessionId);String seek="";
+  if(StrUtil.isNotBlank(cursor)) {
+   if(!cursor.matches("[0-9]{1,3}:[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}"))throw new CustomException("心声游标无效",400);
+   int order=Integer.parseInt(cursor.substring(0,cursor.indexOf(':')));String id=cursor.substring(cursor.indexOf(':')+1);
+   seek=" AND (f.sort_order>? OR (f.sort_order=? AND f.id>?))";args.add(order);args.add(order);args.add(id);
+  }
+  args.add(pageSize+1);
+  // Scoped pseudonym supports same-person grouping without returning a customer identifier.
+  List<Map<String,Object>> rows=db.queryForList("SELECT "+PUBLIC_COLUMNS+",f.session_id AS sessionId,SHA2(CONCAT(f.session_id,':',f.customer_id),256) AS personKey,f.sort_order AS cursorOrder"+PUBLIC_FROM+seek+" ORDER BY f.sort_order,f.id LIMIT ?",args.toArray());
+  boolean more=rows.size()>pageSize;List<Map<String,Object>> page=new ArrayList<>(rows.subList(0,Math.min(pageSize,rows.size())));String next=null;
+  if(more){Map<String,Object> last=page.get(page.size()-1);next=last.get("cursorOrder")+":"+last.get("id");}
+  page.forEach(row->row.remove("cursorOrder"));
+  Map<String,Object> out=new LinkedHashMap<>();out.put("contractVersion",1);out.put("sessionId",sessionId);out.put("list",page);out.put("hasMore",more);out.put("nextCursor",next);return out;
+ }
+
+ public Map<String,Object> publicVoice(String sessionId,String id) {
+  if(id==null||!id.matches("[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}"))throw new CustomException("心声编号无效",400);
+  List<Map<String,Object>> rows=db.queryForList("SELECT "+PUBLIC_COLUMNS+",f.session_id AS sessionId"+PUBLIC_FROM+" AND f.id=?",sessionId,id);
+  if(rows.isEmpty())throw new CustomException("心声未公开或已撤回",404);
+  Map<String,Object> out=new LinkedHashMap<>();out.put("contractVersion",1);out.put("sessionId",sessionId);out.put("item",rows.get(0));return out;
  }
 
  public Map<String,Object> list(String sessionId,String phase,String status,int page,int size) {

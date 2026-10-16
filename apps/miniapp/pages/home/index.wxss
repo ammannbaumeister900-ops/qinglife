@@ -69,3 +69,5 @@ page { --ql-bg:#f7f6ef; --ql-ink:#252b21; --ql-ink-light:#59614f; --home-green:#
 .home-voice-dialog-body .home-section-note { margin-top:18px; }
 @media(max-width:350px) { .welcome-opening { padding-left:20px; padding-right:20px; } .welcome-title-serif,.welcome-copy { margin-left:20px; } .home-hero { margin-right:16px; } .home-hero-image { height:210px; } .home-camp,.home-voices,.home-discover { margin-left:20px; margin-right:20px; } .home-page .home-voice-card { padding:12px 10px; } .home-voice-meta { flex-wrap:wrap; } }
 @media(prefers-reduced-motion:reduce) { .home-motion-probe { width:1px; } }
+
+.home-voice-status { margin:24px; color:var(--ql-ink-light); font-size:15px; line-height:1.8; }

@@ -197,6 +197,8 @@ module.exports = { isDemo, identityScope, assertIdentity, watchIdentity, private
   registrationQuote: (data, scope) => request('/registrations/quote', 'POST', data, true, 10000, scope),
   saveExperience: data => request('/experience-records', 'PUT', data),
   campVoices: id => request('/camp-voices/' + encodeURIComponent(id), 'GET', null, false),
+  campVoicePage: (id, cursor = '') => request('/camp-voices/' + encodeURIComponent(id), 'GET', { pageSize: 16, ...(cursor ? { cursor } : {}) }, false),
+  campVoice: (id, voiceId) => request('/camp-voices/' + encodeURIComponent(id), 'GET', { voiceId }, false),
   campReflection: (id, scope) => request('/reflections/' + encodeURIComponent(id), 'GET', undefined, true, 10000, scope),
   saveCampReflection: (data, scope) => request('/reflections', 'PUT', data, true, 10000, scope),
   withdrawCampReflection: (id, phase, scope) => request('/reflections/' + encodeURIComponent(id) + '/' + encodeURIComponent(phase) + '/share', 'DELETE', undefined, true, 10000, scope),

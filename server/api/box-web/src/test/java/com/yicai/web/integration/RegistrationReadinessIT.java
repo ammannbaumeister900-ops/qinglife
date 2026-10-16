@@ -88,7 +88,7 @@ class RegistrationReadinessIT {
         access.put("sys_user_id",9L);access.put("can_operate",1);access.put("can_payment",1);
     }
     // SQL mechanics only: bypass the separate evidence prerequisite, never proof of compliance.
-    void syntheticPublicationForSqlOnly(){doNothing().when(context.getBean(QlCommunityAccessPolicy.class)).requirePublicationReview();doReturn("{\"syntheticSqlOnly\":true}").when(context.getBean(QlReflectionPublicationReviewService.class)).prepare(anyMap(),any(),anyLong(),anySet(),anyString());}
+    void syntheticPublicationForSqlOnly(){doNothing().when(context.getBean(QlCommunityAccessPolicy.class)).requirePublicationReview();doAnswer(invocation->{Map<String,Object> row=invocation.getArgument(0);Map<String,Object> review=new LinkedHashMap<>();review.put("syntheticSqlOnly",true);review.put("decision","ready");review.put("authorizationConclusion","not_applicable");review.put("consentVersion",row.get("consentVersion"));review.put("displayHash",cn.hutool.crypto.digest.DigestUtil.sha256Hex((String)invocation.getArgument(4)));return cn.hutool.json.JSONUtil.toJsonStr(review);}).when(context.getBean(QlReflectionPublicationReviewService.class)).prepare(anyMap(),any(),anyLong(),anySet(),anyString());}
     void syntheticInvitationForSqlOnly(String customer){doReturn(true).when(context.getBean(QlCommunityAccessPolicy.class)).canInvite(customer);}
     @AfterEach void clearSyntheticPermissions(){reset(context.getBean(QlCommunityAccessPolicy.class),context.getBean(QlReflectionPublicationReviewService.class));}
     @AfterAll static void close(){if(context!=null)context.close();com.yicai.common.config.RuoYiConfig c=new com.yicai.common.config.RuoYiConfig();c.setProfile(priorProfile);c.setImagePath(priorImagePath);}
@@ -1123,4 +1123,26 @@ class RegistrationReadinessIT {
     @Test void passReversalAccepts500ChineseCharacterReason() { assertPassReversalAcceptsReasonLength(500); }
     @Test void passReversalRejects501ChineseCharactersWithoutChanges() { assertPassReversalRejectsReasonWithoutChanges(chineseReason(501)); }
     @Test void passReversalRejectsWhitespaceReasonWithoutChanges() { assertPassReversalRejectsReasonWithoutChanges(" \t \r\n "); }
+    @Test @SuppressWarnings("unchecked") void publicVoicePagesAreCompleteScopedAndAuthorizationRevocationIsImmediate() {
+        QlCampReflectionService voices=new QlCampReflectionService(context.getBean(RedisCache.class),context.getBean(QlCustomerIdentityService.class),db,context.getBean(QlReflectionVoiceService.class),context.getBean(QlExperienceOriginalService.class),context.getBean(QlCommunityAccessPolicy.class),context.getBean(QlReflectionPublicationReviewService.class));
+        String period=session(100),otherPeriod=session(100);List<String> ids=new ArrayList<>(),owners=new ArrayList<>();
+        for(int i=0;i<32;i++){
+            String owner=customer(),reg=add(owner,period,"confirmed"),id=UUID.randomUUID().toString(),note="合成公开原文 "+i+"。特殊字符 & < > 🌿";ids.add(id);owners.add(owner);
+            String status=i==0?"submitted":i==1?"approved":i==2?"hidden":i==3?"withdrawn":"published";
+            db.update("INSERT INTO ql_camp_reflection(id,registration_id,customer_id,session_id,phase,draft_note,shared_note,share_consent,consent_version,consent_at,status,display_excerpt,share_anonymous,created_at,updated_at) VALUES(?,?,?,?,'after','PRIVATE DO NOT LEAK',?,?,?,NOW(),?,?,1,NOW(),NOW())",id,reg,owner,period,note,i==3?0:1,QlCampReflectionService.CONSENT_VERSION,status,"合成公开原文");
+            if(i!=4){Map<String,Object> review=new LinkedHashMap<>();review.put("decision","ready");review.put("authorizationConclusion","not_applicable");review.put("consentVersion",QlCampReflectionService.CONSENT_VERSION);review.put("displayHash",cn.hutool.crypto.digest.DigestUtil.sha256Hex(note));db.update("INSERT INTO ql_camp_reflection_log(id,reflection_id,action,revision,operator_id,created_at,publication_review) VALUES(?,?,'publish',1,9,NOW(),?)",UUID.randomUUID().toString(),id,cn.hutool.json.JSONUtil.toJsonStr(review));}
+        }
+        Set<String> all=new HashSet<>();String cursor=null;
+        do{Map<String,Object> page=voices.publicVoicePage(period,8,cursor);List<Map<String,Object>> list=(List<Map<String,Object>>)page.get("list");assertTrue(list.size()<=8);for(Map<String,Object> row:list){assertEquals(period,row.get("sessionId"));assertFalse(row.toString().contains("PRIVATE"));assertFalse(row.containsKey("customerId"));assertFalse(row.containsKey("registrationId"));assertFalse(row.containsKey("cursorOrder"));assertTrue(all.add((String)row.get("id")));}cursor=(String)page.get("nextCursor");}while(cursor!=null);
+        assertEquals(27,all.size());assertEquals(24,voices.publicVoices(period).size());assertTrue(((List<?>)voices.publicVoicePage(otherPeriod,16,null).get("list")).isEmpty());
+        for(int i=0;i<5;i++){final String id=ids.get(i);assertFalse(all.contains(id));assertEquals(404,assertThrows(CustomException.class,()->voices.publicVoice(period,id)).getCode());}
+        String id=ids.get(5);assertEquals(id,((Map<?,?>)voices.publicVoice(period,id).get("item")).get("id"));assertThrows(CustomException.class,()->voices.publicVoice(otherPeriod,id));
+        db.update("UPDATE ql_camp_reflection SET status='hidden' WHERE id=?",id);assertThrows(CustomException.class,()->voices.publicVoice(period,id));
+        String special=ids.get(6),owner=owners.get(6),attachment=UUID.randomUUID().toString(),consent=UUID.randomUUID().toString();
+        db.update("INSERT INTO ql_attachment(id,customer_id,original_name,mime_type,size_bytes,sha256,visibility_scope,scan_status) VALUES(?,?,'synthetic-proof','image/png',1,REPEAT('a',64),'internal','clean')",attachment,owner);
+        db.update("INSERT INTO ql_consent_record(id,customer_id,consent_type,status,policy_version,granted_at,source,evidence_attachment_id,recorded_by) VALUES(?,?,'brand_reuse','granted','synthetic',NOW(),'operator',?,9)",consent,owner,attachment);
+        db.update("UPDATE ql_camp_reflection_log SET publication_review=JSON_SET(publication_review,'$.authorizationConclusion','satisfied','$.references',JSON_ARRAY(JSON_OBJECT('type','consent','id',?))) WHERE reflection_id=?",consent,special);
+        assertNotNull(voices.publicVoice(period,special));db.update("UPDATE ql_consent_record SET status='withdrawn',withdrawn_at=NOW() WHERE id=?",consent);assertThrows(CustomException.class,()->voices.publicVoice(period,special));
+        assertTrue(voices.publicVoices(period).stream().noneMatch(row->special.equals(row.get("id"))));
+    }
 }
