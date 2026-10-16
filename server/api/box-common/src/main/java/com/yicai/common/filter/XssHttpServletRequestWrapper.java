@@ -1,7 +1,6 @@
 package com.yicai.common.filter;
 
 import cn.hutool.core.io.IoUtil;
-import cn.hutool.core.lang.Validator;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.http.HtmlUtil;
 import org.springframework.http.HttpHeaders;
@@ -57,15 +56,9 @@ public class XssHttpServletRequestWrapper extends HttpServletRequestWrapper
             return super.getInputStream();
         }
 
-        // 为空，直接返回
         String json = IoUtil.read(super.getInputStream(), StandardCharsets.UTF_8);
-        if (Validator.isEmpty(json))
-        {
-            return super.getInputStream();
-        }
-
-        // xss过滤
-        json = HtmlUtil.cleanHtmlTag(json).trim();
+        // IoUtil closes the original stream. Empty JSON bodies need a fresh stream too.
+        json = HtmlUtil.cleanHtmlTag(json == null ? "" : json).trim();
 
         final ByteArrayInputStream bis = IoUtil.toStream(json, StandardCharsets.UTF_8);
         return new ServletInputStream()

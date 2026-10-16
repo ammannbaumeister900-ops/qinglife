@@ -139,14 +139,20 @@ public class QlStaffWorkspaceService {
     private static final String APP_IDENTITY_JOIN = " LEFT JOIN ql_customer c ON c.id=(SELECT i.customer_id FROM ql_customer_identifier i WHERE i.legacy_app_user_id=w.id AND i.verification_status<>'conflict' ORDER BY i.is_primary DESC,i.created_at ASC LIMIT 1)"
             + " LEFT JOIN ql_customer_identifier p ON p.id=(SELECT i.id FROM ql_customer_identifier i WHERE i.customer_id=c.id AND i.identifier_type='phone' AND i.valid_to IS NULL AND i.verification_status NOT IN ('conflict','expired') ORDER BY i.is_primary DESC,i.created_at DESC,i.id LIMIT 1)";
     public List<Map<String,Object>> grants() {
-        return db.queryForList("SELECT a.*,u.nick_name AS staffName,"+APP_NAME+" AS appName,"+APP_PHONE_HINT+" AS phoneHint FROM ql_staff_access a JOIN sys_user u ON u.user_id=a.sys_user_id JOIN app_user_info w ON w.id=a.app_user_id"+APP_IDENTITY_JOIN+" ORDER BY a.updated_at DESC");
+        return db.queryForList("SELECT a.*,u.nick_name AS staffName,u.user_name AS userName,u.status AS accountStatus,u.del_flag AS accountDeleted,(SELECT GROUP_CONCAT(r.role_name ORDER BY r.role_sort SEPARATOR '、') FROM sys_role r JOIN sys_user_role ur ON ur.role_id=r.role_id WHERE ur.user_id=u.user_id AND r.status='0' AND r.del_flag='0') AS roleNames,"+APP_NAME+" AS appName,"+APP_PHONE_HINT+" AS phoneHint FROM ql_staff_access a JOIN sys_user u ON u.user_id=a.sys_user_id JOIN app_user_info w ON w.id=a.app_user_id"+APP_IDENTITY_JOIN+" ORDER BY a.updated_at DESC");
     }
     public List<Map<String,Object>> appUsers(String q) {
         String query=q==null?"":q.trim();
         if(query.length()>64)throw new CustomException("搜索内容过长",400);
         return db.queryForList("SELECT w.id,"+APP_NAME+" AS name,"+APP_PHONE_HINT+" AS phoneHint,w.last_login_time AS lastLoginTime FROM app_user_info w"+APP_IDENTITY_JOIN+" WHERE w.status=1 AND (LOCATE(?,"+APP_NAME+")>0 OR LOCATE(?,p.identifier_value)>0 OR ?='') ORDER BY w.last_login_time DESC,w.id DESC LIMIT 30",query,query,query);
     }
-    public List<Map<String,Object>> operators(){return db.queryForList("SELECT user_id AS id,nick_name AS name FROM sys_user WHERE status='0' AND del_flag='0' ORDER BY user_id LIMIT 200");}
+    /** Remove workspace access without deleting either identity or business history. */
+    @Transactional
+    public void unbind(long appUserId) {
+        if (appUserId <= 0 || db.update("DELETE FROM ql_staff_access WHERE app_user_id=?", appUserId) != 1)
+            throw new CustomException("微信绑定不存在或已解除", 400);
+    }
+    public List<Map<String,Object>> operators(){return db.queryForList("SELECT u.user_id AS id,u.nick_name AS name,u.user_name AS userName,(SELECT GROUP_CONCAT(r.role_name ORDER BY r.role_sort SEPARATOR '、') FROM sys_role r JOIN sys_user_role ur ON ur.role_id=r.role_id WHERE ur.user_id=u.user_id AND r.status='0' AND r.del_flag='0') AS roleNames FROM sys_user u WHERE status='0' AND del_flag='0' ORDER BY user_id LIMIT 200");}
     @Transactional
     public void grant(Map<String,Object> b,long operator){long app=Long.parseLong(text(b,"appUserId",20,true)),user=Long.parseLong(text(b,"sysUserId",20,true));if(db.queryForObject("SELECT COUNT(*) FROM app_user_info WHERE id=? AND status=1",Integer.class,app)!=1||db.queryForObject("SELECT COUNT(*) FROM sys_user WHERE user_id=? AND status='0' AND del_flag='0'",Integer.class,user)!=1)throw new CustomException("账号不可用",400);db.queryForList("SELECT user_id FROM sys_user WHERE user_id=? FOR UPDATE",user);if(db.queryForObject("SELECT COUNT(*) FROM ql_staff_access WHERE sys_user_id=? AND app_user_id<>?",Integer.class,user,app)>0)throw new CustomException("该工作人员已绑定其他小程序账号，请先处理原绑定",400);db.update("INSERT INTO ql_staff_access(app_user_id,sys_user_id,enabled,can_operate,can_payment,updated_by) VALUES(?,?,?,?,?,?) ON DUPLICATE KEY UPDATE sys_user_id=VALUES(sys_user_id),enabled=VALUES(enabled),can_operate=VALUES(can_operate),can_payment=VALUES(can_payment),updated_by=VALUES(updated_by)",app,user,Boolean.TRUE.equals(b.get("enabled"))?1:0,Boolean.TRUE.equals(b.get("canOperate"))?1:0,Boolean.TRUE.equals(b.get("canPayment"))?1:0,operator);}
 

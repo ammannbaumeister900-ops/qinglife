@@ -74,6 +74,7 @@
         left join sys_user_role ur on rm.role_id = ur.role_id
         left join sys_role ro on ur.role_id = ro.role_id
         where ur.user_id = #{params.userId}
+          and ro.status = '0' and ro.del_flag = '0'
         <if test="menuName != null and menuName != ''">
             AND menu_name like concat('%', #{menuName}, '%')
         </if>
@@ -110,6 +111,7 @@
           and m.menu_type in ('M', 'C')
           and m.status = 0
           AND ro.status = 0
+          AND ro.del_flag = '0'
         order by m.parent_id, m.order_num
     </select>
 
@@ -140,6 +142,7 @@
                  left join sys_role r on r.role_id = ur.role_id
         where m.status = '0'
           and r.status = '0'
+          and r.del_flag = '0'
           and ur.user_id = #{userId}
     </select>
 

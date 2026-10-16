@@ -306,7 +306,8 @@ public class SysMenuServiceImpl extends ServicePlusImpl<SysMenuMapper, SysMenu, 
      * @return 路由名称
      */
     public String getRouteName(SysMenu menu) {
-        String routerName = StrUtil.upperFirst(menu.getPath());
+        String routePath = menu.getPath();
+        String routerName = StrUtil.upperFirst(routePath.startsWith("/") ? routePath.substring(routePath.lastIndexOf('/') + 1) : routePath);
         // 非外链并且是一级目录（类型为目录）
         if (isMenuFrame(menu)) {
             routerName = StrUtil.EMPTY;

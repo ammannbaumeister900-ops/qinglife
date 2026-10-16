@@ -1,20 +1,15 @@
 package com.yicai.web.controller.system;
 
-import cn.hutool.core.lang.Validator;
 import com.yicai.common.annotation.Log;
 import com.yicai.common.constant.UserConstants;
 import com.yicai.common.core.controller.BaseController;
 import com.yicai.common.core.domain.AjaxResult;
 import com.yicai.common.core.domain.entity.SysRole;
 import com.yicai.common.core.domain.entity.SysUser;
-import com.yicai.common.core.domain.model.LoginUser;
 import com.yicai.common.core.page.TableDataInfo;
 import com.yicai.common.enums.BusinessType;
 import com.yicai.common.utils.SecurityUtils;
-import com.yicai.common.utils.ServletUtils;
 import com.yicai.common.utils.poi.ExcelUtil;
-import com.yicai.framework.web.service.SysPermissionService;
-import com.yicai.framework.web.service.TokenService;
 import com.yicai.system.domain.SysUserRole;
 import com.yicai.system.service.ISysRoleService;
 import com.yicai.system.service.ISysUserService;
@@ -38,13 +33,10 @@ public class SysRoleController extends BaseController
     private ISysRoleService roleService;
 
     @Autowired
-    private TokenService tokenService;
-
-    @Autowired
-    private SysPermissionService permissionService;
-
-    @Autowired
     private ISysUserService userService;
+
+    @Autowired
+    private com.yicai.system.service.AccountManagementPolicy management;
 
     @PreAuthorize("@ss.hasPermi('system:role:list')")
     @GetMapping("/list")
@@ -81,6 +73,11 @@ public class SysRoleController extends BaseController
     @PostMapping
     public AjaxResult add(@Validated @RequestBody SysRole role)
     {
+        if (role.getRoleId() != null) return AjaxResult.error("新增角色不能指定角色编号");
+        management.roleKey(role.getRoleKey());
+        management.status(role.getStatus());
+        management.menus(role.getMenuIds(), SecurityUtils.getLoginUser().getUser().getUserId());
+        role.setDelFlag("0");
         if (UserConstants.NOT_UNIQUE.equals(roleService.checkRoleNameUnique(role)))
         {
             return AjaxResult.error("新增角色'" + role.getRoleName() + "'失败，角色名称已存在");
@@ -102,7 +99,13 @@ public class SysRoleController extends BaseController
     @PutMapping
     public AjaxResult edit(@Validated @RequestBody SysRole role)
     {
-        roleService.checkRoleAllowed(role);
+        management.role(role.getRoleId(), SecurityUtils.getLoginUser().getUser().getUserId(), false);
+        management.roleKey(role.getRoleKey());
+        management.status(role.getStatus());
+        management.menus(role.getMenuIds(), SecurityUtils.getLoginUser().getUser().getUserId());
+        role.setDelFlag(null);
+        role.setCreateBy(null);
+        role.setCreateTime(null);
         if (UserConstants.NOT_UNIQUE.equals(roleService.checkRoleNameUnique(role)))
         {
             return AjaxResult.error("修改角色'" + role.getRoleName() + "'失败，角色名称已存在");
@@ -115,14 +118,6 @@ public class SysRoleController extends BaseController
 
         if (roleService.updateRole(role) > 0)
         {
-            // 更新缓存用户权限
-            LoginUser loginUser = tokenService.getLoginUser(ServletUtils.getRequest());
-            if (Validator.isNotNull(loginUser.getUser()) && !loginUser.getUser().isAdmin())
-            {
-                loginUser.setPermissions(permissionService.getMenuPermission(loginUser.getUser()));
-                loginUser.setUser(userService.selectUserByUserName(loginUser.getUser().getUserName()));
-                tokenService.setLoginUser(loginUser);
-            }
             return AjaxResult.success();
         }
         return AjaxResult.error("修改角色'" + role.getRoleName() + "'失败，请联系管理员");
@@ -136,7 +131,9 @@ public class SysRoleController extends BaseController
     @PutMapping("/dataScope")
     public AjaxResult dataScope(@RequestBody SysRole role)
     {
-        roleService.checkRoleAllowed(role);
+        management.role(role.getRoleId(), SecurityUtils.getLoginUser().getUser().getUserId(), false);
+        if (role.getDataScope() == null || !role.getDataScope().matches("[1-5]")) return AjaxResult.error("数据范围无效");
+        role.setUpdateBy(SecurityUtils.getUsername());
         return toAjax(roleService.authDataScope(role));
     }
 
@@ -148,7 +145,8 @@ public class SysRoleController extends BaseController
     @PutMapping("/changeStatus")
     public AjaxResult changeStatus(@RequestBody SysRole role)
     {
-        roleService.checkRoleAllowed(role);
+        management.role(role.getRoleId(), SecurityUtils.getLoginUser().getUser().getUserId(), false);
+        management.status(role.getStatus());
         role.setUpdateBy(SecurityUtils.getUsername());
         return toAjax(roleService.updateRoleStatus(role));
     }
@@ -161,6 +159,8 @@ public class SysRoleController extends BaseController
     @DeleteMapping("/{roleIds}")
     public AjaxResult remove(@PathVariable Long[] roleIds)
     {
+        if (roleIds == null || roleIds.length == 0) return AjaxResult.error("请选择角色");
+        for (Long id : roleIds) management.role(id, SecurityUtils.getLoginUser().getUser().getUserId(), false);
         return toAjax(roleService.deleteRoleByIds(roleIds));
     }
 
@@ -202,6 +202,7 @@ public class SysRoleController extends BaseController
     @PutMapping("/authUser/cancel")
     public AjaxResult cancelAuthUser(@RequestBody SysUserRole userRole)
     {
+        management.members(userRole.getRoleId(), new Long[]{userRole.getUserId()}, SecurityUtils.getLoginUser().getUser().getUserId(), false);
         return toAjax(roleService.deleteAuthUser(userRole));
     }
 
@@ -213,6 +214,7 @@ public class SysRoleController extends BaseController
     @PutMapping("/authUser/cancelAll")
     public AjaxResult cancelAuthUserAll(Long roleId, Long[] userIds)
     {
+        management.members(roleId, userIds, SecurityUtils.getLoginUser().getUser().getUserId(), false);
         return toAjax(roleService.deleteAuthUsers(roleId, userIds));
     }
 
@@ -224,6 +226,7 @@ public class SysRoleController extends BaseController
     @PutMapping("/authUser/selectAll")
     public AjaxResult selectAuthUserAll(Long roleId, Long[] userIds)
     {
+        management.members(roleId, userIds, SecurityUtils.getLoginUser().getUser().getUserId(), true);
         return toAjax(roleService.insertAuthUsers(roleId, userIds));
     }
 }

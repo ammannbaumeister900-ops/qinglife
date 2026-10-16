@@ -20,6 +20,9 @@ public class QlStaffAdminController {
  @Log(title="工作人员授权",businessType=BusinessType.UPDATE)
  @PreAuthorize("@ss.hasPermi('life:staff:manage')")
  @PutMapping public AjaxResult<?> grant(@RequestBody Map<String,Object> body){staff.grant(body,SecurityUtils.getLoginUser().getUser().getUserId());return AjaxResult.success();}
+ @Log(title="解除微信工作台绑定",businessType=BusinessType.DELETE)
+ @PreAuthorize("@ss.hasPermi('life:staff:manage')")
+ @DeleteMapping("/{appUserId}") public AjaxResult<?> unbind(@PathVariable long appUserId){staff.unbind(appUserId);return AjaxResult.success();}
  @PreAuthorize("@ss.hasPermi('life:serviceRecord:list')")
  @GetMapping("/interview-page") public AjaxResult<?> interviewPage(@RequestParam(defaultValue="") String realName,@RequestParam(defaultValue="") String nickname,@RequestParam(defaultValue="") String operatorName,@RequestParam(defaultValue="1") int pageNum,@RequestParam(defaultValue="20") int pageSize){return AjaxResult.success(staff.interviewPage(realName,nickname,operatorName,pageNum,pageSize));}
  @PreAuthorize("@ss.hasPermi('life:serviceRecord:list')")
