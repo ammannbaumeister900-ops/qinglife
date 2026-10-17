@@ -1,0 +1,494 @@
+{
+  "draftOnly": true,
+  "implemented": false,
+  "writeFlag": "qinglife.finance.participant_write_enabled=false",
+  "authentication": "operator session; operator/holder/beneficiary resolved by server, never trusted from body",
+  "schemas": {
+    "action": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "operationId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$"
+        },
+        "expectedRevision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500,
+          "pattern": "\\S"
+        }
+      },
+      "required": [
+        "operationId",
+        "expectedRevision",
+        "reason"
+      ]
+    },
+    "capture": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "requestId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$"
+        },
+        "captureOnly": {
+          "const": true
+        },
+        "amount": {
+          "type": "string",
+          "pattern": "^(?:0|[1-9][0-9]{0,7})\\.[0-9]{2}$",
+          "not": {
+            "const": "0.00"
+          }
+        },
+        "paymentMethod": {
+          "enum": [
+            "cash",
+            "wechat_scan",
+            "alipay_scan",
+            "transfer",
+            "other"
+          ]
+        },
+        "receivedConfirmed": {
+          "const": true
+        },
+        "receiptReference": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 100
+        },
+        "evidence": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500,
+          "pattern": "\\S"
+        }
+      },
+      "required": [
+        "requestId",
+        "captureOnly",
+        "amount",
+        "paymentMethod",
+        "receivedConfirmed",
+        "receiptReference",
+        "evidence"
+      ]
+    },
+    "allocate": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "operationId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$"
+        },
+        "expectedRevision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "receiptId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$"
+        },
+        "expectedReceiptRevision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "lines": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 50,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "registrationId": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$"
+              },
+              "amount": {
+                "type": "string",
+                "pattern": "^(?:0|[1-9][0-9]{0,9})\\.[0-9]{2}$",
+                "not": {
+                  "const": "0.00"
+                }
+              }
+            },
+            "required": [
+              "registrationId",
+              "amount"
+            ]
+          }
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500,
+          "pattern": "\\S"
+        }
+      },
+      "required": [
+        "operationId",
+        "expectedRevision",
+        "receiptId",
+        "expectedReceiptRevision",
+        "lines",
+        "reason"
+      ]
+    },
+    "settle": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "operationId": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$"
+            },
+            "expectedRevision": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "mode": {
+              "const": "participant"
+            },
+            "settlementType": {
+              "const": "money"
+            },
+            "allocationIds": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 100,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$"
+              }
+            },
+            "finalAmount": {
+              "type": "string",
+              "pattern": "^(?:0|[1-9][0-9]{0,9})\\.[0-9]{2}$"
+            },
+            "differenceConfirmed": {
+              "type": "boolean"
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 500,
+              "pattern": "\\S"
+            }
+          },
+          "required": [
+            "operationId",
+            "expectedRevision",
+            "mode",
+            "settlementType",
+            "allocationIds",
+            "finalAmount",
+            "differenceConfirmed",
+            "reason"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "operationId": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$"
+            },
+            "expectedRevision": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "mode": {
+              "const": "participant"
+            },
+            "settlementType": {
+              "const": "pass"
+            },
+            "passAccountId": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$"
+            },
+            "verificationId": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$"
+            },
+            "passUnits": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65535
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 500,
+              "pattern": "\\S"
+            }
+          },
+          "required": [
+            "operationId",
+            "expectedRevision",
+            "mode",
+            "settlementType",
+            "passAccountId",
+            "verificationId",
+            "passUnits",
+            "reason"
+          ]
+        }
+      ]
+    },
+    "refund": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "operationId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$"
+        },
+        "expectedRevision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "requestedAmount": {
+          "type": "string",
+          "pattern": "^(?:0|[1-9][0-9]{0,9})\\.[0-9]{2}$",
+          "not": {
+            "const": "0.00"
+          }
+        },
+        "allocations": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 100,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "allocationId": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$"
+              },
+              "amount": {
+                "type": "string",
+                "pattern": "^(?:0|[1-9][0-9]{0,9})\\.[0-9]{2}$",
+                "not": {
+                  "const": "0.00"
+                }
+              }
+            },
+            "required": [
+              "allocationId",
+              "amount"
+            ]
+          }
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500,
+          "pattern": "\\S"
+        }
+      },
+      "required": [
+        "operationId",
+        "expectedRevision",
+        "requestedAmount",
+        "allocations",
+        "reason"
+      ]
+    },
+    "refundActual": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "operationId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$"
+        },
+        "expectedRevision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "actualAmount": {
+          "type": "string",
+          "pattern": "^(?:0|[1-9][0-9]{0,9})\\.[0-9]{2}$",
+          "not": {
+            "const": "0.00"
+          }
+        },
+        "paymentMethod": {
+          "enum": [
+            "cash",
+            "wechat_scan",
+            "alipay_scan",
+            "transfer",
+            "other"
+          ]
+        },
+        "externalReference": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "evidence": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500,
+          "pattern": "\\S"
+        },
+        "occurredAt": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\+08:00$"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500,
+          "pattern": "\\S"
+        }
+      },
+      "required": [
+        "operationId",
+        "expectedRevision",
+        "actualAmount",
+        "paymentMethod",
+        "externalReference",
+        "evidence",
+        "occurredAt",
+        "reason"
+      ]
+    },
+    "verifyPass": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "operationId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$"
+        },
+        "expectedRevision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "registrationId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$"
+        },
+        "passAccountId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$"
+        },
+        "scope": {
+          "enum": [
+            "self",
+            "same_order"
+          ]
+        },
+        "passUnits": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535
+        },
+        "basis": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 600,
+          "pattern": "\\S"
+        }
+      },
+      "required": [
+        "operationId",
+        "expectedRevision",
+        "registrationId",
+        "passAccountId",
+        "scope",
+        "passUnits",
+        "basis"
+      ]
+    }
+  },
+  "routes": [
+    [
+      "GET",
+      "/life/registration/batch/{id}/finance",
+      "read"
+    ],
+    [
+      "POST",
+      "/life/registration/{id}/offline-receipt",
+      "capture"
+    ],
+    [
+      "PUT",
+      "/life/registration/{id}/refund-requests/{requestId}/processing",
+      "action"
+    ],
+    [
+      "PUT",
+      "/life/registration/{id}/refund-requests/{requestId}/cancel",
+      "action"
+    ],
+    [
+      "PUT",
+      "/life/registration/{id}/refund-requests/{requestId}/fail",
+      "action"
+    ],
+    [
+      "PUT",
+      "/life/registration/{id}/settlement/{settlementId}/revoke",
+      "action"
+    ],
+    [
+      "POST",
+      "/life/registration/batch/{id}/receipt-allocations",
+      "allocate"
+    ],
+    [
+      "PUT",
+      "/life/registration/{id}/settlement",
+      "settle"
+    ],
+    [
+      "POST",
+      "/life/registration/{id}/refund-requests",
+      "refund"
+    ],
+    [
+      "POST",
+      "/life/registration/{id}/refund-requests/{requestId}/payments",
+      "refundActual"
+    ],
+    [
+      "POST",
+      "/life/registration/{id}/pass-verifications",
+      "verifyPass"
+    ]
+  ],
+  "semanticChecks": [
+    "same order/session for every allocation",
+    "confirmed actual receipt, no excess alloc/reversal",
+    "allocation total versus receivable and explicit amount difference acknowledgement",
+    "active refund reservation plus completed attribution <= refundable allocation",
+    "refund never updates registration_status",
+    "operator permission plus verified holder and same order beneficiary",
+    "lock and unique operation payload hash; revision and transaction",
+    "old endpoints reject participant writes; write flag defaults off"
+  ]
+}
