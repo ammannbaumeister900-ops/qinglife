@@ -50,6 +50,8 @@ Generate the private-draft preview shell with
 authenticated shell may be web-readable; draft content and images remain
 authenticated. Keep it alongside the admin build in any later authorized UAT
 deployment. The ordinary editor does not attach authentication to image tags.
+The source template lives in `apps/admin/build/`, outside the dynamic Vue route
+context. Do not move the HTML source into `src/views/`.
 
 Build the miniapp using `scripts/package-uat-miniapp.cjs 1.4.22-uat.1017`.
 It sets the UAT API and legal-domain checks in a separate ignored artifact;
