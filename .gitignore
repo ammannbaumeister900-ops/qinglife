@@ -45,3 +45,6 @@ deployment/private/
 
 # Local portable build tools and caches
 .tools/
+
+# Visual redesign font sources (OFL; regenerated subsets live in apps/miniapp/styles)
+tools/fonts/src/

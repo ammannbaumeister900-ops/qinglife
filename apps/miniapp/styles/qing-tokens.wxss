@@ -1,0 +1,44 @@
+/* 「林下午后」视觉令牌 · 2026Q4（docs/design/redesign-2026q4/ART-DIRECTION.md §2）
+ * 只定义变量，不写选择器样式。新样式只引用 --q-*；旧 --ql-* 保留给未改版页面。
+ * 页面经 app.wxss 引入。自定义组件（如 custom-tab-bar）拿不到页面变量，也不认 :host；
+ * 需在组件 wxss 中 @import 本文件，并给组件根节点加 class="q-tokens"。
+ */
+page, .q-tokens {
+  /* 颜色：对比度均按 WCAG 计算 */
+  --q-linen:   #F3F2EC; /* 页面底 */
+  --q-ink:     #1F251D; /* 正文 14.0:1 on linen */
+  --q-ink-2:   #596253; /* 辅助 5.7:1 on linen；只用于辅助，不用于正文 */
+  --q-line:    #D3D7CC; /* 分隔线，只作线 */
+  --q-moss:    #2F4A31; /* 链接 / 选中 / 浅底上的强调 8.7:1 */
+  --q-forest:  #1B271D; /* 深色色场底；主按钮底 */
+  --q-on-dark: #ECEBE3; /* 深色上的正文 13.0:1 */
+  --q-on-dark-2: #B9BFB2; /* 深色上的辅助 8.2:1 */
+  --q-juice:   #BFCD55; /* 汁绿：只用于深色上的数字与选中态 8.9:1；禁止用在浅底 */
+  --q-field:   #E4E9DB; /* 浅苔色场，一页最多一处；ink 12.7:1，ink-2 5.1:1 */
+  --q-sand:    #F2EBDC; /* 风险块底 */
+  --q-amber:   #7E521E; /* 风险标题 / 待授权标记 5.7:1 on sand */
+  --q-white:   #FFFFFF; /* 心声卡交替底 */
+
+  /* 字体 */
+  --q-serif: "Qing Serif", "Songti SC", "STSong", serif;      /* 固定标题：子集 */
+  --q-num:   "Qing Num", "Qing Serif", Georgia, serif;         /* 日期与统计数字：数字子集 */
+  --q-sans:  "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Microsoft YaHei", sans-serif;
+
+  /* 字阶（乘以页面已有的 font-scale 变量，上限 1.4） */
+  --q-fs-display: 54px; /* 题字，每屏最多一处 */
+  --q-fs-h2: 28px;      /* 段题 */
+  --q-fs-h3: 22px;      /* 区头（首页模块名） */
+  --q-fs-num-xl: 112px; /* 59.9% */
+  --q-fs-num-l: 66px;   /* 首页日期 */
+  --q-fs-num-m: 48px;   /* 2007 / 500 */
+  --q-fs-body: 16px;
+  --q-fs-aux: 14px;
+  --q-fs-note: 12px;    /* 仅 Tab 文字、待授权标记 */
+
+  /* 间距 */
+  --q-gutter: 24px;     /* ≤350px 宽时为 20px */
+  --q-gap-module: 44px; /* 模块之间 */
+  --q-gap-block: 20px;  /* 模块内部 */
+  --q-tap: 44px;
+  --q-btn-h: 52px;
+}

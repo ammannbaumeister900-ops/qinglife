@@ -1,3 +1,6 @@
+@import "styles/qing-tokens.wxss";
+@import "styles/qing-fonts.wxss";
+
 /* 轻生活前端产品设计规范 V1.1 · 呼吸的纸面 */
 
 page {
