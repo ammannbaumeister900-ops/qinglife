@@ -10,6 +10,7 @@ import java.util.Date;
 public class QlRegistrationVo {
     private String id;
     private String batchId;
+    private String settlementMode;
     private String orderNo;
     private String buyerCustomerId;
     private String buyerNickname;

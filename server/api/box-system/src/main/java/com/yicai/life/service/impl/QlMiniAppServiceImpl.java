@@ -33,6 +33,7 @@ public class QlMiniAppServiceImpl implements IQlMiniAppService {
     private static final Set<String> SUBSCRIPTION_STATUSES = new HashSet<>(Arrays.asList("enabled", "disabled", "rejected"));
 
     @Autowired private com.yicai.life.service.QlRegistrationPolicy policy;
+    @Autowired private com.yicai.life.service.QlParticipantModePolicy modes;
     private final RedisCache redisCache;
     private final QlCustomerIdentityService identityService;
     private final QlMiniAppMapper miniAppMapper;
@@ -198,6 +199,7 @@ public class QlMiniAppServiceImpl implements IQlMiniAppService {
         miniAppMapper.insertRegistrationBatch(batchId, orderNo, bo.getSessionId(), buyerId,
                 bo.getContactName().trim(), bo.getContactPhone().trim(), scopedRequestId,
                 bo.getParticipants().size(), amount, now);
+        modes.initializeNewBatch(batchId);
         miniAppMapper.setRequestFingerprint(batchId, fingerprint);
         miniAppMapper.insertServiceConsent(uuid(), buyerId, CONSENT_POLICY_VERSION, now);
 
@@ -518,7 +520,6 @@ public class QlMiniAppServiceImpl implements IQlMiniAppService {
     }
 
     private String orderNo(Date now) {
-        return "QL" + new SimpleDateFormat("yyyyMMddHHmmss").format(now)
-                + UUID.randomUUID().toString().substring(0, 6).toUpperCase(Locale.ROOT);
+        return com.yicai.life.service.QlOrderNumber.create(now);
     }
 }

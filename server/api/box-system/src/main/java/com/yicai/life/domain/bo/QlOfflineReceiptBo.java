@@ -4,6 +4,11 @@ import java.math.BigDecimal;
 import javax.validation.constraints.*;
 @Data
 public class QlOfflineReceiptBo {
+    private Boolean captureOnly;
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    private final java.util.Map<String,Object> extraFields=new java.util.LinkedHashMap<>();
+    @com.fasterxml.jackson.annotation.JsonAnySetter
+    public void extra(String name,Object value) {extraFields.put(name,value);}
     @NotBlank @Pattern(regexp="wechat_scan|alipay_scan|transfer|cash|other")
     private String paymentMethod;
     @NotNull @DecimalMin("0.01") @Digits(integer=8,fraction=2)

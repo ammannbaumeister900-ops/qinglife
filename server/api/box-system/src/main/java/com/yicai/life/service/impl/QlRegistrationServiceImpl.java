@@ -44,6 +44,8 @@ public class QlRegistrationServiceImpl
     private static final java.util.List<String> SETTLEMENT_TYPES = Arrays.asList("money", "pass");
 
     @Autowired private com.yicai.life.service.QlRegistrationPolicy policy;
+    @Autowired private com.yicai.life.service.QlParticipantModePolicy modes;
+    @Autowired private com.yicai.life.service.QlParticipantFinanceService participantFinance;
     private final QlRegistrationMapper registrationMapper;
     private final com.yicai.life.mapper.QlSessionMapper sessionMapper;
     private final com.yicai.life.service.QlSessionPricing pricing;
@@ -81,6 +83,7 @@ public class QlRegistrationServiceImpl
         com.yicai.life.domain.QlSession session = sessionMapper.selectById(bo.getSessionId());
         if (session == null) throw new CustomException("期次不存在", 400);
         entity.setUnitPrice(pricing.price(bo.getCustomerId(), session.getStandardPrice(), session.getReturningPrice()));
+        entity.setBatchId(modes.newSingleBatch(entity));
         entity.setRegisteredAt(now);
         if ("confirmed".equals(entity.getRegistrationStatus())) {
             entity.setConfirmedAt(now);
@@ -101,6 +104,7 @@ public class QlRegistrationServiceImpl
     @Override
     @Transactional
     public boolean updateByBo(QlRegistrationBo bo, Long operatorId) {
+        modes.requireLegacyRegistration(bo.getId());
         QlRegistration snapshot = getById(bo.getId());
         if (snapshot == null) throw new CustomException("报名记录不存在",400);
         policy.lockSession(snapshot.getSessionId());
@@ -141,6 +145,7 @@ public class QlRegistrationServiceImpl
     @Override
     @Transactional
     public boolean confirmPayment(String id, QlPaymentConfirmationBo bo, Long operatorId) {
+        modes.requireLegacyRegistration(id);
         if (bo == null || !Arrays.asList("wechat_scan", "alipay_scan", "transfer", "cash", "other", "pass").contains(bo.getPaymentMethod()))
             throw new CustomException("请选择有效的付款方式", 400);
         if (bo.getNote() != null && bo.getNote().length() > 500) throw new CustomException("备注最多500字", 400);
@@ -199,6 +204,8 @@ public class QlRegistrationServiceImpl
     @Override
     @Transactional
     public boolean confirmSettlement(String id, QlSettlementBo bo, Long operatorId) {
+        if(bo!=null && "participant".equals(bo.getMode()))return participantFinance.settle(id,bo,operatorId)!=null;
+        modes.requireLegacyRegistration(id);
         validateSettlement(bo);
         QlRegistration snapshot = getById(id);
         if (snapshot == null) throw new CustomException("报名记录不存在", 404);
@@ -263,6 +270,7 @@ public class QlRegistrationServiceImpl
     @Override
     @Transactional
     public boolean revokeSettlement(String id, String settlementId, String reason, Long operatorId) {
+        modes.requireLegacyRegistration(id);
         if (StrUtil.isBlank(reason) || reason.trim().length() > 500) {
             throw new CustomException("撤销结算必须填写原因（最多500字）", 400);
         }
@@ -427,6 +435,7 @@ public class QlRegistrationServiceImpl
     @Override
     @Transactional
     public boolean changePayment(String id, QlPaymentBo bo, Long operatorId) {
+        modes.requireLegacyRegistration(id);
         if (!PAYMENT_STATUSES.contains(bo.getPaymentStatus())) {
             throw new CustomException("当前版本仅支持未付款或已付款", 400);
         }
@@ -495,6 +504,7 @@ public class QlRegistrationServiceImpl
     @Override
     @Transactional
     public boolean changeBatchPayment(String batchId, QlPaymentBo bo, Long operatorId) {
+        modes.requireLegacyBatch(batchId);
         if (!PAYMENT_STATUSES.contains(bo.getPaymentStatus())) {
             throw new CustomException("当前版本仅支持未付款或已付款", 400);
         }
@@ -568,6 +578,7 @@ public class QlRegistrationServiceImpl
     @Override
     @Transactional
     public boolean cancelBatch(String batchId,String reason,Long operatorId) {
+        modes.requireLegacyBatch(batchId);
         if(StrUtil.isBlank(reason)||reason.length()>500)throw new CustomException("整单取消需填写原因（最多500字）",400);
         String sessionId=registrationMapper.selectBatchSessionId(batchId);
         if(sessionId==null)throw new CustomException("报名订单不存在",404);

@@ -11,6 +11,18 @@ import java.math.BigDecimal;
 
 @Data
 public class QlSettlementBo {
+    @javax.validation.constraints.Pattern(regexp="participant")
+    private String mode;
+    private String operationId;
+    @Min(0) private Integer expectedRevision;
+    @Size(max=100) private java.util.List<String> allocationIds;
+    private Boolean differenceConfirmed;
+    @Size(max=500) private String differenceReason;
+    @Size(max=500) private String reason;
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    private final java.util.Map<String,Object> extraFields=new java.util.LinkedHashMap<>();
+    @com.fasterxml.jackson.annotation.JsonAnySetter
+    public void extra(String name,Object value) {extraFields.put(name,value);}
     @NotNull(message = "最终金额不能为空，可填写0")
     @DecimalMin(value = "0", message = "最终金额不能小于0")
     private BigDecimal finalAmount;

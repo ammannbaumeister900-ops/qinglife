@@ -48,6 +48,7 @@ class QlPermissionBoundaryTest {
         app.getBeanFactory().registerSingleton("passService", mock(QlPassService.class));
         app.getBeanFactory().registerSingleton("registrationService", mock(IQlRegistrationService.class));
         app.getBeanFactory().registerSingleton("offlineReceipts", mock(com.yicai.life.service.QlOfflineReceiptService.class));
+        app.getBeanFactory().registerSingleton("participantFinance", mock(com.yicai.life.service.QlParticipantFinanceService.class));
         app.getBeanFactory().registerSingleton("customerService", mock(IQlCustomerService.class));
         app.getBeanFactory().registerSingleton("dossierService", mock(QlCustomerDossierService.class));
         app.getBeanFactory().registerSingleton("friendAssessments", mock(QlFriendAssessmentService.class));
@@ -231,8 +232,8 @@ class QlPermissionBoundaryTest {
         @Bean QlCampReflectionAdminController campReflectionController(com.yicai.life.service.QlCampReflectionService reflections, PermissionService permissions) { return new QlCampReflectionAdminController(reflections, permissions); }
         @Bean(name = "ss") PermissionService permissionService() { return new PermissionService(); }
         @Bean QlPassController passController(QlPassService service) { return new QlPassController(service); }
-        @Bean QlRegistrationController registrationController(IQlRegistrationService service, com.yicai.life.service.QlOfflineReceiptService receipts) {
-            return new QlRegistrationController(service,receipts);
+        @Bean QlRegistrationController registrationController(IQlRegistrationService service, com.yicai.life.service.QlOfflineReceiptService receipts, com.yicai.life.service.QlParticipantFinanceService finance) {
+            return new QlRegistrationController(service,receipts,finance);
         }
         @Bean QlCustomerController customerController(IQlCustomerService customers,
                 QlCustomerDossierService dossier, QlFriendAssessmentService assessments,

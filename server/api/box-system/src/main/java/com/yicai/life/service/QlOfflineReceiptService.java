@@ -29,6 +29,7 @@ public class QlOfflineReceiptService {
     private final IQlRegistrationService registrationService;
     private final QlOfflineReceiptImageService images;
     private final ObjectMapper json;
+    private final QlParticipantModePolicy modes;
 
     private TransactionTemplate separateTransaction() {
         TransactionTemplate t=new TransactionTemplate(transactionManager);
@@ -72,6 +73,8 @@ public class QlOfflineReceiptService {
     }
     private QlTransaction capture(String id,QlOfflineReceiptBo bo,Long operator,List<byte[]> imageBytes) {
         Target t=lockTarget(id);
+        modes.requireLegacyRegistration(id);
+        if(Boolean.TRUE.equals(bo.getCaptureOnly()))throw new CustomException("历史订单不接受逐人到账报文",409);
         String ref=StrUtil.trimToNull(bo.getReceiptReference()),evidence=StrUtil.trimToNull(bo.getEvidence());
         String key=StrUtil.trimToNull(bo.getRequestId()),existing=StrUtil.trimToNull(bo.getReceiptId());
         if(ref==null && key==null && existing==null)throw new CustomException("操作标识缺失，请刷新后重新操作",400);

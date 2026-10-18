@@ -73,6 +73,8 @@ class RegistrationReadinessIT {
         @Bean QlReflectionPublicationReviewService publicationReviews(JdbcTemplate db){return spy(new QlReflectionPublicationReviewService(db));}
         @Bean QlCommunityAccessPolicy communityAccess(){return spy(new QlCommunityAccessPolicy());}
         @Bean QlReflectionVoiceService reflectionVoice(){return mock(QlReflectionVoiceService.class);}
+        @Bean QlParticipantModePolicy modes(JdbcTemplate db){return new QlParticipantModePolicy(new QlParticipantFinanceMapper(db));}
+        @Bean QlParticipantFinanceService participantFinance(){return mock(QlParticipantFinanceService.class);}
         @Bean RedisCache redis(){return mock(RedisCache.class);}
         @Bean RedissonClient redisson(){return mock(RedissonClient.class);}
         @Bean QlCustomerIdentityService identity(){return mock(QlCustomerIdentityService.class);}
