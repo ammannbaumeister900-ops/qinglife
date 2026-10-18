@@ -1,6 +1,6 @@
 {
-  "draftOnly": true,
-  "implemented": false,
+  "draftOnly": false,
+  "implemented": true,
   "writeFlag": "qinglife.finance.participant_write_enabled=false",
   "authentication": "operator session; operator/holder/beneficiary resolved by server, never trusted from body",
   "schemas": {
@@ -245,6 +245,9 @@
               "minLength": 1,
               "maxLength": 500,
               "pattern": "\\S"
+            },
+            "finalAmount": {
+              "const": "0.00"
             }
           },
           "required": [
@@ -431,6 +434,35 @@
         "passUnits",
         "basis"
       ]
+    },
+    "passReturn": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "operationId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$"
+        },
+        "expectedRevision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "mode": {
+          "const": "participant"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500,
+          "pattern": "\\S"
+        }
+      },
+      "required": [
+        "operationId",
+        "expectedRevision",
+        "mode",
+        "reason"
+      ]
     }
   },
   "routes": [
@@ -462,7 +494,7 @@
     [
       "PUT",
       "/life/registration/{id}/settlement/{settlementId}/revoke",
-      "action"
+      "passReturn"
     ],
     [
       "POST",
@@ -492,6 +524,11 @@
     [
       "PUT",
       "/life/registration/{id}/cancel",
+      "action"
+    ],
+    [
+      "PUT",
+      "/life/registration/{id}/pass-verifications/{verificationId}/revoke",
       "action"
     ]
   ],
