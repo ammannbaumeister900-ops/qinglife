@@ -6,7 +6,10 @@
         buyer.nickname AS buyer_nickname, b.contact_name, b.contact_phone, b.participant_count,
         CASE WHEN b.settlement_mode='participant' THEN r.unit_price ELSE b.quoted_amount END AS quoted_amount,
         CASE WHEN b.settlement_mode='participant' THEN COALESCE(r.final_amount,r.unit_price) ELSE b.payable_amount END AS payable_amount,
-        (COALESCE(b.settlement_mode,'legacy_batch')&lt;&gt;'participant' AND (b.id IS NULL OR NOT EXISTS(SELECT 1 FROM ql_registration ready WHERE ready.batch_id=b.id AND ready.registration_status &lt;&gt; 'confirmed'))) AS batch_ready_for_payment,
+        CASE WHEN COALESCE(b.settlement_mode,'legacy_batch')='participant' THEN 0
+             WHEN b.id IS NULL THEN 1
+             WHEN EXISTS(SELECT 1 FROM ql_registration ready WHERE ready.batch_id=b.id AND ready.registration_status &lt;&gt; 'confirmed') THEN 0
+             ELSE 1 END AS batch_ready_for_payment,
         CASE WHEN b.id IS NOT NULL AND b.settlement_mode='legacy_batch' THEN b.final_amount ELSE r.final_amount END AS final_amount,
         CASE WHEN b.id IS NOT NULL AND b.settlement_mode='legacy_batch' THEN b.settlement_status ELSE r.settlement_status END AS settlement_status,
         CASE WHEN b.id IS NOT NULL AND b.settlement_mode='legacy_batch' THEN b.settlement_type ELSE r.settlement_type END AS settlement_type,

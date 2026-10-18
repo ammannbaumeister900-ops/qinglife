@@ -68,6 +68,6 @@ public class QlParticipantRefundMapper {
             "(SELECT COUNT(*) FROM ql_refund_request r WHERE r.registration_id=? AND r.status='requested') AS requestedCount",registration,registration,registration,registration);
     }
     public List<Map<String,Object>> history(String batch) {
-        return db.queryForList("SELECT q.id AS requestId,q.registration_id AS registrationId,q.requested_amount AS requestedAmount,q.status,q.revision,p.id AS paymentId,p.actual_amount AS actualAmount,p.status AS paymentStatus,p.occurred_at AS occurredAt FROM ql_refund_request q JOIN ql_registration r ON r.id=q.registration_id LEFT JOIN ql_refund_payment p ON p.request_id=q.id WHERE r.batch_id=? ORDER BY q.requested_at,q.id,p.id",batch);
+        return db.queryForList("SELECT q.id AS requestId,q.registration_id AS registrationId,q.requested_amount AS requestedAmount,q.status,q.revision,q.reason,q.requested_by AS requestedBy,q.requested_at AS requestedAt,p.id AS paymentId,p.actual_amount AS actualAmount,p.payment_method AS paymentMethod,p.external_reference AS reference,p.evidence,p.status AS paymentStatus,p.occurred_at AS occurredAt FROM ql_refund_request q JOIN ql_registration r ON r.id=q.registration_id LEFT JOIN ql_refund_payment p ON p.request_id=q.id WHERE r.batch_id=? ORDER BY q.requested_at,q.id,p.id",batch);
     }
 }

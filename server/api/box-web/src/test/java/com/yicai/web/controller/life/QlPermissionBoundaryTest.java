@@ -214,7 +214,7 @@ class QlPermissionBoundaryTest {
     @Test void pageConfigurationAndSelectorsRequireTheirOwnActionGrants() {
         com.yicai.web.controller.system.AccountPagePermissionController pages=context.getBean(com.yicai.web.controller.system.AccountPagePermissionController.class);
         assertThrows(AccessDeniedException.class,()->pages.list(null,1,20));assertThrows(AccessDeniedException.class,()->pages.save(42L,new com.yicai.system.domain.bo.AccountPagePermissionBo()));
-        QlAdminSelectionController selectors=context.getBean(QlAdminSelectionController.class);assertThrows(AccessDeniedException.class,()->selectors.customers());assertThrows(AccessDeniedException.class,()->selectors.sessions());assertThrows(AccessDeniedException.class,()->selectors.passes("r"));
+        QlAdminSelectionController selectors=context.getBean(QlAdminSelectionController.class);assertThrows(AccessDeniedException.class,()->selectors.customers());assertThrows(AccessDeniedException.class,()->selectors.sessions());assertThrows(AccessDeniedException.class,()->selectors.passes("r",null));assertThrows(AccessDeniedException.class,()->selectors.passes("r","self"));
         LoginUser user=(LoginUser)SecurityContextHolder.getContext().getAuthentication().getPrincipal();user.getPermissions().add("system:accountPermission:list");pages.list(null,1,20);assertThrows(AccessDeniedException.class,()->pages.save(42L,new com.yicai.system.domain.bo.AccountPagePermissionBo()));
     }
     @Test void offlineReceiptRequiresBothEditAndPaymentPermissions() {

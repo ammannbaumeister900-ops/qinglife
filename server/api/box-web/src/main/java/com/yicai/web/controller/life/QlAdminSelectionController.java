@@ -13,6 +13,6 @@ public class QlAdminSelectionController {
     @PreAuthorize("@ss.hasPermi('life:registration:list')") @GetMapping("/sessions")
     public AjaxResult<?> sessions(){return AjaxResult.success(selections.sessions(userId()));}
     @PreAuthorize("@ss.hasAnyPermi('life:registration:payment,life:registration:settlement:revoke')") @GetMapping("/registrations/{id}/passes")
-    public AjaxResult<?> passes(@PathVariable String id){return AjaxResult.success(selections.registrationPasses(id,userId()));}
+    public AjaxResult<?> passes(@PathVariable String id,@RequestParam(required=false) String scope){return AjaxResult.success(selections.registrationPasses(id,userId(),scope));}
     private Long userId(){return SecurityUtils.getLoginUser().getUser().getUserId();}
 }

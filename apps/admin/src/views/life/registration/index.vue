@@ -1,6 +1,6 @@
 <template>
   <div class="app-container">
-    <el-form ref="queryForm" :model="queryParams" :inline="true" v-show="showSearch" label-width="72px">
+    <el-form v-show="showSearch" ref="queryForm" :model="queryParams" :inline="true" label-width="72px">
       <el-form-item label="轻友" prop="nickname"><el-input v-model="queryParams.nickname" placeholder="称呼/姓名/编号" clearable size="small" @keyup.enter.native="handleQuery" /></el-form-item>
       <el-form-item label="期次" prop="sessionNumberInput">
         <el-autocomplete v-model="queryParams.sessionNumberInput" :fetch-suggestions="suggestSessions" placeholder="选择最近5期或输入期数数字" clearable size="small" :maxlength="10" style="width:270px" @input="queryParams.sessionNumber = undefined" @select="selectSessionFilter" @keyup.enter.native="handleQuery">
@@ -11,7 +11,7 @@
       <el-form-item label="付款状态" prop="paymentProgress"><el-select v-model="queryParams.paymentProgress" placeholder="全部" clearable size="small"><el-option label="待付款" value="pending" /><el-option label="已完成" value="completed" /><el-option label="已取消" value="cancelled" /></el-select></el-form-item>
       <el-form-item><el-button type="primary" icon="el-icon-search" size="mini" @click="handleQuery">搜索</el-button><el-button icon="el-icon-refresh" size="mini" @click="resetQuery">重置</el-button></el-form-item>
     </el-form>
-    <el-row :gutter="10" class="mb8"><el-col :span="1.5"><el-button type="primary" plain icon="el-icon-plus" size="mini" @click="handleAdd" v-hasPermi="['life:registration:add']">新增报名</el-button></el-col><right-toolbar :showSearch.sync="showSearch" @queryTable="getList" /></el-row>
+    <el-row :gutter="10" class="mb8"><el-col :span="1.5"><el-button v-hasPermi="['life:registration:add']" type="primary" plain icon="el-icon-plus" size="mini" @click="handleAdd">新增报名</el-button></el-col><right-toolbar :show-search.sync="showSearch" @queryTable="getList" /></el-row>
     <el-table v-loading="loading" :data="registrationList">
       <el-table-column label="订单/主要联系人" min-width="190"><template slot-scope="scope"><div>{{ scope.row.orderNo || '后台单人登记' }}</div><div class="muted">{{ scope.row.contactName || scope.row.buyerNickname || scope.row.nickname }}<span v-if="scope.row.contactPhone"> · {{ scope.row.contactPhone }}</span> · {{ scope.row.participantCount || 1 }}人</div></template></el-table-column>
       <el-table-column label="实际参与人" min-width="130"><template slot-scope="scope"><div>{{ scope.row.nickname }}</div><div class="muted">{{ scope.row.customerNo }}</div></template></el-table-column>
@@ -25,11 +25,12 @@
       <el-table-column label="报名时间" prop="registeredAt" width="160" />
       <el-table-column label="备注" prop="remark" min-width="150" show-overflow-tooltip />
       <el-table-column label="操作" width="240" fixed="right"><template slot-scope="scope">
+        <el-button v-if="scope.row.settlementMode === 'participant'" size="mini" type="text" :disabled="!hasPaymentPermission || !hasQueryPermission" @click="$refs.participantOrder.show(scope.row)">订单详情</el-button>
         <el-button v-if="canConfirmRegistration(scope.row)" size="mini" type="text" @click="handleConfirmRegistration(scope.row)">确认报名</el-button>
         <el-button v-else-if="canConfirmPayment(scope.row)" size="mini" type="text" @click="handleConfirmPayment(scope.row)">确认付款</el-button>
         <el-button v-if="hasPaymentPermission" size="mini" type="text" @click="$refs.offlineReceipt.show(scope.row, true)">收款附件</el-button>
-        <el-dropdown v-if="rowActions(scope.row).length" trigger="click" @command="action => handleRowAction(action, scope.row)"><el-button type="text" size="mini">更多<i class="el-icon-arrow-down el-icon--right" /></el-button><el-dropdown-menu slot="dropdown"><el-dropdown-item v-for="action in rowActions(scope.row)" :key="action.key" :command="action.key">{{action.label}}</el-dropdown-item></el-dropdown-menu></el-dropdown>
-        <span v-if="!canConfirmRegistration(scope.row) && !canConfirmPayment(scope.row) && !rowActions(scope.row).length" class="muted">—</span>
+        <el-dropdown v-if="rowActions(scope.row).length" trigger="click" @command="action => handleRowAction(action, scope.row)"><el-button type="text" size="mini">更多<i class="el-icon-arrow-down el-icon--right" /></el-button><el-dropdown-menu slot="dropdown"><el-dropdown-item v-for="action in rowActions(scope.row)" :key="action.key" :command="action.key">{{ action.label }}</el-dropdown-item></el-dropdown-menu></el-dropdown>
+        <span v-if="scope.row.settlementMode !== 'participant' && !canConfirmRegistration(scope.row) && !canConfirmPayment(scope.row) && !rowActions(scope.row).length" class="muted">—</span>
       </template></el-table-column>
     </el-table>
     <pagination v-show="total > 0" :total="total" :page.sync="queryParams.pageNum" :limit.sync="queryParams.pageSize" @pagination="getList" />
@@ -51,7 +52,7 @@
       <el-alert title="请核对实际收款后填写金额与方式；卡次付款将扣减所选账户。" type="info" :closable="false" show-icon class="mb20" />
       <el-alert v-if="paymentRow.settlementStatus==='confirmed'" title="原金额已确认，按原金额登记付款；需调整金额时先撤销原金额确认。" type="warning" :closable="false" class="mb20" />
       <el-form ref="paymentForm" :model="paymentForm" :rules="paymentRules" label-width="96px">
-        <el-form-item label="轻友"><span>{{paymentRow.contactName || paymentRow.buyerNickname || paymentRow.nickname}}</span></el-form-item>
+        <el-form-item label="轻友"><span>{{ paymentRow.contactName || paymentRow.buyerNickname || paymentRow.nickname }}</span></el-form-item>
         <el-form-item label="参考金额">¥{{ Number(paymentRow.quotedAmount == null ? paymentRow.standardPrice || 0 : paymentRow.quotedAmount).toFixed(2) }}</el-form-item>
         <el-form-item label="付款方式" prop="paymentMethod"><el-select v-model="paymentForm.paymentMethod" placeholder="请选择实际付款方式" style="width:100%" @change="handlePaymentMethodChange"><el-option label="微信" value="wechat_scan" /><el-option label="支付宝" value="alipay_scan" /><el-option label="转账" value="transfer" /><el-option label="现金" value="cash" /><el-option label="其他" value="other" /><el-option v-if="paymentRow.settlementStatus!=='confirmed'" label="消耗卡次" value="pass" /></el-select></el-form-item>
         <el-form-item v-if="paymentForm.paymentMethod!=='pass'" label="付款金额" prop="amount"><el-input-number v-model="paymentForm.amount" :min="0" :max="99999999.99" :precision="2" :disabled="paymentRow.settlementStatus==='confirmed'" style="width:100%" /></el-form-item>
@@ -75,18 +76,26 @@
       <div slot="footer" class="dialog-footer"><el-button type="danger" :loading="revokeSubmitting" :disabled="revokeBlockedByPayment()" @click="submitRevokeSettlement">确认撤销结算</el-button><el-button @click="revokeOpen=false">关闭</el-button></div>
     </el-dialog>
 
+    <participant-order-dialog ref="participantOrder" @changed="getList" />
   </div>
 </template>
 
 <script>
 import { listRegistration, getRegistration, addRegistration, updateRegistration, confirmRegistrationPayment, revokeSettlement, changePayment, changeBatchPayment, cancelBatchRegistration } from '@/api/life/registration'
 import OfflineReceiptDialog from './OfflineReceiptDialog.vue'
+import ParticipantOrderDialog from './ParticipantOrderDialog.vue'
 import { checkPermi } from '@/utils/permission'
 import { selectCustomers, selectSessions, selectRegistrationPasses } from '@/api/life/selection'
 
 export default {
   name: 'QlRegistration',
-  components: { OfflineReceiptDialog },
+  components: { OfflineReceiptDialog, ParticipantOrderDialog },
+  beforeRouteLeave(to, from, next) {
+    if (this.$refs.participantOrder && this.$refs.participantOrder.hasPendingWrite()) {
+      this.msgWarning('资金操作结果尚未确认，请保留窗口并按原请求重试后再离开')
+      next(false)
+    } else next()
+  },
   data() {
     return {
       loading: false, submitting: false, revokeSubmitting: false, showSearch: true, total: 0, registrationList: [], open: false, paymentOpen: false, loadingPasses: false, revokeOpen: false, title: '', customerOptions: [], sessionOptions: [], recentSessionOptions: [], passAccounts: [], paymentRow: {}, revokeRow: {}, revokeForm: {}, revokePassAccountLabel: '',
@@ -99,13 +108,14 @@ export default {
       revokeRules: { reason: [{ required: true, message: '请填写撤销原因', trigger: 'blur' }, { max: 500, message: '撤销原因最多500字', trigger: 'blur' }] }
     }
   },
-  created() { this.applyRoute(); this.getList(); this.loadOptions() },
   computed: {
     hasEditPermission() { return checkPermi(['life:registration:edit']) },
     hasPaymentPermission() { return checkPermi(['life:registration:payment']) },
+    hasQueryPermission() { return checkPermi(['life:registration:query']) },
     hasSettlementRevokePermission() { return checkPermi(['life:registration:settlement:revoke']) }
   },
-  watch: { '$route.query': { handler() { if(this.$route.path === '/activityOperations/registration') { this.applyRoute(); this.getList() } } } },
+  watch: { '$route.query': { handler() { if (this.$route.path === '/activityOperations/registration') { this.applyRoute(); this.getList() } } }},
+  created() { this.applyRoute(); this.getList(); this.loadOptions() },
   methods: {
     suggestSessions(input, callback) {
       callback(this.recentSessionOptions.filter(item => !input || String(item.sessionNumber).includes(input)).map(item => ({ value: String(item.sessionNumber), name: item.name })))
@@ -129,7 +139,10 @@ export default {
         this.registrationList = []; this.total = 0
       }).finally(() => { if (requestId === this.listRequestId) this.loading = false })
     },
-    loadOptions() { selectCustomers().then(res => { this.customerOptions = res.data || [] }); selectSessions().then(res => { this.sessionOptions = res.data || []; this.recentSessionOptions = this.sessionOptions.slice(0,5) }).catch(() => { this.recentSessionOptions = [] }) },
+    loadOptions() {
+      if (checkPermi(['life:customer:list'])) selectCustomers().then(res => { this.customerOptions = res.data || [] }).catch(() => { this.customerOptions = [] })
+      if (checkPermi(['life:session:list'])) selectSessions().then(res => { this.sessionOptions = res.data || []; this.recentSessionOptions = this.sessionOptions.slice(0, 5) }).catch(() => { this.recentSessionOptions = [] })
+    },
     handleBatchCancel(row) {
       this.$prompt('将取消该订单全部参与人的报名；已付款或已有到场记录时不可取消。请填写原因。', '取消整单报名', {
         inputValidator: value => !!(value && value.trim() && value.trim().length <= 500) || '请填写500字以内的原因',
@@ -148,22 +161,22 @@ export default {
     paymentProgressType(row) { return row.registrationStatus === 'cancelled' ? 'info' : this.paymentStatus(row) === 'paid' || this.passCompleted(row) ? 'success' : 'warning' },
     paymentSummary(row) { return this.passCompleted(row) ? '卡次 · ' + row.passUnits + '次' : row.settlementStatus === 'confirmed' ? '现金金额已核对' : '' },
     paymentAmountText(row) { if (this.passCompleted(row)) return '抵扣 ' + row.passUnits + ' 次'; if (row.settlementStatus === 'confirmed') return (this.paymentStatus(row) === 'paid' ? '付款 ¥' : '待付 ¥') + Number(row.finalAmount || 0).toFixed(2); return '待确认' },
-    canConfirmRegistration(row) { return this.hasEditPermission && this.hasPaymentPermission && ['pending', 'waitlisted'].includes(row.registrationStatus) && this.paymentStatus(row) === 'unpaid' },
-    canConfirmPayment(row) { return this.hasPaymentPermission && row.registrationStatus === 'confirmed' && row.batchReadyForPayment !== false && this.paymentStatus(row) !== 'paid' && !this.passCompleted(row) },
+    canConfirmRegistration(row) { return row.settlementMode !== 'participant' && this.hasEditPermission && this.hasPaymentPermission && ['pending', 'waitlisted'].includes(row.registrationStatus) && this.paymentStatus(row) === 'unpaid' },
+    canConfirmPayment(row) { return row.settlementMode !== 'participant' && this.hasPaymentPermission && row.registrationStatus === 'confirmed' && row.batchReadyForPayment !== false && this.paymentStatus(row) !== 'paid' && !this.passCompleted(row) },
     rowActions(row) {
       const actions = this.hasPaymentPermission ? [{ key: 'receipts', label: '收款记录' }] : []
+      if (row.settlementMode === 'participant') return actions
       if (row.registrationStatus === 'cancelled') return actions
       const unpaid = this.paymentStatus(row) !== 'paid'
-      if (this.hasEditPermission && unpaid && row.settlementStatus !== 'confirmed') { actions.push({key:'edit',label:'编辑报名'}); actions.push({key:'cancel',label:row.batchId ? '取消整单' : '取消报名'}) }
-      if (this.hasPaymentPermission && !unpaid) actions.push({key:'revokePayment',label:'撤销付款登记'})
-      if (this.hasSettlementRevokePermission && unpaid && row.settlementStatus === 'confirmed' && row.currentSettlementId) actions.push({key:'revokeSettlement',label:row.settlementType === 'pass' ? '撤销卡次抵扣' : '撤销金额确认'})
+      if (this.hasEditPermission && unpaid && row.settlementStatus !== 'confirmed') { actions.push({ key: 'edit', label: '编辑报名' }); actions.push({ key: 'cancel', label: row.batchId ? '取消整单' : '取消报名' }) }
+      if (this.hasPaymentPermission && !unpaid) actions.push({ key: 'revokePayment', label: '撤销付款登记' })
+      if (this.hasSettlementRevokePermission && unpaid && row.settlementStatus === 'confirmed' && row.currentSettlementId) actions.push({ key: 'revokeSettlement', label: row.settlementType === 'pass' ? '撤销卡次抵扣' : '撤销金额确认' })
       return actions
     },
     handleRowAction(action, row) { if (action === 'receipts') this.$refs.offlineReceipt.show(row, true); else if (action === 'edit') this.handleUpdate(row); else if (action === 'cancel') this.handleCancel(row); else if (action === 'revokePayment') this.revokePayment(row); else if (action === 'revokeSettlement') this.handleRevokeSettlement(row) },
     handleConfirmRegistration(row) { if (this.canConfirmRegistration(row)) this.$refs.offlineReceipt.show(row) },
-    handleCancel(row) { if (row.batchId) return this.handleBatchCancel(row); this.$confirm('取消 ' + row.nickname + ' 的报名？', '取消报名', {type:'warning'}).then(() => updateRegistration({id:row.id,registrationStatus:'cancelled'})).then(() => { this.msgSuccess('报名已取消'); this.getList() }).catch(() => {}) },
+    handleCancel(row) { if (row.batchId) return this.handleBatchCancel(row); this.$confirm('取消 ' + row.nickname + ' 的报名？', '取消报名', { type: 'warning' }).then(() => updateRegistration({ id: row.id, registrationStatus: 'cancelled' })).then(() => { this.msgSuccess('报名已取消'); this.getList() }).catch(() => {}) },
     handleConfirmPayment(row) { if (!this.canConfirmPayment(row)) return; this.paymentRow = Object.assign({}, row); this.passAccounts = []; this.passRequestId = (this.passRequestId || 0) + 1; this.loadingPasses = false; this.paymentForm = { amount: Number(row.settlementStatus === 'confirmed' ? row.finalAmount : row.quotedAmount == null ? row.standardPrice || 0 : row.quotedAmount), paymentMethod: '', passUnits: 1, passAccountId: '', note: '' }; this.paymentOpen = true; this.$nextTick(() => this.$refs.paymentForm.clearValidate()) },
-
 
     revokeBlockedByPayment() { return !!this.revokeRow && this.paymentStatus(this.revokeRow) === 'paid' },
     handleRevokeSettlement(row) {
@@ -214,9 +227,8 @@ export default {
       this.$nextTick(() => this.$refs.paymentForm.clearValidate())
     },
     submitPaymentConfirmation() { if (this.submitting || this.loadingPasses) return; this.$refs.paymentForm.validate(valid => { if (!valid) return; const pass = this.paymentForm.paymentMethod === 'pass'; const payload = { paymentMethod: this.paymentForm.paymentMethod, amount: pass ? 0 : this.paymentForm.amount, passAccountId: pass ? this.paymentForm.passAccountId : null, passUnits: pass ? this.paymentForm.passUnits : null, expectedSettlementId: this.paymentRow.currentSettlementId || null, note: this.paymentForm.note }; this.submitting = true; confirmRegistrationPayment(this.paymentRow.id, payload).then(() => { this.msgSuccess(pass ? '卡次已抵扣' : '付款已确认'); this.paymentOpen = false; this.getList() }).finally(() => { this.submitting = false }) }) },
-    revokePayment(row) { this.$prompt('请输入撤销付款登记的原因', '撤销付款登记', {inputValidator: value => !!(value && value.trim()) || '必须填写原因',confirmButtonText:'确认撤销',cancelButtonText:'取消',type:'warning'}).then(({value}) => this.paymentRequest(row, {paymentStatus:'unpaid',changeReason:value.trim()})).then(() => {this.msgSuccess('付款登记已撤销');this.getList()}).catch(() => {}) },
+    revokePayment(row) { this.$prompt('请输入撤销付款登记的原因', '撤销付款登记', { inputValidator: value => !!(value && value.trim()) || '必须填写原因', confirmButtonText: '确认撤销', cancelButtonText: '取消', type: 'warning' }).then(({ value }) => this.paymentRequest(row, { paymentStatus: 'unpaid', changeReason: value.trim() })).then(() => { this.msgSuccess('付款登记已撤销'); this.getList() }).catch(() => {}) },
     paymentRequest(row, data) { return row.batchId ? changeBatchPayment(row.batchId, data) : changePayment(row.id, data) },
-
 
     registrationStatusText(value) { const item = this.registrationStatusOptions.find(option => option.value === value); return item ? item.label : value },
     registrationStatusType(value) { return ({ confirmed: 'success', waitlisted: 'warning', cancelled: 'info', rescheduled: 'warning' })[value] || '' }

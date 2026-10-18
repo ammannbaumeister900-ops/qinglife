@@ -19,8 +19,12 @@ public class QlAdminSelectionService {
         return db.queryForList("SELECT id,session_number AS sessionNumber,name FROM ql_session ORDER BY start_date DESC,session_number DESC LIMIT 1000");
     }
     public List<Map<String,Object>> registrationPasses(String registrationId,Long userId) {
+        return registrationPasses(registrationId,userId,null);
+    }
+    public List<Map<String,Object>> registrationPasses(String registrationId,Long userId,String scope) {
         requireRolePermission(userId,"life:pass:list");
-        List<String> owners=db.queryForList("SELECT CASE WHEN r.batch_id IS NULL THEN r.customer_id ELSE b.submitted_by_customer_id END FROM ql_registration r LEFT JOIN ql_registration_batch b ON b.id=r.batch_id WHERE r.id=?",String.class,registrationId);
+        if(scope!=null&&!Arrays.asList("self","same_order").contains(scope))throw new CustomException("卡次使用范围无效",400);
+        List<String> owners=db.queryForList("SELECT CASE WHEN ?='self' THEN r.customer_id WHEN r.batch_id IS NULL THEN r.customer_id ELSE b.submitted_by_customer_id END FROM ql_registration r LEFT JOIN ql_registration_batch b ON b.id=r.batch_id WHERE r.id=? AND (? IS NULL OR b.settlement_mode='participant')",String.class,scope,registrationId,scope);
         if(owners.isEmpty()||owners.get(0)==null)throw new CustomException("报名记录不存在或归属缺失",404);
         List<Map<String,Object>> result=passes.list(owners.get(0));
         Set<String> keys=new HashSet<>(Arrays.asList("id","passType","balance","usable","status","validFrom","validUntil","createdAt"));

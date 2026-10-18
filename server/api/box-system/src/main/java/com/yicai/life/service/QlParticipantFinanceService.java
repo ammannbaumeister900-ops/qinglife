@@ -202,9 +202,20 @@ public class QlParticipantFinanceService {
                 List<Map<String,Object>> history=new ArrayList<>();
                 for(Map<String,Object> entry:usage)if(person.get("id").equals(entry.get("registrationId")))history.add(entry);
                 person.put("passUsage",history);
+                if("cancelled".equals(person.get("registrationStatus"))) {
+                    try {
+                        seats.requireNoActiveRegistration(person.get("customerId").toString(),person.get("sessionId").toString());
+                        person.put("rebookingHint","原报名已取消，资金与卡次已处理；请新建报名，仍须检查期次、价格及名额");
+                    } catch(CustomException blocked) {person.put("rebookingHint",blocked.getMessage());}
+                }
+            }
+            List<Map<String,Object>> allocations=mapper.allocationHistory(batch);
+            for(Map<String,Object> allocation:allocations) {
+                boolean original="allocate".equals(allocation.get("entryType"));
+                allocation.put("refundableAmount",original?refunds.remaining(allocation.get("allocationId").toString(),null):BigDecimal.ZERO);
             }
             return map("mode","participant","revision",order.get("revision"),"writeEnabled",modes.enabled(),"participants",people,"receipts",facts,
-                "allocations",mapper.allocationHistory(batch),
+                "allocations",allocations,
                 "refundRequests",refunds.history(batch),
                 "passVerifications",passMapper.verifications(batch),
                 "orderSummary",map("total",people.size(),"confirmed",confirmed,"pending",people.size()-confirmed-cancelled,"cancelled",cancelled,"grossReceived",gross,"allocatedAmount",allocated,"unallocatedAmount",gross.subtract(allocated),
