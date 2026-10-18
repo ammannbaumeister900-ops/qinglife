@@ -30,6 +30,7 @@ public class QlParticipantFinanceService {
     private final QlParticipantFinanceGuard guard;
     private final QlParticipantRefundMapper refunds;
     private final QlParticipantRefundService refundService;
+    private final QlParticipantPassMapper passMapper;
 
     private <T> T write(Supplier<T> work) {
         return guard.write(work);
@@ -138,7 +139,7 @@ public class QlParticipantFinanceService {
         });}catch(RuntimeException unavailable){log.warn("Participant allocation failure audit unavailable for operation {}",operation);}
     }
     public Map<String,Object> settle(String id,QlSettlementBo bo,Long operator) {
-        if(bo==null||!"participant".equals(bo.getMode())||!"money".equals(bo.getSettlementType())||bo.getPassUnits()!=null||bo.getPassAccountId()!=null||!bo.getExtraFields().isEmpty())
+        if(bo==null||!"participant".equals(bo.getMode())||!"money".equals(bo.getSettlementType())||bo.getPassUnits()!=null||bo.getPassAccountId()!=null||bo.getVerificationId()!=null||!bo.getExtraFields().isEmpty())
             throw new CustomException("本阶段只支持单一现金来源的逐人结算",400);
         String amount=money(bo.getFinalAmount(),10),why=reason(bo.getReason());uuid(bo.getOperationId());
         if(bo.getAllocationIds()==null||bo.getAllocationIds().isEmpty()||bo.getAllocationIds().size()>100)throw new CustomException("请提供1至100条到账分配依据",400);
@@ -196,12 +197,19 @@ public class QlParticipantFinanceService {
                 if("paid".equals(fact.get("status"))) {gross=gross.add(amount);allocated=allocated.add(used);}
             }
             Map<String,Object> refundTotals=refundService.decorate(people);
+            List<Map<String,Object>> usage=passMapper.history(batch);
+            for(Map<String,Object> person:people) {
+                List<Map<String,Object>> history=new ArrayList<>();
+                for(Map<String,Object> entry:usage)if(person.get("id").equals(entry.get("registrationId")))history.add(entry);
+                person.put("passUsage",history);
+            }
             return map("mode","participant","revision",order.get("revision"),"writeEnabled",modes.enabled(),"participants",people,"receipts",facts,
                 "allocations",mapper.allocationHistory(batch),
                 "refundRequests",refunds.history(batch),
+                "passVerifications",passMapper.verifications(batch),
                 "orderSummary",map("total",people.size(),"confirmed",confirmed,"pending",people.size()-confirmed-cancelled,"cancelled",cancelled,"grossReceived",gross,"allocatedAmount",allocated,"unallocatedAmount",gross.subtract(allocated),
                     "refundedAmount",refundTotals.get("refundedAmount"),"refundReserved",refundTotals.get("refundReserved"),"netReceived",gross.subtract((BigDecimal)refundTotals.get("refundedAmount"))),
-                "capabilities",map("cashAllocation",true,"refunds",true,"participantCancellation",true,"passSettlement",false));
+                "capabilities",map("cashAllocation",true,"refunds",true,"participantCancellation",true,"passSettlement",true));
         });
     }
     private void status(QlRegistration r,String type,String from,String to,String why,Long operator,Date now) {

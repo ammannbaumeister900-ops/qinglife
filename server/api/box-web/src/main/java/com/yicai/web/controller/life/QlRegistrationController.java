@@ -32,6 +32,7 @@ public class QlRegistrationController extends BaseController {
     private final IQlRegistrationService registrationService;
     private final com.yicai.life.service.QlOfflineReceiptService offlineReceipts;
     private final com.yicai.life.service.QlParticipantFinanceService participantFinance;
+    private final com.yicai.life.service.QlParticipantPassService participantPass;
 
     @PreAuthorize("@ss.hasPermi('life:registration:list')")
     @GetMapping("/list")
@@ -74,19 +75,20 @@ public class QlRegistrationController extends BaseController {
         return toAjax(registrationService.confirmPayment(id, bo, currentUserId()));
     }
 
-    @PreAuthorize("@ss.hasPermi('life:registration:payment') && (#bo.mode != 'participant' || @ss.hasPermi('life:registration:edit'))")
+    @PreAuthorize("@ss.hasPermi('life:registration:payment') && (#bo.mode != 'participant' || @ss.hasPermi('life:registration:edit')) && (#bo.mode != 'participant' || #bo.settlementType != 'pass' || (@ss.hasPermi('life:pass:consume') && @ss.hasPermi('life:pass:verify')))")
     @Log(title = "最终结算确认", businessType = BusinessType.UPDATE)
     @PutMapping("/{id}/settlement")
     public AjaxResult<?> confirmSettlement(@PathVariable String id, @Valid @RequestBody QlSettlementBo bo) {
-        if("participant".equals(bo.getMode()))return AjaxResult.success(participantFinance.settle(id,bo,currentUserId()));
+        if("participant".equals(bo.getMode()))return AjaxResult.success("pass".equals(bo.getSettlementType())?participantPass.settle(id,bo,currentUserId()):participantFinance.settle(id,bo,currentUserId()));
         return toAjax(registrationService.confirmSettlement(id, bo, currentUserId()));
     }
 
-    @PreAuthorize("@ss.hasPermi('life:registration:settlement:revoke')")
+    @PreAuthorize("@ss.hasPermi('life:registration:settlement:revoke') && (#bo.mode != 'participant' || @ss.hasPermi('life:pass:restore'))")
     @Log(title = "撤销最终结算", businessType = BusinessType.UPDATE)
     @PutMapping("/{id}/settlement/{settlementId}/revoke")
-    public AjaxResult<Void> revokeSettlement(@PathVariable String id, @PathVariable String settlementId,
+    public AjaxResult<?> revokeSettlement(@PathVariable String id, @PathVariable String settlementId,
                                               @Valid @RequestBody QlSettlementReversalBo bo) {
+        if("participant".equals(bo.getMode()))return AjaxResult.success(participantPass.reverse(id,settlementId,bo,currentUserId()));
         return toAjax(registrationService.revokeSettlement(id, settlementId, bo.getReason(), currentUserId()));
     }
 

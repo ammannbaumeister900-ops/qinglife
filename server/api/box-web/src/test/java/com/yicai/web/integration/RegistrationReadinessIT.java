@@ -77,6 +77,7 @@ class RegistrationReadinessIT {
         @Bean QlParticipantFinanceMapper participantMapper(JdbcTemplate db){return new QlParticipantFinanceMapper(db);}
         @Bean QlParticipantRefundMapper refundMapper(JdbcTemplate db){return new QlParticipantRefundMapper(db);}
         @Bean QlParticipantFinanceService participantFinance(){return mock(QlParticipantFinanceService.class);}
+        @Bean QlParticipantPassService participantPass(){return mock(QlParticipantPassService.class);}
         @Bean RedisCache redis(){return mock(RedisCache.class);}
         @Bean RedissonClient redisson(){return mock(RedissonClient.class);}
         @Bean QlCustomerIdentityService identity(){return mock(QlCustomerIdentityService.class);}

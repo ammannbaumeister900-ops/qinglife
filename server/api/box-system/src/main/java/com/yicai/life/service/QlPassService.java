@@ -98,15 +98,21 @@ public class QlPassService {
         if (accountId == null || accountId.trim().isEmpty()) throw new CustomException("请选择要使用的卡次账户", 400);
         if (settlementId == null || settlementId.trim().isEmpty()) throw new CustomException("结算轮次缺失，无法关联扣卡流水", 400);
         if (units < 1) throw new CustomException("使用卡次至少为1次", 400);
-        Map<String,Object> account = lock(accountId);
-        if (!expectedCustomerId.equals(String.valueOf(account.get("customerId")))) throw new CustomException("卡次账户不属于本次报名发起人或单人报名参与者", 400);
-        if (!"active".equals(String.valueOf(account.get("status"))) || number(account.get("usable")) != 1) throw new CustomException("卡次账户当前不可用", 400);
+        Map<String,Object> account = eligible(accountId, expectedCustomerId);
         int current = number(account.get("balance"));
         if (current < units) throw new CustomException("卡次余额不足，当前剩余" + current + "次", 400);
         int after = current - units;
         insertLedger(accountId, sessionId, registrationId, batchId, settlementId, "consume", -units, after,
                 reason == null || reason.trim().isEmpty() ? "报名结算使用" : reason.trim(), operatorId, now);
         return after;
+    }
+
+    /** Shared verification/consumption eligibility. Caller holds the financial transaction before locking this account. */
+    public Map<String,Object> eligible(String accountId,String expectedCustomerId) {
+        Map<String,Object> account=lock(accountId);
+        if (!expectedCustomerId.equals(String.valueOf(account.get("customerId")))) throw new CustomException("卡次账户不属于本次报名发起人或单人报名参与者", 400);
+        if (!"active".equals(String.valueOf(account.get("status"))) || number(account.get("usable")) != 1) throw new CustomException("卡次账户当前不可用", 400);
+        return account;
     }
 
     /**

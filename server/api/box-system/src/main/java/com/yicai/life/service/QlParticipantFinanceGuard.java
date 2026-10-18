@@ -36,6 +36,8 @@ public class QlParticipantFinanceGuard {
         Map<String,Object> order=mapper.batch(batch,true);modes.requireParticipant(String.valueOf(order.get("mode")));
         List<QlRegistration> people=registrations.selectBatchRegistrationsForUpdate(batch);
         if(people.isEmpty())throw new CustomException("订单没有报名人",409);
+        for(QlRegistration person:people)if(!Objects.equals(order.get("sessionId"),person.getSessionId()))
+            throw new CustomException("订单与人员营期不一致，请先核对",409);
         return new Target(order,session,people);
     }
     public String batchFor(String id) {

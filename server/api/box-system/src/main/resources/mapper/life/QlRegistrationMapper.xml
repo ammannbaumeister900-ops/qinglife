@@ -104,7 +104,7 @@
                quoted_amount AS quotedAmount, final_amount AS finalAmount,
                settlement_type AS settlementType, pass_units AS passUnits,
                pass_account_id AS passAccountId, pass_balance_after AS passBalanceAfter,
-               note, operator_id AS operatorId, confirmed_at AS confirmedAt
+               note, operator_id AS operatorId, confirmed_at AS confirmedAt, pass_verification_id AS passVerificationId
         FROM ql_settlement_log WHERE id=#{settlementId} FOR UPDATE
     </select>
 

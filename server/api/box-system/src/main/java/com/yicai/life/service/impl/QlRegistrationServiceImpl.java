@@ -46,6 +46,7 @@ public class QlRegistrationServiceImpl
     @Autowired private com.yicai.life.service.QlRegistrationPolicy policy;
     @Autowired private com.yicai.life.service.QlParticipantModePolicy modes;
     @Autowired private com.yicai.life.service.QlParticipantFinanceService participantFinance;
+    @Autowired private com.yicai.life.service.QlParticipantPassService participantPass;
     private final QlRegistrationMapper registrationMapper;
     private final com.yicai.life.mapper.QlSessionMapper sessionMapper;
     private final com.yicai.life.service.QlSessionPricing pricing;
@@ -204,7 +205,7 @@ public class QlRegistrationServiceImpl
     @Override
     @Transactional
     public boolean confirmSettlement(String id, QlSettlementBo bo, Long operatorId) {
-        if(bo!=null && "participant".equals(bo.getMode()))return participantFinance.settle(id,bo,operatorId)!=null;
+        if(bo!=null && "participant".equals(bo.getMode()))return ("pass".equals(bo.getSettlementType())?participantPass.settle(id,bo,operatorId):participantFinance.settle(id,bo,operatorId))!=null;
         modes.requireLegacyRegistration(id);
         validateSettlement(bo);
         QlRegistration snapshot = getById(id);
