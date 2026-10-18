@@ -519,6 +519,6 @@ Page({
   },
 
   backToCamp() {
-    navigation.switchTab({ url: '/pages/camp/index' })
+    navigation.returnTo({ url: '/pages/camp/index' })
   }
 })

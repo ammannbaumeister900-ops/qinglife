@@ -298,5 +298,5 @@ Page({
   releaseRecorder() { if (this.recorder) { this.recorder.offStart(this.recorderStart); this.recorder.offStop(this.recorderStop); this.recorder.offError(this.recorderError) } },
   onUnload() { this.unloaded = true; this.viewingVoicePrivacy = false; this.onHide(); if (this.recordAttempt == null) this.releaseRecorder() },
 
-  back() { wx.navigateBack({ fail() { navigation.switchTab({ url: '/pages/camp/index' }) } }) }
+  back() { wx.navigateBack({ fail() { navigation.redirectTo({ url: '/pages/camp/index' }) } }) }
 })

@@ -73,7 +73,7 @@ async function fixture(view = 'detail', status = 'confirmed') {
     campReflection: async () => reflectionContext,
     register: async data => writes.push(plain(data)), saveExperience: async data => writes.push(plain(data)),
     createInvitation: async id => ({ path: '/pages/camp-flow/index?id=' + id }) }
-  const mocks = { '../../services/business-api': business, '../../utils/navigation': { navigateTo: data => links.push(data.url), switchTab: data => links.push(data.url) } }
+  const mocks = { '../../services/business-api': business, '../../utils/navigation': { navigateTo: data => links.push(data.url), switchTab: data => links.push(data.url), returnTo: data => links.push(data.url) } }
   vm.runInNewContext(fs.readFileSync(path.join(root, 'pages/camp-flow/index.js'), 'utf8'), {
     Page: data => { page = data }, wx: { previewImage: data => previews.push(data), getImageInfo: data => data.success({path:data.src}), showToast: data => notices.push(data.title), pageScrollTo: data => scrolls.push(plain(data)) },
     require: id => mocks[id] || require(path.resolve(root, 'pages/camp-flow', id))

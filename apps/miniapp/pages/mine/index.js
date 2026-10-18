@@ -96,7 +96,7 @@ Page({
   },
 
   openCamp() {
-    navigation.switchTab({ url: '/pages/camp/index' })
+    navigation.navigateTo({ url: '/pages/camp/index' })
   },
 
   openFriends() {

@@ -129,7 +129,7 @@ test('article, camp-flow and all other consumers keep their shared component con
   const camp = fs.readFileSync(path.join(root, 'pages/camp-flow/index.wxml'), 'utf8')
   assert.match(camp, /<ql-nav-space title="[^"]*" back\s*\/>/)
   assert.ok(!camp.includes('back immersive='), 'decision-first camp detail must retain the measured content spacer')
-  assert.deepEqual(app.tabBar.list.map(item => item.pagePath), ['pages/home/index', 'pages/camp/index', 'pages/content/index', 'pages/mine/index'])
+  assert.deepEqual(app.tabBar.list.map(item => item.pagePath), ['pages/home/index', 'pages/about/index', 'pages/content/index', 'pages/mine/index'])
   assert.equal(app.tabBar.custom, true)
   assert.equal(JSON.parse(fs.readFileSync(path.join(componentRoot, 'index.json'), 'utf8')).component, true)
 })

@@ -22,7 +22,7 @@ const nativeTags = [
   'view'
 ]
 
-assert.deepStrictEqual(app.tabBar.list.map((item) => item.text), ['首页', '清体营', '轻读', '我的'])
+assert.deepStrictEqual(app.tabBar.list.map((item) => item.text), ['首页', '了解轻生活', '轻读', '我的'])
 assert.strictEqual(new Set(app.pages).size, app.pages.length, '页面不能重复注册')
 
 const contentPage = fs.readFileSync(path.join(root, 'pages/content/index.wxml'), 'utf8')

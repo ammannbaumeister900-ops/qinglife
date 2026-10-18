@@ -193,7 +193,8 @@ Page({
   openReading() { navigation.openReadingList(false) },
   openStories() { navigation.openReadingList(true) },
   openArticle(event) { const { id, title } = event.currentTarget.dataset; navigation.navigateTo({ url: '/pages/article/index?id=' + encodeURIComponent(id) + '&title=' + encodeURIComponent(title || '') }) },
-  openCamp() { navigation.switchTab({ url: '/pages/camp/index' }) },
+  openCamp() { navigation.navigateTo({ url: '/pages/camp/index' }) },
+  openCampList() { navigation.navigateTo({ url: '/pages/camp/index' }) },
   openPrimary() {
     const view = this.data.view
     if (view.activityId) store.updateState(state => { state.selectedActivityId = view.activityId; return state })
@@ -202,6 +203,6 @@ Page({
     if (view.route === 'daily') return navigation.navigateTo({ url: '/pages/friend-flow/index?view=daily' })
     navigation.navigateTo({ url: '/pages/camp-flow/index?view=' + view.route + (view.activityId ? '&id=' + encodeURIComponent(view.activityId) : '') })
   },
-  about() { navigation.navigateTo({ url: '/pages/about/index' }) },
+  about() { navigation.switchTab({ url: '/pages/about/index' }) },
   onShareAppMessage() { return { title: '轻生活', path: '/pages/home/index' } }
 })

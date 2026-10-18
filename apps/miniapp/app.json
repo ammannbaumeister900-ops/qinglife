@@ -34,8 +34,8 @@
         "text": "首页"
       },
       {
-        "pagePath": "pages/camp/index",
-        "text": "清体营"
+        "pagePath": "pages/about/index",
+        "text": "了解轻生活"
       },
       {
         "pagePath": "pages/content/index",

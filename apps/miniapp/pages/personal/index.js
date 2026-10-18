@@ -38,7 +38,7 @@ Page({
     try { await business.login(); await this.refresh() } catch (error) { this.setData({ error: error.message }) }
   },
   openSession(event) { navigation.navigateTo({ url: '/pages/camp-flow/index?view=journey&id=' + encodeURIComponent(event.currentTarget.dataset.id) }) },
-  openCamp() { navigation.switchTab({ url: '/pages/camp/index' }) }
+  openCamp() { navigation.navigateTo({ url: '/pages/camp/index' }) }
 })
 
 
