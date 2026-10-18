@@ -10,7 +10,7 @@
       <view wx:if="{{detail.registrationNote}}" class="detail-registration-note">{{detail.registrationNote}}</view>
     </view>
     <view class="detail-entry">
-      <view class="detail-period-state"><text>第 {{activity.sessionNumber}} 期</text><text class="detail-activity-state {{!availability.canRegister ? 'disabled' : activity.status === '候补中' ? 'warning' : ''}}">{{activity.status}}</text></view>
+      <view class="detail-period-state"><view wx:if="{{activity.sessionNumber != null}}" class="detail-period"><text class="detail-period-number">{{activity.sessionNumber}}</text><text>期</text></view><text wx:else>期次待公布</text><text class="detail-activity-state {{!availability.canRegister ? 'disabled' : activity.status === '候补中' ? 'warning' : ''}}">{{activity.status}}</text></view>
       <view class="detail-title">{{activity.name}}</view>
       <view wx:if="{{activity.theme && activity.theme !== activity.name}}" class="detail-theme">{{activity.theme}}</view>
       <view class="detail-core-facts">
@@ -18,7 +18,7 @@
         <view wx:if="{{detail.place}}" class="detail-core-place">{{detail.place}}</view>
       </view>
     </view>
-    <view wx:if="{{detail.showCover}}" class="camp-cover {{detail.isPoster ? 'detail-poster' : ''}}">
+    <view wx:if="{{detail.showCover && !detail.isPoster}}" class="camp-cover">
       <button class="detail-image-button" data-url="{{detail.cover}}" bindtap="previewDetailImage" aria-label="查看活动图片"><image class="camp-cover-image" src="{{detail.cover}}" mode="widthFix" data-url="{{detail.cover}}" binderror="detailImageFailed" /></button>
     </view>
     <view wx:if="{{detail.intro}}" class="detail-intro">{{detail.intro}}</view>

@@ -7,6 +7,7 @@ const navigation = require('../../utils/navigation')
 const listPresentation = require('../../utils/camp-list-presentation')
 const arrangementsPresentation = require('../../utils/camp-arrangements-presentation')
 const reflection = require('../../utils/reflection')
+const campBrand = require('../../config/camp-brand')
 
 Page({
   data: {
@@ -18,14 +19,15 @@ Page({
     arrangementCount: 0, arrangementGroups: [],
     visibleActivities: [], visible: true, voicesBySession: {}, voicesError: '',
     reflectionOpening: false,
-    activeFilter: 'all', activeFilterLabel: '全部', campFilters: [], expandedVoices: {}, voicePreviews: {}
+    activeFilter: 'all', activeFilterLabel: '全部', campFilters: [], expandedVoices: {}, voicePreviews: {},
+    campHeader: campBrand.header, headerHidden: false
   },
+
+  headerFailed() { this.setData({ headerHidden: true }) },
 
   async onShow() {
     const version = this.voiceRequest = (this.voiceRequest || 0) + 1
     this.setData({ visible: true, voicesBySession: {}, expandedVoices: {}, voicePreviews: {} })
-    const tab = this.getTabBar && this.getTabBar()
-    if (tab) tab.setData({ selected: 1 })
     if (business.enabled()) {
       this.setData({ loading: !this.data.ready, refreshing: !!this.data.ready, loadError: '' })
       try {
