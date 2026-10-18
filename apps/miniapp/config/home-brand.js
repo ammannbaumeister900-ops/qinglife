@@ -8,6 +8,6 @@ module.exports = {
   openingLine: '有空，',
   openingInvitation: '来坐坐',
   openingCopy: '见见面，也说说最近的故事。',
-  // 「了解轻生活」色场顶图：现场 #43（ART-DIRECTION §7.1）。导游大海确认公开使用前保持关闭，色场直接从文字开始。
-  aboutPhoto: { id: 'scene-43', url: '', alt: '导游大海与两位轻友交谈', releaseReady: false }
+  // 「了解轻生活」色场顶图：现场 #43（ART-DIRECTION §7.1）。2026-10-19 用户确认画面为导游大海、本人同意公开；url 填入 CDN 地址后显示。
+  aboutPhoto: { id: 'scene-43', url: '', alt: '导游大海与两位轻友交谈', releaseReady: true }
 }

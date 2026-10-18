@@ -10,7 +10,7 @@
 | P0 | 截图通道 `tools/capture/`（单帧、长图、拼接、窗口摆放）；图片导出 `tools/images/export.py` + manifest | 完成；#50 导出 232.8KB，超 220KB 上限，manifest 标 `overBudget` |
 | P1 | `styles/qing-tokens.wxss`、`styles/qing-fonts.wxss`（衬线 114 字 25.2KB + 数字 8.4KB，数字改等宽齐线）、`tools/fonts/subset.py` | 完成 |
 | P2 | 第二 Tab 改为「了解轻生活」，清体营降为二级页，`navigation.returnTo / redirectTo` | 完成 |
-| P3 | 首页深林首屏、数字日期、心声卡、浅苔色场（#43 默认关闭）、1.5px Tab 图标 | 完成 |
+| P3 | 首页深林首屏、数字日期、心声卡、浅苔色场（#43 于 2026-10-19 获确认）、1.5px Tab 图标 | 完成 |
 | P4 | 认知页开场句 / GPS 句 / 食动歇 / 深林数字高点 / 透明说明 / 最近一期小卡 / 行内双按钮 / 分享卡 | 完成；创办时间线未做（founders 为空，无数据结构可依） |
 | P5 | 清体营列表期号数字排版、#48 页头（CDN 地址空时不显示）、详情头部与报名栏令牌 | 完成 |
 | 追加 | 人物故事「花花一家」：文案经用户 2026-10-18 审定，已合入 `about-content.js`（出处见 `story-candidates/`）；衬线子集随之更新为 114 字 25.2KB | 完成；合影待上传 CDN 后显示 |
@@ -40,7 +40,7 @@
 
 ## 四、业务待验收
 
-- 素材账本"需确认"的 3 张：#50 是否为导游公主；军军、大海是否同意 #46、#43 公开。确认后在 `about-content.js` / `home-brand.js` 打开。
+- 素材账本"需确认"的 3 张已于 2026-10-19 确认：#50 为导游公主、#46 军军同意（背景可用）、#43 为导游大海，均同意公开；配置已打开，填入 CDN 地址后显示。#46 在花花一家故事显示时仍自动隐藏。
 - 照片上传 CDN（`outputs/qing-images/`），填入各 `url`，并在小程序后台加 downloadFile 合法域名。#50 先决定：放宽到 240KB，或降到 quality 66 / 1000×1250。
 - 人物故事「花花一家」已上线到配置；合影 `qing-about-story-huahua.jpg` 上传 CDN 后填入 `family-huahua.url` 即显示，建议先补原图重导。《连续清体》建议本轮不用（医疗叙事密集，见 `story-candidates/huahua-family.md`）。
 - 「带回每一天」食 / 动 / 歇三句为 Brief 初稿（`glyphsCopyState: draft`），需定稿。

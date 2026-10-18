@@ -74,16 +74,16 @@ module.exports = {
       "url": "",
       "caption": "轻生活导游 · 清体营场地园林",
       "alt": "轻生活导游在清体营场地园林中慢慢走",
-      "state": "pending",
-      "authorization": "pending",
-      "identityCheck": "pending",
+      "state": "releaseReady",
+      "authorization": "confirmed",
+      "identityCheck": "confirmed",
       "editorialReview": "approved",
       "factCheck": "confirmed",
       "source": {
         "document": "docs/design/redesign-2026q4/ART-DIRECTION.md",
-        "section": "7.1 素材账本"
-      },
-      "pending": "待确认画面中的人是否为导游公主"
+        "section": "7.1 素材账本",
+        "approvedBy": "用户 2026-10-19 会话确认画面人物为导游公主，本人同意公开使用"
+      }
     },
     {
       "id": "scene-46",
@@ -92,16 +92,16 @@ module.exports = {
       "url": "",
       "caption": "导游军军在课程中协助轻友放松",
       "alt": "导游军军在课程中协助一位轻友放松",
-      "state": "pending",
-      "authorization": "pending",
-      "identityCheck": "pending",
+      "state": "releaseReady",
+      "authorization": "confirmed",
+      "identityCheck": "confirmed",
       "editorialReview": "approved",
       "factCheck": "confirmed",
       "source": {
         "document": "docs/design/redesign-2026q4/ART-DIRECTION.md",
-        "section": "7.1 素材账本"
-      },
-      "pending": "待导游军军确认公开使用"
+        "section": "7.1 素材账本",
+        "approvedBy": "用户 2026-10-19 会话确认画面人物为导游军军，本人同意公开使用"
+      }
     },
     {
       "id": "scene-67",

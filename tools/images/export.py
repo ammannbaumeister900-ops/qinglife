@@ -50,20 +50,20 @@ LEDGER = [
     {
         "id": "scene-50", "source": "活动现场照片/微信图片_20261008160238_50_483.jpg",
         "use": "about-opening", "role": "认知页开场 · 慢下来",
-        "crop": (0.204, 0, 0.7365, 1), "size": (1080, 1350), "max_kb": 220, "releaseReady": False,
-        "pending": "待确认人物是否为导游公主",
+        "crop": (0.204, 0, 0.7365, 1), "size": (1080, 1350), "max_kb": 220, "releaseReady": True,
+        "pending": "2026-10-19 用户确认为导游公主，本人同意公开",
     },
     {
         "id": "scene-46", "source": "活动现场照片/微信图片_20261008160208_46_483.jpg",
         "use": "about-return", "role": "认知页高点 · 被照顾",
-        "crop": (0.17, 0.12, 0.99, 0.9396), "size": (1170, 780), "max_kb": 220, "releaseReady": False,
-        "pending": "待导游军军确认公开使用",
+        "crop": (0.17, 0.12, 0.99, 0.9396), "size": (1170, 780), "max_kb": 220, "releaseReady": True,
+        "pending": "2026-10-19 用户确认导游军军同意公开，背景可用",
     },
     {
         "id": "scene-43", "source": "活动现场照片/微信图片_20261008160022_43_483.jpg",
         "use": "home-about", "role": "首页「了解轻生活」 · 关系",
-        "crop": (0.04, 0.02, 0.96, 0.94), "size": (1170, 780), "max_kb": 220, "releaseReady": False,
-        "pending": "待导游大海确认公开使用",
+        "crop": (0.04, 0.02, 0.96, 0.94), "size": (1170, 780), "max_kb": 220, "releaseReady": True,
+        "pending": "2026-10-19 用户确认为导游大海，本人同意公开",
     },
     {
         "id": "scene-67", "source": "活动现场照片/微信图片_20261008160710_67_483.jpg",
