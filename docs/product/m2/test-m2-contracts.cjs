@@ -16,7 +16,9 @@ const schemas={
 };
 // The service requires this only when finalAmount differs from the stored quote.
 schemas.settle.oneOf[0].properties.differenceReason=reason;
+schemas.action.properties.noActualPaymentConfirmed={type:'boolean'};
 const contracts={draftOnly:true,implemented:false,writeFlag:'qinglife.finance.participant_write_enabled=false',authentication:'operator session; operator/holder/beneficiary resolved by server, never trusted from body',schemas,routes:[['GET','/life/registration/batch/{id}/finance','read'],['POST','/life/registration/{id}/offline-receipt','capture'],['PUT','/life/registration/{id}/refund-requests/{requestId}/processing','action'],['PUT','/life/registration/{id}/refund-requests/{requestId}/cancel','action'],['PUT','/life/registration/{id}/refund-requests/{requestId}/fail','action'],['PUT','/life/registration/{id}/settlement/{settlementId}/revoke','action'],['POST','/life/registration/batch/{id}/receipt-allocations','allocate'],['PUT','/life/registration/{id}/settlement','settle'],['POST','/life/registration/{id}/refund-requests','refund'],['POST','/life/registration/{id}/refund-requests/{requestId}/payments','refundActual'],['POST','/life/registration/{id}/pass-verifications','verifyPass']],semanticChecks:['same order/session for every allocation','confirmed actual receipt, no excess alloc/reversal','allocation total versus receivable and explicit amount difference acknowledgement','active refund reservation plus completed attribution <= refundable allocation','refund never updates registration_status','operator permission plus verified holder and same order beneficiary','lock and unique operation payload hash; revision and transaction','old endpoints reject participant writes; write flag defaults off']};
+contracts.routes.push(['PUT','/life/registration/{id}/cancel','action']);
 assert.deepEqual(JSON.parse(fs.readFileSync(path.join(__dirname,'M2-contracts.json'),'utf8')),contracts,'Versioned contracts must match the reviewed schemas');
 const id='00000000-0000-4000-8000-000000000001',c={operationId:id,expectedRevision:0},checks=[];
 function check(name,value,expected){assert.equal(ajv.compile(schemas[name])(value),expected,name+' '+JSON.stringify(value));checks.push({schema:name,expected})}
@@ -34,4 +36,6 @@ check('capture',{requestId:id,captureOnly:true,amount:'100.00',paymentMethod:'ca
 check('capture',{requestId:id,captureOnly:true,amount:'100.00',paymentMethod:'cash',receivedConfirmed:false,receiptReference:null,evidence:'synthetic'},false);
 check('capture',{requestId:id,captureOnly:true,amount:'0.00',paymentMethod:'cash',receivedConfirmed:true,receiptReference:null,evidence:'synthetic'},false);
 check('action',{...c,reason:'synthetic'},true);check('action',{...c,reason:'synthetic',operatorId:9},false);
+check('action',{...c,reason:'synthetic',noActualPaymentConfirmed:true},true);
+check('action',{...c,reason:'synthetic',noActualPaymentConfirmed:'true'},false);
 fs.writeFileSync(path.join(evidence,'M2-contract-test-results.json'),JSON.stringify({checks,total:checks.length,passed:checks.length,realHttp:false,production:false,semanticServiceImplementation:false},null,2));console.log('Contract schema checks passed:',checks.length);

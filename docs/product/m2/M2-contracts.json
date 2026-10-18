@@ -21,6 +21,9 @@
           "minLength": 1,
           "maxLength": 500,
           "pattern": "\\S"
+        },
+        "noActualPaymentConfirmed": {
+          "type": "boolean"
         }
       },
       "required": [
@@ -485,6 +488,11 @@
       "POST",
       "/life/registration/{id}/pass-verifications",
       "verifyPass"
+    ],
+    [
+      "PUT",
+      "/life/registration/{id}/cancel",
+      "action"
     ]
   ],
   "semanticChecks": [

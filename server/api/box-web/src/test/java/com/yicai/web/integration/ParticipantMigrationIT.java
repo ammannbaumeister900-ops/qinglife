@@ -24,7 +24,7 @@ class ParticipantMigrationIT {
         Path server=Paths.get(System.getProperty("qinglife.migrations")).getParent();
         try(Connection c=ds.getConnection()) {
             db.execute("CREATE TABLE ql_migration_run(name VARCHAR(200) PRIMARY KEY,sha256 CHAR(64) NOT NULL,state VARCHAR(16) NOT NULL,completed_at DATETIME(3)) ENGINE=InnoDB");
-            for(Path f:DatabaseMigration.files(server))if(!f.getFileName().toString().startsWith("V1_4_22__")) {
+            for(Path f:DatabaseMigration.files(server))if(!f.getFileName().toString().startsWith("V1_4_22__")&&!f.getFileName().toString().startsWith("V1_4_23__")) {
                 ScriptUtils.executeSqlScript(c,new EncodedResource(new FileSystemResource(f),StandardCharsets.UTF_8));
                 db.update("INSERT INTO ql_migration_run VALUES(?,?,'complete',NOW(3))",f.getFileName().toString(),DatabaseMigration.checksum(f));
             }
@@ -49,10 +49,47 @@ class ParticipantMigrationIT {
             for(String table:columns.keySet())assertEquals(before.get(table),db.queryForList("SELECT "+String.join(",",columns.get(table))+" FROM "+table+" ORDER BY id"),table);
             assertEquals("legacy_batch",db.queryForObject("SELECT settlement_mode FROM ql_registration_batch WHERE id=?",String.class,batch));
             assertEquals("false",db.queryForObject("SELECT config_value FROM sys_config WHERE config_key='qinglife.finance.participant_write_enabled'",String.class));
-            for(String table:Arrays.asList("ql_finance_operation","ql_receipt_allocation","ql_participant_settlement_funding"))assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM "+table,Integer.class));
-            assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name IN ('ql_refund_request','ql_refund_payment','ql_pass_operator_verification')",Integer.class));
-            DatabaseMigration.run(c,server);assertEquals(39,db.queryForObject("SELECT COUNT(*) FROM ql_migration_run WHERE state='complete'",Integer.class));
+            for(String table:Arrays.asList("ql_finance_operation","ql_receipt_allocation","ql_participant_settlement_funding","ql_refund_request","ql_refund_reservation","ql_refund_payment","ql_refund_attribution"))assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM "+table,Integer.class));
+            assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name='ql_pass_operator_verification'",Integer.class));
+            assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM sys_role_menu WHERE menu_id IN (2500,2501)",Integer.class));
+            DatabaseMigration.run(c,server);assertEquals(40,db.queryForObject("SELECT COUNT(*) FROM ql_migration_run WHERE state='complete'",Integer.class));
         }
     }
     static String id(){return UUID.randomUUID().toString();}
+    @Test void refundIncrementPreservesPopulatedPhaseOneReceiptAllocationAndFunding()throws Exception {
+        String base=System.getenv("QINGLIFE_TEST_MYSQL_URL");
+        assertNotNull(base);assertTrue(base.matches("jdbc:mysql://127\\.0\\.0\\.1:[0-9]+/qinglife_it_[a-z0-9_]+\\?.*"));
+        String name="qinglife_it_m2_refund_"+id().replace("-","").substring(0,20),prefix=base.substring(0,base.indexOf("/qinglife_it_")),options=base.substring(base.indexOf('?'));
+        try(Connection c=DriverManager.getConnection(prefix+"/"+options,"root","");Statement s=c.createStatement()){s.execute("CREATE DATABASE "+name+" CHARACTER SET utf8mb4");}
+        DriverManagerDataSource ds=new DriverManagerDataSource(prefix+"/"+name+options,"root","");JdbcTemplate db=new JdbcTemplate(ds);
+        Path server=Paths.get(System.getProperty("qinglife.migrations")).getParent();
+        try(Connection c=ds.getConnection()) {
+            db.execute("CREATE TABLE ql_migration_run(name VARCHAR(200) PRIMARY KEY,sha256 CHAR(64) NOT NULL,state VARCHAR(16) NOT NULL,completed_at DATETIME(3)) ENGINE=InnoDB");
+            for(Path f:DatabaseMigration.files(server))if(!f.getFileName().toString().startsWith("V1_4_23__")) {
+                ScriptUtils.executeSqlScript(c,new EncodedResource(new FileSystemResource(f),StandardCharsets.UTF_8));
+                db.update("INSERT INTO ql_migration_run VALUES(?,?,'complete',NOW(3))",f.getFileName().toString(),DatabaseMigration.checksum(f));
+            }
+            assertEquals(39,db.queryForObject("SELECT COUNT(*) FROM ql_migration_run",Integer.class));
+            String customer=id(),session=id(),batch=id(),registration=id(),receipt=id(),round=id(),operation=id(),allocation=id();
+            db.update("INSERT INTO sys_user(user_id,user_name,nick_name) VALUES(9,'synthetic-refund-upgrade','Synthetic')");
+            db.update("INSERT INTO ql_customer(id,customer_no,nickname) VALUES(?,'M2-REFUND','Synthetic')",customer);
+            db.update("INSERT INTO ql_session(id,session_number,name,start_date,end_date,capacity,status) VALUES(?,980002,'Synthetic participant',CURRENT_DATE(),CURRENT_DATE(),10,'open')",session);
+            db.update("INSERT INTO ql_registration_batch(id,session_id,submitted_by_customer_id,source,participant_count,submitted_at,quoted_amount,payable_amount,settlement_mode) VALUES(?,?,?,'manual',1,NOW(),123.45,123.45,'participant')",batch,session,customer);
+            db.update("INSERT INTO ql_registration(id,batch_id,customer_id,session_id,registration_source,registered_at,registration_status,payment_status,unit_price,final_amount,settlement_type,settlement_status) VALUES(?,?,?,?,'manual',NOW(),'confirmed','paid',123.45,123.45,'money','confirmed')",registration,batch,customer,session);
+            db.update("INSERT INTO ql_transaction(id,customer_id,session_id,registration_batch_id,transaction_type,amount,payment_method,status,transaction_at,record_source,operator_id) VALUES(?,?,?,?,'session',123.45,'cash','paid',NOW(),'operator_entry',9)",receipt,customer,session,batch);
+            db.update("INSERT INTO ql_settlement_log(id,registration_id,final_amount,settlement_type,operator_id,confirmed_at) VALUES(?,?,123.45,'money',9,NOW())",round,registration);
+            db.update("UPDATE ql_registration SET current_settlement_id=? WHERE id=?",round,registration);
+            db.update("INSERT INTO ql_finance_operation(id,action,request_hash,target_id,operator_id,result_json) VALUES(?,'allocate',?, ?,9,'{}')",operation,String.join("",Collections.nCopies(64,"a")),batch);
+            db.update("INSERT INTO ql_receipt_allocation(id,operation_id,line_no,receipt_id,registration_id,amount,entry_type,reason) VALUES(?,?,1,?,?,123.45,'allocate','Synthetic preserved allocation')",allocation,operation,receipt,registration);
+            db.update("INSERT INTO ql_participant_settlement_funding VALUES(?,?)",round,allocation);
+            List<String> tables=Arrays.asList("ql_registration_batch","ql_registration","ql_transaction","ql_settlement_log","ql_finance_operation","ql_receipt_allocation","ql_participant_settlement_funding");
+            Map<String,List<Map<String,Object>>> before=new LinkedHashMap<>();
+            for(String table:tables)before.put(table,db.queryForList("SELECT * FROM "+table));
+            DatabaseMigration.run(c,server);DatabaseMigration.run(c,server);
+            for(String table:tables)assertEquals(before.get(table),db.queryForList("SELECT * FROM "+table),table);
+            for(String table:Arrays.asList("ql_refund_request","ql_refund_reservation","ql_refund_payment","ql_refund_attribution"))assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM "+table,Integer.class));
+            assertEquals("false",db.queryForObject("SELECT config_value FROM sys_config WHERE config_key='qinglife.finance.participant_write_enabled'",String.class));
+            assertEquals(40,db.queryForObject("SELECT COUNT(*) FROM ql_migration_run WHERE state='complete'",Integer.class));
+        }
+    }
 }
