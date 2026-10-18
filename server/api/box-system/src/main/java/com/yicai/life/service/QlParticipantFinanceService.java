@@ -5,15 +5,14 @@ import com.yicai.life.domain.*;
 import com.yicai.life.domain.bo.*;
 import com.yicai.life.mapper.*;
 import lombok.RequiredArgsConstructor;
-import org.springframework.dao.ConcurrencyFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.*;
 import org.springframework.transaction.support.TransactionTemplate;
 import java.math.BigDecimal;
 import java.util.*;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
 import static com.yicai.life.service.QlFinanceOperationService.*;
+import com.yicai.life.service.QlParticipantFinanceGuard.Target;
 
 /** Only participant cash capture, allocation and confirmation. No batch broadcasts, refunds or pass writes. */
 @Service @RequiredArgsConstructor @lombok.extern.slf4j.Slf4j
@@ -28,33 +27,21 @@ public class QlParticipantFinanceService {
     private final QlRegistrationStatusLogMapper logs;
     private final QlOfflineReceiptImageService images;
     private final QlFinanceOperationService operations;
+    private final QlParticipantFinanceGuard guard;
+    private final QlParticipantRefundMapper refunds;
+    private final QlParticipantRefundService refundService;
 
     private <T> T write(Supplier<T> work) {
-        for(int attempt=0;;attempt++) {
-            TransactionTemplate t=new TransactionTemplate(tx);t.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
-            t.setIsolationLevel(TransactionDefinition.ISOLATION_READ_COMMITTED);
-            try{return t.execute(s->{modes.requireEnabled();return work.get();});}
-            catch(ConcurrencyFailureException e){if(attempt==2)throw new CustomException("并发操作未完成，请使用原操作标识重试",409);}
-            catch(org.springframework.dao.DataAccessException e){throw new CustomException("资金操作未完成，请核对到账记录后使用原标识重试",409);}
-        }
+        return guard.write(work);
     }
     private Target lock(String batch) {
-        uuid(batch);Map<String,Object> snapshot=mapper.batch(batch,false);
-        if(snapshot==null)throw new CustomException("订单不存在",404);
-        Map<String,Object> session=seats.lockSession(snapshot.get("sessionId").toString());
-        Map<String,Object> order=mapper.batch(batch,true);modes.requireParticipant(String.valueOf(order.get("mode")));
-        List<QlRegistration> people=registrations.selectBatchRegistrationsForUpdate(batch);
-        if(people.isEmpty())throw new CustomException("订单没有报名人",409);
-        return new Target(order,session,people);
+        return guard.lock(batch);
     }
     private String batchFor(String id) {
-        uuid(id);QlRegistration row=registrations.selectById(id);
-        if(row==null)throw new CustomException("报名不存在",404);
-        if(row.getBatchId()==null)throw new CustomException("历史单人报名请使用原流程",409);
-        return row.getBatchId();
+        return guard.batchFor(id);
     }
     private QlRegistration person(Target t,String id) {
-        return t.people.stream().filter(r->id.equals(r.getId())).findFirst().orElseThrow(()->new CustomException("报名人不属于本订单",409));
+        return guard.person(t,id);
     }
     private void pending(QlRegistration r) {
         if(!Arrays.asList("pending","waitlisted").contains(r.getRegistrationStatus())||!"unpaid".equals(r.getPaymentStatus())||
@@ -63,9 +50,10 @@ public class QlParticipantFinanceService {
         if(r.getPassAccountId()!=null||r.getPassUnits()!=null&&r.getPassUnits()>0||"pass".equals(r.getSettlementType())||mapper.hasPass(r.getId()))
             throw new CustomException("此人存在卡次来源，不能混用现金",409);
         if(mapper.hasUnlinkedReceipt(r.getId()))throw new CustomException("存在未关联订单的历史到账，请人工核对",409);
+        if(refunds.hasRefundExposure(r.getId()))throw new CustomException("此人已有退款或预留，不能重新分配或确认旧报名",409);
     }
     private void revision(Integer expected,Object actual) {
-        if(expected==null||expected<0||expected.intValue()!=((Number)actual).intValue())throw new CustomException("资金资料已变化，请刷新后使用新操作标识",409);
+        guard.revision(expected,actual);
     }
     private void noBatchSettlement(Target t) {
         if(!"pending".equals(t.order.get("settlementStatus"))||!"unpaid".equals(t.order.get("paymentStatus"))||mapper.hasBatchSettlement(t.id()))
@@ -207,20 +195,18 @@ public class QlParticipantFinanceService {
                 fact.put("unallocatedAmount",amount.subtract(used));fact.put("allocationState",used.signum()==0?"unallocated":used.compareTo(amount)==0?"allocated":"partial");
                 if("paid".equals(fact.get("status"))) {gross=gross.add(amount);allocated=allocated.add(used);}
             }
+            Map<String,Object> refundTotals=refundService.decorate(people);
             return map("mode","participant","revision",order.get("revision"),"writeEnabled",modes.enabled(),"participants",people,"receipts",facts,
                 "allocations",mapper.allocationHistory(batch),
-                "orderSummary",map("total",people.size(),"confirmed",confirmed,"pending",people.size()-confirmed-cancelled,"cancelled",cancelled,"grossReceived",gross,"allocatedAmount",allocated,"unallocatedAmount",gross.subtract(allocated)),
-                "capabilities",map("cashAllocation",true,"refunds",false,"passSettlement",false));
+                "refundRequests",refunds.history(batch),
+                "orderSummary",map("total",people.size(),"confirmed",confirmed,"pending",people.size()-confirmed-cancelled,"cancelled",cancelled,"grossReceived",gross,"allocatedAmount",allocated,"unallocatedAmount",gross.subtract(allocated),
+                    "refundedAmount",refundTotals.get("refundedAmount"),"refundReserved",refundTotals.get("refundReserved"),"netReceived",gross.subtract((BigDecimal)refundTotals.get("refundedAmount"))),
+                "capabilities",map("cashAllocation",true,"refunds",true,"participantCancellation",true,"passSettlement",false));
         });
     }
     private void status(QlRegistration r,String type,String from,String to,String why,Long operator,Date now) {
         QlRegistrationStatusLog log=new QlRegistrationStatusLog();log.setId(UUID.randomUUID().toString());log.setRegistrationId(r.getId());log.setStatusType(type);
         log.setFromStatus(from);log.setToStatus(to);log.setChangeReason(why);log.setOperatorId(operator);log.setChangedAt(now);
         if(logs.insert(log)!=1)throw new CustomException("人员审计写入失败",500);
-    }
-    private static class Target {
-        final Map<String,Object> order,session;final List<QlRegistration> people;
-        Target(Map<String,Object> order,Map<String,Object> session,List<QlRegistration> people){this.order=order;this.session=session;this.people=people;}
-        String id(){return order.get("id").toString();}
     }
 }

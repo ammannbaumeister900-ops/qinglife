@@ -74,6 +74,8 @@ class RegistrationReadinessIT {
         @Bean QlCommunityAccessPolicy communityAccess(){return spy(new QlCommunityAccessPolicy());}
         @Bean QlReflectionVoiceService reflectionVoice(){return mock(QlReflectionVoiceService.class);}
         @Bean QlParticipantModePolicy modes(JdbcTemplate db){return new QlParticipantModePolicy(new QlParticipantFinanceMapper(db));}
+        @Bean QlParticipantFinanceMapper participantMapper(JdbcTemplate db){return new QlParticipantFinanceMapper(db);}
+        @Bean QlParticipantRefundMapper refundMapper(JdbcTemplate db){return new QlParticipantRefundMapper(db);}
         @Bean QlParticipantFinanceService participantFinance(){return mock(QlParticipantFinanceService.class);}
         @Bean RedisCache redis(){return mock(RedisCache.class);}
         @Bean RedissonClient redisson(){return mock(RedissonClient.class);}
