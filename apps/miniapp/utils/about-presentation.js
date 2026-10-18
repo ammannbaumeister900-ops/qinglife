@@ -29,7 +29,12 @@ function presentAbout(content) {
   const stats = valid && report.state === 'releaseReady' && report.factCheck === 'user-confirmed-brief' && numbers && report.participantOccurrences > 0 && report.returningOccurrences <= report.participantOccurrences ? {
     ...report, percent: (report.returningOccurrences / report.participantOccurrences * 100).toFixed(1)
   } : null
-  return { entry: content.entry, founders, everyday: { ...content.everyday, photo: photo(content.assets, content.everyday.photoAssetId) },
-    story, history: valid ? history : null, stats, transparency: content.transparency }
+  // Display-only fields below; every photo still passes the same readiness gate. People photos also need confirmed identity.
+  const camps = valid && /^(\d+)(.*)$/.exec(text(history.campsLabel))
+  return { entry: { ...content.entry, photo: photo(content.assets, content.entry.photoAssetId, true) }, founders, everyday: content.everyday,
+    // The #46 scene must never sit next to an approved person's story, or readers would take the guide's client for that person.
+    story, returnHeading: story ? story.heading : content.storySlot && content.storySlot.heading, storyScene: story ? null : photo(content.assets, content.storySlot && content.storySlot.photoAssetId, true),
+    history: valid ? { ...history, campsNumber: camps ? camps[1] : '', campsUnit: camps ? camps[2] : '' } : null, stats,
+    transparency: { ...content.transparency, photo: photo(content.assets, content.transparency.photoAssetId) }, share: content.share }
 }
 module.exports = { presentAbout, storyArticle }

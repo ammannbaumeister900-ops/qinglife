@@ -1,8 +1,9 @@
-<ql-nav-space id="about-nav" title="了解轻生活" back />
+<ql-nav-space id="about-nav" title="了解轻生活" />
 <view class="about-page" style="--about-font-scale:{{fontScale}};">
   <view class="about-intro" id="about-entry">
     <view class="about-title about-serif">{{entry.title}}</view><view class="about-body about-intro-copy">{{entry.intro}}</view>
   </view>
+  <view wx:if="{{entry.photo && !failedImages[entry.photo.id]}}" class="about-opening-photo"><image class="about-opening-image" src="{{entry.photo.url}}" mode="aspectFill" data-id="{{entry.photo.id}}" binderror="imageFailed" aria-label="{{entry.photo.alt}}" /><view wx:if="{{entry.photo.caption}}" class="about-caption about-photo-caption">{{entry.photo.caption}}</view></view>
   <view wx:if="{{founders}}" class="about-origin" id="about-founders">
     <view class="about-origin-kicker">{{founders.peopleLabel}}</view><view class="about-heading about-serif">{{founders.title}}</view>
     <view wx:if="{{founders.photo && !failedImages[founders.photo.id]}}" class="about-archive-photo"><image src="{{founders.photo.url}}" class="about-archive-image" mode="widthFix" data-id="{{founders.photo.id}}" binderror="imageFailed" aria-label="{{founders.photo.alt}}" /><view wx:if="{{founders.photo.caption}}" class="about-caption">{{founders.photo.caption}}</view></view>
@@ -11,27 +12,47 @@
     <view class="about-body about-origin-foot">{{founders.startOfCamps}}</view>
   </view>
   <view class="about-everyday" id="about-everyday">
-    <view class="about-experience-head"><view class="about-heading about-serif">{{everyday.title}}</view><view class="about-body about-experience-lead">{{everyday.lead}}</view></view>
-    <view wx:if="{{everyday.photo && !failedImages[everyday.photo.id]}}" class="about-experience-photo"><image class="about-experience-image" src="{{everyday.photo.url}}" mode="aspectFill" data-id="{{everyday.photo.id}}" binderror="imageFailed" aria-label="{{everyday.photo.alt}}" /><view wx:if="{{everyday.photo.caption}}" class="about-caption">{{everyday.photo.caption}}</view></view>
+    <view class="about-heading about-serif">{{everyday.title}}</view>
+    <view wx:if="{{everyday.motto}}" class="about-motto about-serif">{{everyday.motto}}</view>
+    <view class="about-body about-experience-lead">{{everyday.lead}}</view>
+    <view wx:if="{{everyday.glyphs.length}}" class="about-glyphs"><view wx:for="{{everyday.glyphs}}" wx:key="glyph" class="about-glyph"><view class="about-glyph-char about-serif" aria-hidden="true">{{item.glyph}}</view><view class="about-glyph-text">{{item.text}}</view></view></view>
     <view class="about-experience-copy"><view class="about-subheading">{{everyday.heading}}</view><view class="about-body about-experience-body">{{everyday.body}}</view></view>
     <view class="about-continuation"><view class="about-subheading about-serif">{{everyday.continuationHeading}}</view><view class="about-body about-continuation-body">{{everyday.continuation}}</view></view>
   </view>
-  <view id="about-story-evidence">
+  <view class="about-return" id="about-story-evidence">
+    <view class="about-return-head"><view wx:if="{{story}}" class="about-caption about-on-dark-2">{{story.label}}</view><view class="about-heading about-serif">{{returnHeading}}</view></view>
+    <view wx:if="{{storyScene && !failedImages[storyScene.id]}}" class="about-scene"><image class="about-scene-image" src="{{storyScene.url}}" mode="aspectFill" data-id="{{storyScene.id}}" binderror="imageFailed" aria-label="{{storyScene.alt}}" /><view wx:if="{{storyScene.caption}}" class="about-caption about-scene-caption">{{storyScene.caption}}</view></view>
     <view wx:if="{{story}}" class="about-story">
-      <view class="about-story-head"><view class="about-caption">{{story.label}}</view><view class="about-heading about-serif">{{story.heading}}</view></view>
-      <view wx:if="{{story.portrait && !failedImages[story.portrait.id]}}" class="about-portrait"><image class="about-portrait-image" src="{{story.portrait.url}}" mode="widthFix" data-id="{{story.portrait.id}}" binderror="imageFailed" aria-label="{{story.portrait.alt}}" /><view wx:if="{{story.portrait.caption}}" class="about-caption">{{story.portrait.caption}}</view></view>
+      <view wx:if="{{story.portrait && !failedImages[story.portrait.id]}}" class="about-portrait"><image class="about-portrait-image" src="{{story.portrait.url}}" mode="widthFix" data-id="{{story.portrait.id}}" binderror="imageFailed" aria-label="{{story.portrait.alt}}" /><view wx:if="{{story.portrait.caption}}" class="about-caption about-scene-caption">{{story.portrait.caption}}</view></view>
       <view class="about-person"><view class="about-person-name about-serif">{{story.name}}</view><view class="about-person-history">{{story.historyText}}</view><view class="about-body about-person-intro">{{story.intro}}</view><view class="about-person-quote about-serif">“{{story.quote}}”</view><view class="about-quote-source">{{story.attribution}}</view></view>
-      <view class="about-story-after"><view class="about-body">{{story.after}}</view><view class="about-closing-quote about-serif">“{{story.closingQuote}}”</view><view class="about-caption about-experience-notice">{{story.experienceNotice}}</view><button wx:if="{{story.articleUrl}}" class="about-full-story" bindtap="openFullStory"><text>阅读完整故事</text><text>→</text></button></view>
+      <view class="about-story-after"><view class="about-body">{{story.after}}</view><view class="about-closing-quote about-serif">“{{story.closingQuote}}”</view><view class="about-caption about-on-dark-2 about-experience-notice">{{story.experienceNotice}}</view><button wx:if="{{story.articleUrl}}" class="about-full-story" bindtap="openFullStory"><text>阅读完整故事</text><text>→</text></button></view>
     </view>
     <view wx:if="{{history}}" class="about-history">
-      <view class="about-history-pair"><view><view class="about-history-number">{{history.foundedYear}}年</view><view class="about-caption">轻生活创办</view></view><view><view class="about-history-number">{{history.campsLabel}}</view><view class="about-caption">累计举办清体营</view></view></view>
-      <view wx:if="{{stats}}" class="about-ratio"><view class="about-ratio-top"><text class="about-ratio-number">{{stats.percent}}%</text><text class="about-caption">{{stats.returningOccurrences}} / {{stats.participantOccurrences}} 人次</text></view><view class="about-ratio-heading">{{stats.year}}年老轻友参营人次占比</view><view class="about-ratio-bar" role="img" aria-label="{{stats.year}}年{{stats.participantOccurrences}}参营人次中，{{stats.returningOccurrences}}人次来自老轻友，占{{stats.percent}}%"><view style="width:{{stats.percent}}%;"></view></view><view class="about-body">全年{{stats.campCount}}期，共{{stats.participantOccurrences}}参营人次，<text class="about-line-break">其中{{stats.returningOccurrences}}为老轻友参营人次。</text></view><view class="about-body about-definition">{{stats.definition}}</view></view>
+      <view wx:if="{{stats}}" class="about-ratio">
+        <view class="about-ratio-number"><text>{{stats.percent}}</text><text class="about-ratio-unit">%</text></view>
+        <view class="about-ratio-heading">{{stats.year}}年老轻友参营人次占比</view>
+        <view class="about-ratio-basis">全年{{stats.campCount}}期，共{{stats.participantOccurrences}}参营人次，其中{{stats.returningOccurrences}}为老轻友参营人次</view>
+        <view class="about-ratio-bar" role="img" aria-label="{{stats.year}}年{{stats.participantOccurrences}}参营人次中，{{stats.returningOccurrences}}人次来自老轻友，占{{stats.percent}}%"><view style="width:{{stats.percent}}%;"></view></view>
+      </view>
+      <view class="about-history-pair">
+        <view><view class="about-history-number">{{history.foundedYear}}</view><view class="about-history-label">轻生活创办</view></view>
+        <view><view class="about-history-number"><text>{{history.campsNumber || history.campsLabel}}</text><text wx:if="{{history.campsNumber}}" class="about-history-unit about-serif">{{history.campsUnit}}</text></view><view class="about-history-label">累计举办清体营</view></view>
+      </view>
+      <view wx:if="{{stats}}" class="about-definition">{{stats.definition}}</view>
     </view>
   </view>
   <view class="about-transparent" id="about-transparency"><view class="about-heading about-serif">{{transparency.title}}</view><view class="about-body about-transparent-intro">{{transparency.intro}}</view>
-    <view class="about-facts"><view wx:for="{{transparency.participation}}" wx:key="label" class="about-fact-row"><view class="about-caption about-fact-label">{{item.label}}</view><view class="about-body about-fact-text"><block wx:if="{{item.parts}}"><text wx:for="{{item.parts}}" wx:for-item="part" wx:key="text" class="{{part.emphasis ? 'about-emphasis' : ''}}">{{part.text}}</text></block><text wx:else>{{item.text}}</text></view></view></view>
+    <view class="about-facts"><view wx:for="{{transparency.participation}}" wx:key="label" class="about-fact-row"><view class="about-fact-label">{{item.label}}</view><view class="about-body about-fact-text"><block wx:if="{{item.parts}}"><text wx:for="{{item.parts}}" wx:for-item="part" wx:key="text" class="{{part.emphasis ? 'about-emphasis' : ''}}">{{part.text}}</text></block><text wx:else>{{item.text}}</text></view></view></view>
+    <view wx:if="{{transparency.photo && !failedImages[transparency.photo.id]}}" class="about-juice"><image class="about-juice-image" src="{{transparency.photo.url}}" mode="aspectFill" data-id="{{transparency.photo.id}}" binderror="imageFailed" aria-label="{{transparency.photo.alt}}" /><view class="about-caption">{{transparency.photo.caption}}</view></view>
     <view class="about-risk"><view class="about-risk-heading">{{transparency.riskTitle}}</view><view wx:for="{{transparency.risks}}" wx:key="*this" class="about-body about-risk-paragraph">{{item}}</view></view>
+    <view wx:if="{{latestCamp}}" class="about-latest">
+      <view class="about-latest-meta"><text>最近一期 · {{latestCamp.periodLabel}}</text><text class="about-latest-status">{{latestCamp.status}}</text></view>
+      <view wx:if="{{latestCamp.dateParts}}" class="about-latest-date" aria-label="{{latestCamp.dateLabel}}"><text>{{latestCamp.dateParts.start}}</text><text wx:if="{{latestCamp.dateParts.end}}"> — {{latestCamp.dateParts.end}}</text></view>
+      <view wx:else class="about-latest-date-text">{{latestCamp.dateLabel}}</view>
+      <view class="about-latest-place">{{latestCamp.placeLabel}}</view>
+      <button class="about-latest-link" bindtap="openCampList">全部营期 →</button>
+    </view>
   </view>
   <view class="about-endnote about-serif">{{transparency.endnote}}</view>
+  <view class="about-actions"><button class="about-share" open-type="share">分享给朋友</button><button class="about-primary" bindtap="learnRegistration">了解报名</button></view>
 </view>
-<view class="about-actions" style="--about-font-scale:{{fontScale}};"><button class="about-share" open-type="share">分享给朋友</button><button class="about-primary" bindtap="learnRegistration">了解报名</button></view>

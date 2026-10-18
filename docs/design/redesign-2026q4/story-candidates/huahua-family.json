@@ -1,0 +1,50 @@
+{
+  "_note": "已于 2026-10-18 审定并合入 apps/miniapp/config/about-content.js；本文件保留作出处记录，不再是活动版本。",
+  "storySlot": {
+    "heading": "为什么有人愿意\n一次次回来？",
+    "item": {
+      "id": "story-huahua-family",
+      "personKey": "huahua-family",
+      "name": "花花一家",
+      "state": "releaseReady",
+      "authorization": "confirmed",
+      "identityCheck": "confirmed",
+      "editorialReview": "pending",
+      "factCheck": "source-matched",
+      "source": {
+        "document": "品牌简介/我们一家三口的身体课.pdf",
+        "published": "轻生活公众号 2026-10-14（经授权摘编自公众号「罗莎小筑 坐看开花」）",
+        "authorizedBy": "用户 2026-10-18 会话确认可作为转化页素材"
+      },
+      "history": [
+        "2025年10月6日，一家三口第一次走进清体营",
+        "到第500期，一共参加了七次"
+      ],
+      "intro": "花花一家三口，最早是听一位老轻友推荐来的。那时花花和女儿正卡在减肥的瓶颈期，先生纯粹是陪着来。三天里，喝汁、早睡、泡脚、轻运动，让身体好好歇一歇。",
+      "quote": "这不是在“坚持”，是真的“喜欢”。",
+      "attribution": "花花，谈饮食变得清淡之后",
+      "after": "回家以后，变化落在日常里：一家人的口味变淡了，冰箱里装满五颜六色的蔬果；二十岁的女儿主动断糖，晚上11点前睡觉，去健身房也更勤了。",
+      "closingQuote": "好好吃，早点睡，动起来，常常笑。都是老道理，难的是真的去做。",
+      "experienceNotice": "个人体验分享，不代表课程疗效。身体有不适或正在服药，请遵医嘱，不要因此停药或放弃必要的诊疗。",
+      "portraitAssetId": "family-huahua",
+      "fullStory": null
+    }
+  },
+  "asset": {
+    "id": "family-huahua",
+    "role": "认知页人物故事 · 花花一家",
+    "file": "qing-about-story-huahua.jpg",
+    "url": "",
+    "caption": "花花一家三口在清体营",
+    "alt": "花花一家三口在清体营场地，一起抬头看向远处",
+    "state": "releaseReady",
+    "authorization": "confirmed",
+    "identityCheck": "confirmed",
+    "editorialReview": "approved",
+    "factCheck": "confirmed",
+    "source": {
+      "document": "用户 2026-10-18 会话提供的合影",
+      "ledger": "tools/images/export.py family-huahua"
+    }
+  }
+}
