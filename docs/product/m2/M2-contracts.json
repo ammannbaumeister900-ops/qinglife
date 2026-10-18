@@ -187,6 +187,12 @@
               "minLength": 1,
               "maxLength": 500,
               "pattern": "\\S"
+            },
+            "differenceReason": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 500,
+              "pattern": "\\S"
             }
           },
           "required": [
