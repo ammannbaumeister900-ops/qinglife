@@ -140,8 +140,9 @@ async function main() {
       const home = await a.page('home'), camp = await a.page('camp'), mine = await a.page('mine')
       assert.equal(home.data.view.activityId, first.id); assert.equal(camp.data.currentRegistrations[0].status, 'confirmed'); assert.equal(mine.data.state.registration.activityId, first.id); assert.equal(home.data.showHomeTask, false)
       await clockAt('2026-09-07T00:00:00Z'); await p.refresh()
-      p.openFeeling(); assert.equal(p.data.energy, null); assert.equal((await overview(a)).experienceRecords.length, 0)
-      p.onFeelingInput(event({}, '测试活动前感受')); await p.saveFeeling()
+      // The private feeling editor is retired; the legacy API stays for history and old clients, so seed it directly.
+      assert.equal(p.openFeeling, undefined); assert.equal((await overview(a)).experienceRecords.length, 0)
+      await http('/app/qinglife/experience-records', 'PUT', { registrationId:aReg, phase:'before', note:'测试活动前感受' }, a.auth)
       assert.equal((await overview(a)).experienceRecords[0].phase, 'before')
     })
     await test('05 三日感受逐日保存、重进可读、跨日不带默认答案、漏签到不阻断', async () => {
@@ -149,13 +150,12 @@ async function main() {
       for (let day=7; day<=9; day++) {
         await clock('2026-09-0' + day); await p.refresh()
         assert.equal(p.data.loadError, '', '邀请过期不应挡住已经打开的本人行程')
-        assert.equal(p.data.feelingPhase, ''); assert.equal(p.data.canRecordFeeling, false)
         await http('/app/qinglife/experience-records', 'PUT', { registrationId:aReg, phase:'during', sessionDayId:first.id+'-day-'+(day-6), energy:day-4, relaxation:4, note:'兼容第'+(day-6)+'天历史感受' }, a.auth)
       }
       const rows = (await overview(a)).experienceRecords
       assert.equal(rows.length, 4); assert.equal(new Set(rows.filter(r=>r.phase==='during').map(r=>r.nodeKey)).size,3)
       assert.ok(rows.every(r=>r.visibility==='private'))
-      const relaunch = await a.page('camp-flow', { id:first.id, view:'journey' }); assert.equal(relaunch.data.feelingNote, '')
+      const relaunch = await a.page('camp-flow', { id:first.id, view:'feeling' }); assert.equal(relaunch.data.view, 'experience', '旧私人感受链接改为只读回顾')
       await http('/app/qinglife/experience-records', 'PUT', { registrationId:aReg, phase:'during', sessionDayId:first.id+'-day-1', note:'跨日覆盖' }, a.auth, 400)
       await http('/app/qinglife/experience-records', 'PUT', { registrationId:aReg, phase:'during', sessionDayId:first.id+'-day-3', energy:6 }, a.auth, 400)
       assert.equal((await overview(d)).experienceRecords.length,0)
@@ -165,10 +165,10 @@ async function main() {
       await clock('2026-09-10'); await status(first,'completed'); a.setReflectionWindow(first.id, 'after'); await p.refresh()
       assert.equal((await a.page('home')).data.view.route,'experience', '完成后的首页不得跳到本地演示记录');
       assert.equal(p.data.canReview,true); assert.ok(p.data.dayViews.every(day=>!day.checked))
-      p.openExperience(); await p.saveReview(); assert.ok(a.nav.at(-1).startsWith('/pages/camp-reflection/index?id='+first.id)); assert.equal(p.data.reviewSaved,false, 'navigation is not a save');
+      p.openExperience(); await p.openReflection(); assert.ok(a.nav.at(-1).startsWith('/pages/camp-reflection/index?id='+first.id)); assert.equal(p.saveReview, undefined, 'the review has no private writer');
       // This existing HTTP Mock exposes the legacy private API. New editor + Java transaction are separately covered.
       await http('/app/qinglife/experience-records','PUT',{registrationId:aReg,phase:'after',note:'测试完成后的私人感受'},a.auth);
-      await p.refresh();assert.equal(p.data.reviewNote,'测试完成后的私人感受');assert.equal(p.data.reviewSaved,true)
+      await p.refresh();assert.equal(p.data.experienceTimeline.find(row=>row.phase==='after').note,'测试完成后的私人感受')
       p.openInvite(); await p.prepareInvitation(event({id:next.id})); aInvite=p.onShareAppMessage()
       assert.ok(aInvite.path.includes('invite=')); assert.equal(aInvite.title,next.name)
       assert.ok(!aInvite.path.includes(a.customerId)); assert.ok(!JSON.stringify(aInvite).includes('私人感受'))

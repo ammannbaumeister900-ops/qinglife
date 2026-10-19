@@ -24,20 +24,19 @@ function referral(f){
  p.data=JSON.parse(JSON.stringify(p.data));p.setData=patch=>Object.assign(p.data,patch);return p;
 }
 const input=(p,value)=>p.onInput({detail:{value}}),writes=f=>f.requests.filter(r=>r.method==='PUT'||r.method==='POST');
-test('all ages and unknown eligibility retain the same intentional submit-for-review and private save',async()=>{
+test('all ages and unknown eligibility retain the same intentional submit-for-review',async()=>{
  for(const [gate,minor] of [[false,true],[false,false],[undefined,false],[null,false],['true',false],[1,false],[true,true]]){
   const s=setup(gate,minor),p=await editor(s);assert.equal(writes(s.f).length,0);
   input(p,'用户主动提交的原文');await p.save();const post=writes(s.f)[0].data;
   assert.equal(post.action,'submit');assert.equal(post.anonymous,false);assert.equal(post.shareConsent,true);
   assert.equal(p.data.status,'submitted');assert.equal(p.data.context.records[0].sharedNote,'用户主动提交的原文');
-  input(p,'仅保存的修改');await p.savePrivate();assert.equal(s.saved.A,'仅保存的修改');
-  assert.equal(p.data.context.records[0].sharedNote,'用户主动提交的原文');assert.equal(p.data.status,'submitted');assert.equal(p.data.context.experienceRecord.energy,4);
+  assert.equal(s.saved.A,'用户主动提交的原文');assert.equal(p.savePrivate,undefined);assert.equal(p.data.context.experienceRecord.energy,4);
  }
 });
-test('before submit and private compatibility do not depend on invitation eligibility',async()=>{const s=setup(false,true,'before'),p=await editor(s);input(p,'活动前文字');await p.save();assert.equal(writes(s.f)[0].data.action,'submit');await p.savePrivate();assert.equal(writes(s.f)[1].data.phase,'before');assert.equal(s.saved.A,'活动前文字');});
+test('before submit does not depend on invitation eligibility',async()=>{const s=setup(false,true,'before'),p=await editor(s);input(p,'活动前文字');await p.save();assert.equal(writes(s.f)[0].data.action,'submit');assert.equal(writes(s.f)[0].data.phase,'before');assert.equal(s.saved.A,'活动前文字');});
 test('invitation eligibility changing never changes the editor or authorized pending submission',async()=>{
  const s=setup(true),p=await editor(s);s.setGate(false);input(p,'普通轻友原稿');await p.save();assert.equal(writes(s.f).length,1);assert.equal(writes(s.f)[0].data.shareConsent,true);assert.equal(p.data.status,'submitted');
- input(p,'仅保存草稿');await p.savePrivate();assert.equal(s.saved.A,'仅保存草稿');assert.equal(p.data.context.records[0].sharedNote,'普通轻友原稿');
+ assert.equal(s.saved.A,'普通轻友原稿');assert.equal(p.data.context.records[0].sharedNote,'普通轻友原稿');assert.equal(p.savePrivate,undefined);
 });
 test('missing nickname and rejected submission retain input and never claim acceptance',async()=>{
  const s=setup(false,true),p=await editor(s);input(p,'保留我的输入');p.data.context.authorName='';await p.save();assert.equal(writes(s.f).length,0);

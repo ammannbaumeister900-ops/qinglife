@@ -70,9 +70,7 @@
 .camp-flow-page .journey-reflection .secondary { width: auto; margin-right: 0; margin-left: 0; padding-right: 0; padding-left: 0; border: none; justify-content: flex-start; }
 
 /* Writing, selecting an invitation, and rereading are different tasks. */
-.writing-heading { margin-bottom: 28rpx; }
 .camp-flow-page .textarea { display: block; min-height: 240rpx; height: 300rpx; padding: 20rpx 24rpx; border: 1rpx solid rgba(74,61,49,.24); border-radius: 6rpx; background: var(--ql-surface); font-size: 30rpx; line-height: 1.7; }
-.saved-note { margin-top: 16rpx; color: #53624A; font-size: 28rpx; line-height: 1.7; }
 .invite-heading { margin-bottom: 28rpx; }
 .camp-flow-page button.invitation-row { display: flex; align-items: center; gap: 20rpx; width: 100%; min-height: 44px; margin: 0; padding: 24rpx 0; border-radius: 0; border-bottom: 1rpx solid var(--ql-border); background: transparent; color: var(--ql-ink); text-align: left; line-height: 1.5; white-space: normal; }
 .invitation-copy { flex: 1; min-width: 0; }
@@ -94,7 +92,7 @@
   .leader-detail-label, .rule-title, .rule-copy, .action-status, .registration-step,
   .camp-flow-page .list-title, .camp-flow-page .list-note, .camp-flow-page .label,
   .summary-label, .summary-count, .summary-price, .service-session, .service-status-note,
-  .saved-note, .invitation-session, .invitation-date, .invitation-action, .invitation-name,
+  .invitation-session, .invitation-date, .invitation-action, .invitation-name,
   .camp-flow-page .input, .camp-flow-page .textarea, .detail-intro, .rhythm-axis, .rhythm-title,
   .fit-title, .leader-detail-name, .summary-person, .summary-contact { font-size: 14px; }
 }
@@ -109,12 +107,6 @@
 @import "./journey.wxss";
 
 /* Feeling is a private field, separate from the frozen experience reading view. */
-.flow-feeling .writing-heading { margin: 8rpx 0 28rpx; }
-.flow-feeling .task-title { font-family: var(--ql-serif); font-size: 42rpx; }
-.flow-feeling .task-copy { font-size: 26rpx; }
-.flow-feeling .textarea { height: 360rpx; padding: 24rpx; border-radius: 8rpx; font-size: 32rpx; }
-.flow-feeling .privacy-note { font-size: 26rpx; }
-@media (max-width: 350px) { .flow-feeling .textarea { font-size: 16px; } }
 
 .flow-invite .task-title { font-size: 38rpx; font-weight: 600; }
 .flow-invite .task-copy { font-size: 26rpx; }
