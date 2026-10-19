@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /*
  * 按 cos-stage.cjs 生成的 upload-plan.json 上传展示图到 COS，并匿名校验 https://img.guijianju.cn/ 访问。
- *   COS_SECRET_ID=… COS_SECRET_KEY=… [COS_SESSION_TOKEN=…] node tools/images/cos-upload.cjs [--plan DIR/upload-plan.json] [--verify-only]
+ *   node tools/images/cos-upload.cjs [--plan DIR/upload-plan.json] [--verify-only]
+ *   密钥来自环境变量 COS_SECRET_ID / COS_SECRET_KEY [/ COS_SESSION_TOKEN]，或 ~/.qinglife-cos-uploader.env
  * - 密钥只从环境变量读取，不写盘、不打印；建议用限定 qinglife/visual/* 的子账号或临时密钥。
  * - 不覆盖：先 HEAD，已存在且 sha256 不同则停止；PUT 同时带 x-cos-forbid-overwrite: true。
  * - 上传走存储桶默认域名（证书有效）；校验走自定义域名，不带任何签名，等同小程序匿名加载。
@@ -18,6 +19,15 @@ const planFile = path.resolve(args.includes('--plan') ? args[args.indexOf('--pla
 const verifyOnly = args.includes('--verify-only')
 const plan = JSON.parse(fs.readFileSync(planFile, 'utf8'))
 const HOST = `${plan.bucket}.cos.${plan.region}.myqcloud.com`
+
+// 环境变量没给时，读本机用户目录下的 .qinglife-cos-uploader.env（仓库外；只取两三个键，不回显）。
+const envFile = path.join(require('os').homedir(), '.qinglife-cos-uploader.env')
+if (!process.env.COS_SECRET_ID && fs.existsSync(envFile)) {
+  for (const line of fs.readFileSync(envFile, 'utf8').split(/\r?\n/)) {
+    const match = line.match(/^\s*(COS_SECRET_ID|COS_SECRET_KEY|COS_SESSION_TOKEN)\s*=\s*(\S+)\s*$/)
+    if (match) process.env[match[1]] = match[2]
+  }
+}
 
 const hmac = (key, text) => crypto.createHmac('sha1', key).update(text).digest('hex')
 const sha1 = text => crypto.createHash('sha1').update(text).digest('hex')
