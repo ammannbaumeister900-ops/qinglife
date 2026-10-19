@@ -16,10 +16,10 @@
     "pages/about/index"
   ],
   "window": {
-    "navigationBarBackgroundColor": "#F6F1E8",
+    "navigationBarBackgroundColor": "#F3F2EC",
     "navigationBarTextStyle": "black",
     "navigationBarTitleText": "轻生活",
-    "backgroundColor": "#F6F1E8",
+    "backgroundColor": "#F3F2EC",
     "backgroundTextStyle": "dark"
   },
   "tabBar": {

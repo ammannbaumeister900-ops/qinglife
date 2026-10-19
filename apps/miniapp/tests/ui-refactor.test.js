@@ -6,9 +6,16 @@ const root = path.resolve(__dirname, '..')
 const appStyles = fs.readFileSync(path.join(root, 'app.wxss'), 'utf8')
 const demo = require(path.join(root, 'data/demo'))
 
-for (const token of ['#F6F1E8', '#FFFCF7', '#26231F', '#A85B3A', '#7C8F78', '#A87C3E']) {
-  assert.ok(appStyles.includes(token), `V1.1 Token ${token} 缺失`)
+// P7 bridge: legacy --ql-* colours resolve to the 2026Q4 --q-* tokens, so unrevised pages share one palette.
+const bridged = { '--ql-bg': '--q-linen', '--ql-surface': '--q-white', '--ql-ink': '--q-ink', '--ql-ink-light': '--q-ink-2', '--ql-border': '--q-line', '--ql-nav-bg': '--q-linen', '--ql-clay-deep': '--q-moss', '--ql-sage-deep': '--q-moss', '--ql-warning': '--q-amber' }
+for (const [legacy, token] of Object.entries(bridged)) {
+  assert.ok(new RegExp(`${legacy}:\\s*var\\(${token}\\);`).test(appStyles), `${legacy} 未桥接到 ${token}`)
 }
+assert.ok(appStyles.indexOf('@import "styles/qing-tokens.wxss"') === 0, '令牌文件须在 app.wxss 顶部导入')
+const appConfig = JSON.parse(fs.readFileSync(path.join(root, 'app.json'), 'utf8'))
+const linen = fs.readFileSync(path.join(root, 'styles/qing-tokens.wxss'), 'utf8').match(/--q-linen:\s*(#[0-9A-Fa-f]{6})/)[1]
+assert.strictEqual(appConfig.window.navigationBarBackgroundColor, linen, '系统导航栏须与亚麻纸色一致')
+assert.strictEqual(appConfig.window.backgroundColor, linen, '窗口背景须与亚麻纸色一致')
 
 for (const activity of demo.activities) {
   assert.ok(activity.capacity > 0, `${activity.id} 缺少人数数据`)
