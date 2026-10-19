@@ -23,8 +23,7 @@ const PLAN = {
   'about-return': { key: 'qinglife/visual/about/return-guide-junjun-v1.jpg', media: 'aboutReturn', page: '认知页高点 · 现场 #46' },
   'about-juice': { key: 'qinglife/visual/about/juice-bottle-v1.jpg', media: 'aboutJuice', page: '认知页饮食说明 · 现场 #67' },
   'camp-header': { key: 'qinglife/visual/camp/header-garden-path-v1.jpg', media: 'campHeader', page: '清体营页头 · 现场 #48' },
-  'about-story': { key: 'qinglife/visual/stories/huahua-family-v1.jpg', media: 'storyHuahua', page: '认知页人物故事 · 花花一家',
-    held: '只有聊天转存的 1280×1920 压缩图，需高清原图后重导' },
+  'about-story': { key: 'qinglife/visual/stories/huahua-family-v1.jpg', media: 'storyHuahua', page: '认知页人物故事 · 花花一家（2976×4464 原图导出）' },
   'home-hero-local': { bundled: true }, 'share-about': { bundled: true }
 }
 
