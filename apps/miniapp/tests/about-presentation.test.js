@@ -70,7 +70,7 @@ test('latest period card reuses the public list only and disappears on failure, 
 })
 test('approved family story passes the real gate, hides #46 and carries no medication or contact claims',()=>{
   const item=content.storySlot.item,r=presentAbout(content);assert.equal(r.story.name,'花花一家');assert.equal(r.story.label,'花花一家的故事');assert.equal(r.storyScene,null)
-  assert.equal(r.story.portrait,null,'CDN 地址填入前照片不显示');const withUrl=clone(content);withUrl.assets=withUrl.assets.map(a=>a.id==='family-huahua'?{...a,url:'https://cdn.example.invalid/story.jpg'}:a);assert.equal(presentAbout(withUrl).story.portrait.id,'family-huahua')
+  assert.equal(r.story.portrait&&r.story.portrait.url,require('../config/visual-media').storyHuahua||undefined);const withUrl=clone(content);withUrl.assets=withUrl.assets.map(a=>a.id==='family-huahua'?{...a,url:'https://cdn.example.invalid/story.jpg'}:a);assert.equal(presentAbout(withUrl).story.portrait.id,'family-huahua')
   const text=JSON.stringify(item).replace(/不要因此停药/,'');assert(!/停药|降糖药|不吃药|药箱|39\.6|13818065135|钟师姐|InBody/.test(text),'不含停药、疗效数字或联系人')
   assert(item.experienceNotice.includes('不代表课程疗效'));for(const patch of [{editorialReview:'pending'},{factCheck:'source-matched'},{identityCheck:'pending'}]){const c=clone(content);Object.assign(c.storySlot.item,patch);assert.equal(presentAbout(c).story,null)}
 })
