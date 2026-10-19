@@ -38,11 +38,27 @@
 - Android 若不显示 woff 字体，`subset.py` 改出 ttf；回退为系统字体时版面应仍成立（未验证）。
 - 系统字号调到最大时三页是否溢出；320 宽机型（如 iPhone SE 1 代）首屏。
 
+### COS 图片真机验收（UAT `uat/20261019-visual-images`，2026-10-19 起）
+
+七张图都从 `https://img.guijianju.cn/qinglife/visual/` 加载（集中配置在 `apps/miniapp/config/visual-media.js`）。服务端已逐张匿名校验 200 / image/jpeg / 字节数 / SHA256；以下只能真机确认，iOS、Android 各看一次，最好一次用 Wi-Fi、一次用 4G/5G：
+
+| # | 位置 | 对象 | 显示尺寸 | 看什么 |
+|---|---|---|---|---|
+| 1 | 首页首屏 | `home/guides-hero-v1.jpg`（#42，1170×780） | 满宽 3:2 | 三位导游不被裁头、脸部清晰；断网或加载失败时回退到包内图，不留空框 |
+| 2 | 首页「了解轻生活」色场顶部 | `home/about-guide-dahai-v1.jpg`（#43，1170×780） | 满宽 3:2 | 大海面部清晰，工牌字样不糊；两位轻友只露背影 |
+| 3 | 认知页开场 | `about/opening-guide-gongzhu-v1.jpg`（#50，1080×1350，232.8KB） | 满宽 4:5，约 375×440 | 公主全身在画面内；体积略超建议上限，看首屏是否明显迟出 |
+| 4 | 认知页「一次次回来」 | `about/return-guide-junjun-v1.jpg`（#46，1170×780） | 满宽 3:2 | **正常情况下不显示**（花花一家故事显示时自动隐藏）；只有故事图加载失败时才可能出现，确认不会同时出现 |
+| 5 | 认知页人物故事 | `about/huahua-family-v1.jpg`（花花一家，1080×1350，原图导出） | 满宽，约 375×469 | 三人完整、脸部清晰；与上方故事标题、下方姓名衔接自然 |
+| 6 | 认知页饮食说明 | `about/juice-bottle-v1.jpg`（#67，600×750） | 150×188 | 瓶身标签**看不到手机号和二维码**；与右侧说明底对齐 |
+| 7 | 清体营二级页页头 | `camp/header-garden-path-v1.jpg`（#48，1170×624） | 满宽，约 375×200 | 有"我的安排"时它在安排之后；步道构图不被裁坏 |
+
+另请记录：首次进入各页时图片出现的大致耗时；返回再进是否命中缓存（第 5 张为控制台上传，未带 Cache-Control，缓存可能弱于其他六张）。
+
 ## 四、业务待验收
 
 - 素材账本"需确认"的 3 张已于 2026-10-19 确认：#50 为导游公主、#46 军军同意（背景可用）、#43 为导游大海，均同意公开；配置已打开，填入 CDN 地址后显示。#46 在花花一家故事显示时仍自动隐藏。
-- 照片上传 CDN（`outputs/qing-images/`），填入各 `url`，并在小程序后台加 downloadFile 合法域名。#50 先决定：放宽到 240KB，或降到 quality 66 / 1000×1250。
-- 人物故事「花花一家」已上线到配置；合影 `qing-about-story-huahua.jpg` 上传 CDN 后填入 `family-huahua.url` 即显示，建议先补原图重导。《连续清体》建议本轮不用（医疗叙事密集，见 `story-candidates/huahua-family.md`）。
+- 七张展示图已上传 COS 并接入（2026-10-19，见上方"COS 图片真机验收"）；上传专用密钥已禁用，本机凭证文件已移除。`<image>` 加载网络图片不受 request / downloadFile 合法域名限制；以后若对这些图用 `wx.downloadFile` / `wx.getImageInfo`，需把 `img.guijianju.cn` 加入 downloadFile 合法域名。#50 仍是 232.8KB（超 220KB 建议），真机若无明显延迟可保持。
+- 人物故事「花花一家」已上线，合影由 2976×4464 原图导出。《连续清体》建议本轮不用（医疗叙事密集，见 `story-candidates/huahua-family.md`）。
 - 「带回每一天」食 / 动 / 歇三句为 Brief 初稿（`glyphsCopyState: draft`），需定稿。
 - 高清 Logo 到货后放入 `ql-nav-space` brand 插槽；届时可评估移除 436KB 的 `logo-sage.png`。
 
