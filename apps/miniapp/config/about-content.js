@@ -1,6 +1,7 @@
 // Public editorial configuration. Unapproved people/photos remain outside the miniapp package.
 // See the independent delivery review list before any public release.
 // assets 沿用 state/authorization/identityCheck 作为唯一发布开关（state:"releaseReady" 即 releaseReady:true）；url 在上传 CDN 后填入。
+const media = require('./visual-media')
 module.exports = {
   "schemaVersion": 1,
   "entry": {
@@ -71,7 +72,7 @@ module.exports = {
       "id": "scene-50",
       "role": "认知页开场 · 慢下来",
       "file": "qing-about-opening-50.jpg",
-      "url": "",
+      "url": media.aboutOpening,
       "caption": "轻生活导游 · 清体营场地园林",
       "alt": "轻生活导游在清体营场地园林中慢慢走",
       "state": "releaseReady",
@@ -89,7 +90,7 @@ module.exports = {
       "id": "scene-46",
       "role": "认知页高点 · 被照顾",
       "file": "qing-about-return-46.jpg",
-      "url": "",
+      "url": media.aboutReturn,
       "caption": "导游军军在课程中协助轻友放松",
       "alt": "导游军军在课程中协助一位轻友放松",
       "state": "releaseReady",
@@ -107,7 +108,7 @@ module.exports = {
       "id": "scene-67",
       "role": "饮食说明旁 · 细节（已裁掉标签手机号与二维码）",
       "file": "qing-about-juice-67.jpg",
-      "url": "",
+      "url": media.aboutJuice,
       "caption": "清体营期间的蔬菜榨汁",
       "alt": "一只装着绿色蔬菜榨汁的随行瓶",
       "state": "releaseReady",
@@ -123,7 +124,7 @@ module.exports = {
       "id": "family-huahua",
       "role": "认知页人物故事 · 花花一家",
       "file": "qing-about-story-huahua.jpg",
-      "url": "",
+      "url": media.storyHuahua,
       "caption": "花花一家三口在清体营",
       "alt": "花花一家三口在清体营场地，一起抬头看向远处",
       "state": "releaseReady",
