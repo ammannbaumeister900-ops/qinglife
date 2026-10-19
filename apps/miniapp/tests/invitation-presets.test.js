@@ -20,13 +20,13 @@ function jpegSize(buffer) {
 }
 const session={id:'period',sessionNumber:108,canRegister:true}
 const context=async()=>({state:{loggedIn:true,invitationEligible:true},activities:[session]})
-test('three fresh-produce share images fit 5:4 and the selected artwork travels with the prepared invitation',async()=>{
+test('three photo share cards fit 5:4 within 128KB and the selected card travels with the prepared invitation',async()=>{
   assert.equal(presets.length,3)
   for(const preset of presets){
-    assert(preset.image.endsWith('-fresh.jpg'))
+    assert.match(preset.image,/^\/assets\/invitations\/invite-[a-z]+-\d+\.jpg$/,'cards come from tools/images/share-cards.py')
     const b=fs.readFileSync(path.join(__dirname,'..',preset.image)),size=jpegSize(b)
     assert(Math.abs(size.width/size.height-1.25)<.002,'rounding tolerance under one image pixel')
-    assert(b.length<250000,'share artwork should not inflate the miniapp bundle')
+    assert(b.length<=128*1024,'share card should stay within the 128KB ledger budget')
   }
   const p=page({context,myReferrals:async()=>[],createInvitation:async()=>({path:'/pages/camp-flow/index?invite=opaque'})});await p.refresh();await p.prepare()
   p.choosePreset({currentTarget:{dataset:{id:'bloom'}}});assert.equal(p.onShareAppMessage().imageUrl,presets[2].image);assert.ok(p.onShareAppMessage().title.includes('108'));assert.equal(p.onShareAppMessage().path,'/pages/camp-flow/index?invite=opaque')
@@ -42,4 +42,9 @@ test('period selection invalidates its previous invitation, and stale responses 
 test('a guest cannot create an invitation even if a stale eligibility flag survives',async()=>{
   let created=false
   const p=page({context:async()=>({state:{loggedIn:false,invitationEligible:true},activities:[session]}),myReferrals:async()=>[],createInvitation:async()=>{created=true}});await p.refresh();await p.prepare();assert.equal(created,false)
+})
+test('the generate button names the selected period and follows the period choice',async()=>{
+  const p=page({context:async()=>({state:{loggedIn:true,invitationEligible:true},activities:[session,{...session,id:'other',sessionNumber:109},{...session,id:'blank',sessionNumber:null}]}),myReferrals:async()=>[]});await p.refresh()
+  assert.equal(p.data.pickedNumber,'108');p.chooseSession({currentTarget:{dataset:{id:'other'}}});assert.equal(p.data.pickedNumber,'109')
+  p.chooseSession({currentTarget:{dataset:{id:'blank'}}});assert.equal(p.data.pickedNumber,'')
 })

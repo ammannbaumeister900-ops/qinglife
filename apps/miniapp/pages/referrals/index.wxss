@@ -1,61 +1,53 @@
-page { background: #f6f1e8; color: #51433c; }
-.referrals-page { padding: 40rpx 36rpx calc(90rpx + env(safe-area-inset-bottom)); background: radial-gradient(ellipse at 90% 0,#ede0d7,transparent 580rpx); }
-.intro { padding: 12rpx 0 34rpx; }
-.eyebrow { font-size: 22rpx; letter-spacing: 4rpx; color: #a08578; }
-.title { font-family: var(--ql-serif); font-size: 50rpx; letter-spacing: 4rpx; line-height: 1.6; margin: 20rpx 0 16rpx; }
-.title-second { padding-left: 82rpx; }
-.intro-copy { font-size: 25rpx; color: #947e6d; letter-spacing: 2rpx; }
-.invitation-preview { border: 1rpx solid #e4d4c6; border-radius: 8rpx; overflow: hidden; background: #fffbf5; box-shadow: 0 12rpx 32rpx rgba(117,89,72,.08); }
-.invitation-art { display: block; width: 100%; height: 542rpx; }
-.art-caption { margin: 22rpx 0; text-align: center; font-size: 23rpx; color: #978676; }
-.preset-picker { display: flex; gap: 18rpx; margin-bottom: 44rpx; }
-.referrals-page button.preset { flex: 1; min-width: 0; margin: 0; padding: 8rpx; border: 2rpx solid transparent; border-radius: 12rpx; background: rgba(255,255,255,.45); line-height: 1.5; }
-.referrals-page button.preset-selected { border-color: #ac8570; background: #fff9f1; }
-.preset-art { display: block; width: 100%; height: 154rpx; }
-.preset-name { margin: 8rpx 0 4rpx; font-size: 23rpx; color: #806955; }
-.section-label { font-size: 26rpx; margin-bottom: 18rpx; }
-.referrals-page button.session-choice { display: flex; align-items: center; gap: 20rpx; width: 100%; box-sizing: border-box; margin: 14rpx 0; padding: 24rpx; border: 1rpx solid #e3d9ca; border-radius: 12rpx; background: rgba(255,255,255,.36); text-align: left; line-height: 1.6; }
-.referrals-page button.session-selected { border-color: #ab8b76; background: #fffbf4; }
+/* 邀请轻友 · 「林下午后」P9（docs/design/redesign-2026q4/p9-invitation-rhythm.md）。只引用 --q-* 令牌。
+ * 制作邀请 65/35：朋友会收到的卡片是全页唯一高点；推荐记录 15/85：紧凑核对。 */
+page { background: var(--q-linen); }
+.referrals-page { box-sizing: border-box; min-height: calc(100vh - 88px); padding: 8px var(--q-gutter) calc(48px + env(safe-area-inset-bottom)); background: var(--q-linen); color: var(--q-ink); font-size: 15px; line-height: 1.75; }
+.referrals-page button::after { border: 0; }
+.referrals-page button:active { opacity: .72; }
+
+.referrals-page button.records-jump { display: flex; align-items: center; width: auto; min-height: 44px; margin: 0 0 8px; padding: 0; border: 0; border-radius: 0; background: transparent; color: var(--q-moss); font-size: 14px; font-weight: 500; line-height: 1.6; text-align: left; }
+
+/* 卡片预览：满宽出血，5:4 */
+.invitation-card { display: block; width: auto; margin: 0 calc(0px - var(--q-gutter)); }
+.invitation-title { margin: 20px 0 16px; font-family: var(--ql-serif); font-size: 24px; font-weight: 500; line-height: 1.45; overflow-wrap: anywhere; }
+.preset-picker { display: flex; gap: 12px; }
+.referrals-page button.preset { flex: 1; min-width: 0; width: auto; margin: 0; padding: 0 0 4px; border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: transparent; line-height: 1.5; }
+.referrals-page button.preset-selected { border-bottom-color: var(--q-ink); }
+.preset-art { display: block; width: 100%; height: auto; }
+.preset-name { margin-top: 6px; color: var(--q-ink-2); font-size: 14px; }
+.preset-selected .preset-name { color: var(--q-ink); font-weight: 600; }
+
+/* 期次：与首页期次同一种数字语法 */
+.section-label { margin: 44px 0 4px; font-size: 16px; font-weight: 600; }
+.referrals-page button.session-choice { display: flex; align-items: center; gap: 14px; width: 100%; min-height: 64px; box-sizing: border-box; margin: 0; padding: 14px 0; border: 0; border-bottom: 1px solid var(--q-line); border-radius: 0; background: transparent; color: var(--q-ink); text-align: left; line-height: 1.6; }
+.session-number { flex: none; display: flex; align-items: baseline; gap: 2px; min-width: 64px; color: var(--q-ink-2); font-size: 14px; }
+.session-num { color: var(--q-ink); font-family: var(--q-num); font-size: 22px; font-weight: 600; line-height: 1.2; }
 .session-main { flex: 1; min-width: 0; }
-.session-title { font-size: 28rpx; color: #695346; }
-.choice-mark { flex-shrink: 0; width: 34rpx; height: 34rpx; border: 1rpx solid #b8a28d; border-radius: 50%; font-size: 23rpx; line-height: 34rpx; text-align: center; color: #806955; }
-.copy { color: #948677; font-size: 24rpx; line-height: 1.8; }
-.referrals-page button.prepare-button,.referrals-page button.share-button { margin: 28rpx 0 0; width: 100%; }
-.share-ready { padding-top: 20rpx; }
-.ready-copy { text-align: center; font-size: 24rpx; color: #827561; }
-.share-hint { text-align: center; color: #a0907e; font-size: 22rpx; margin-top: 18rpx; }
-.privacy-copy { color: #a0907e; font-size: 22rpx; line-height: 1.8; margin-top: 28rpx; }
-.record-heading { font-family: var(--ql-serif); font-size: 34rpx; letter-spacing: 3rpx; margin: 60rpx 0 10rpx; padding-top: 36rpx; border-top: 1rpx solid #ded5c6; }
-.record { padding: 28rpx 0; border-bottom: 1rpx solid #e2d8cd; }
-.record-top { display: flex; justify-content: space-between; gap: 24rpx; margin-bottom: 10rpx; font-size: 29rpx; }
-.status { font-size: 24rpx; color: #807465; }
-.date { font-size: 22rpx; color: #a3978c; margin-top: 8rpx; }
-.empty { padding: 42rpx 0; font-size: 26rpx; line-height: 1.9; color: #8c8076; }
-.record-empty { font-size: 24rpx; }
-button::after { border: none; }
+.session-title { font-size: 15px; font-weight: 500; overflow-wrap: anywhere; }
+.copy { color: var(--q-ink-2); font-size: 14px; line-height: 1.7; overflow-wrap: anywhere; }
+.choice-mark { flex: none; box-sizing: border-box; width: 20px; height: 20px; border: 1px solid var(--q-ink-2); border-radius: 50%; }
+.session-selected .choice-mark { border: 6px solid var(--q-forest); }
 
-.referrals-page button.primary { background: #a17d68; color: #fffaf2; min-height: 100rpx; border-radius: 18rpx; }
+/* 两步：先生成，再分享给朋友；每屏只有一个实心主按钮 */
+.referrals-page button.primary { display: flex; align-items: center; justify-content: center; width: 100%; min-height: var(--q-btn-h); margin: 24px 0 0; padding: 0 16px; border: 0; border-radius: 0; background: var(--q-forest); color: var(--q-on-dark); font-size: 16px; font-weight: 500; line-height: 1.5; }
+.referrals-page button.primary[disabled] { background: var(--q-field); color: var(--q-ink-2); }
+.share-ready { margin-top: 20px; }
+.ready-copy { color: var(--q-ink); font-size: 15px; font-weight: 500; }
+.share-ready button.primary { margin-top: 12px; }
+.privacy-copy { margin-top: 14px; color: var(--q-ink-2); font-size: 14px; line-height: 1.7; }
 
-/* The artwork supplies warmth; selection and recommendation records stay factual. */
-.referrals-page { padding: 28rpx 36rpx calc(64rpx + env(safe-area-inset-bottom)); background: var(--ql-bg); color: var(--ql-ink); }
-.referrals-page .intro { padding: 0 0 24rpx; }
-.referrals-page .title { margin: 0; font-size: 44rpx; line-height: 1.5; letter-spacing: 0; }
-.referrals-page .section-label { margin: 0 0 16rpx; font-size: 28rpx; font-weight: 600; }
-.referrals-page button.session-choice { margin: 0; padding: 24rpx 0; border: none; border-bottom: 1rpx solid var(--ql-border); border-radius: 0; background: transparent; }
-.referrals-page button.session-selected { background: transparent; }
-.referrals-page .session-selected .choice-mark { background: var(--ql-ink); color: var(--ql-surface); border-color: var(--ql-ink); }
-.referrals-page .session-title { color: var(--ql-ink); font-size: 30rpx; }
-.referrals-page .copy { font-size: 28rpx; color: var(--ql-ink-light); }
-.referrals-page .invitation-preview { margin-top: 28rpx; border: none; border-radius: 0; box-shadow: none; background: transparent; }
-.referrals-page .invitation-art { height: 440rpx; }
-.referrals-page .preset-picker { margin: 20rpx 0 28rpx; gap: 16rpx; }
-.referrals-page button.preset { padding: 6rpx; border-radius: 6rpx; background: transparent; }
-.referrals-page .preset-name { font-size: 26rpx; color: var(--ql-ink-light); }
-.referrals-page .privacy-copy { color: var(--ql-ink-light); font-size: 26rpx; }
-.referrals-page .ready-copy { color: var(--ql-ink); font-size: 28rpx; }
-.referrals-page button.primary { min-height: 48px; border-radius: 8rpx; background: var(--ql-ink); font-size: 28rpx; }
-.referrals-page .record-heading { margin-top: 40rpx; padding-top: 28rpx; font-family: inherit; font-size: 30rpx; font-weight: 600; letter-spacing: 0; }
-.referrals-page .record-top { flex-wrap: wrap; font-size: 30rpx; }
-.referrals-page .status, .referrals-page .date { font-size: 26rpx; color: var(--ql-ink-light); }
-.referrals-page .empty { font-size: 28rpx; color: var(--ql-ink-light); }
-@media (max-width: 350px) { .referrals-page .copy, .referrals-page .privacy-copy { font-size: 14px; } .referrals-page .preset-name, .referrals-page .date { font-size: 13px; } }
+/* 推荐记录：紧凑核对 */
+.record-heading { margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--q-ink); font-family: var(--ql-serif); font-size: 22px; font-weight: 500; line-height: 1.5; }
+.record { padding: 16px 0; border-bottom: 1px solid var(--q-line); }
+.record:last-child { border-bottom: 0; }
+.record-top { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 6px 16px; margin-bottom: 4px; }
+.record-name { font-size: 16px; font-weight: 500; overflow-wrap: anywhere; }
+.status { padding: 0 8px; border: 1px solid var(--q-ink-2); color: var(--q-ink-2); font-size: 14px; line-height: 24px; }
+.date { margin-top: 2px; color: var(--q-ink-2); font-size: 14px; }
+
+/* 状态 */
+.empty { padding: 28px 0; color: var(--q-ink-2); font-size: 15px; line-height: 1.8; text-align: left; }
+.record-empty { padding-top: 16px; }
+.referrals-page button.text-button { display: flex; align-items: center; width: auto; min-height: 44px; margin: 8px 0 0; padding: 0; border: 0; border-radius: 0; background: transparent; color: var(--q-moss); font-size: 15px; font-weight: 500; line-height: 1.5; }
+
+@media (max-width: 350px) { .referrals-page { --q-gutter: 20px; } }

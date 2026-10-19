@@ -173,7 +173,7 @@
     <view wx:if="{{state.invitationEligible !== true || state.profile.minor}}" class="empty-state">轻友邀请暂未开放，请联系工作人员</view>
     <block wx:else><view wx:if="{{!inviteActivities.length}}" class="empty-state">暂时没有下一场开放活动</view>
     <button wx:for="{{inviteActivities}}" wx:key="id" class="invitation-row" disabled="{{invitePreparing}}" data-id="{{item.id}}" bindtap="prepareInvitation"><view class="invitation-copy"><view class="invitation-session">第 {{item.sessionNumber}} 期<text wx:if="{{preparedInviteId === item.id}}"> · 已准备</text></view><view class="invitation-name">{{item.name}}</view><view class="invitation-date">{{item.date}}</view></view><text class="invitation-action">准备邀请</text></button>
-    <view wx:if="{{sharePath}}" class="prepared-invitation"><view class="prepared-invitation-name">已准备：{{shareTitle}}</view><button class="primary" open-type="share">分享活动邀请</button></view></block>
+    <view wx:if="{{sharePath}}" class="prepared-invitation"><view class="prepared-invitation-name">已准备：{{shareTitle}}</view><button class="primary" open-type="share">分享给朋友</button></view></block>
   </block>
   <block wx:else>
     <view class="experience-heading">
