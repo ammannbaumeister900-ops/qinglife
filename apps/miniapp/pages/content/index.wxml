@@ -5,7 +5,15 @@
   <view class="chips"><button size="mini" class="chip {{!topic && !stories ? 'active' : ''}}" data-topic="" bindtap="chooseTopic">全部</button><button size="mini" class="chip story-chip {{stories ? 'active' : ''}}" bindtap="chooseStories">轻友故事</button><block wx:for="{{topics}}" wx:key="id"><button wx:if="{{item.name !== '轻友故事'}}" size="mini" class="chip {{!stories && topic === item.id ? 'active' : ''}}" data-topic="{{item.id}}" bindtap="chooseTopic">{{item.name}}</button></block></view>
   <view wx:if="{{error}}" class="empty-state"><view class="empty-title">{{articles.length ? '后续内容暂未读取' : '暂时未能读取'}}</view><view class="empty-copy">{{error}}</view><button class="empty-action" bindtap="retry">重试</button></view>
   <view wx:if="{{loaded && !loading && !error && !visibleArticles.length}}" class="empty-state"><view class="empty-title">{{query || topic || stories ? '暂时没有找到相关内容' : '暂时没有可查看的内容'}}</view><button wx:if="{{query || topic || stories}}" class="empty-action" bindtap="clearSearch">查看全部内容</button></view>
-  <view wx:for="{{visibleArticles}}" wx:key="id" class="article-card {{index === 0 && !query ? 'reading-feature' : ''}}" data-id="{{item.id}}" data-title="{{item.title}}" bindtap="openArticle" role="link" aria-label="{{item.title}}"><image wx:if="{{index === 0 && !query && item.readingCover}}" class="reading-cover" src="{{item.readingCover}}" mode="widthFix" data-cover="{{item.readingCover}}" binderror="onReadingCoverError" /><view wx:if="{{item.category}}" class="reading-category">{{item.category}}</view><view class="article-title">{{item.title}}</view><view wx:if="{{item.summary}}" class="article-summary">{{item.summary}}</view><view wx:if="{{item.author}}" class="article-footer">{{item.author}}</view></view>
+  <!-- Browse leads with one feature; the story view shows every story's own cover; search stays compact without images. -->
+  <view wx:for="{{visibleArticles}}" wx:key="id" class="article-card {{index === 0 && !query ? 'reading-feature' : ''}} {{!query && item.readingCover && (index === 0 || stories) ? 'has-cover' : ''}}" data-id="{{item.id}}" data-title="{{item.title}}" bindtap="openArticle" role="link" aria-label="{{item.title}}">
+    <image wx:if="{{!query && item.readingCover && (index === 0 || stories)}}" class="reading-cover" src="{{item.readingCover}}" mode="widthFix" data-cover="{{item.readingCover}}" binderror="onReadingCoverError" />
+    <view wx:if="{{stories && !query && item.author && item.author !== '轻生活'}}" class="reading-byline">{{item.author}}</view>
+    <view wx:elif="{{item.category}}" class="reading-category">{{item.category}}</view>
+    <view class="article-title">{{item.title}}</view>
+    <view wx:if="{{item.summary}}" class="article-summary">{{item.summary}}</view>
+    <view wx:if="{{item.author && !(stories && !query && item.author !== '轻生活')}}" class="article-footer">{{item.author}}</view>
+  </view>
   <soft-loading wx:if="{{loading}}" text="正在读取内容…" />
   <button wx:if="{{hasMore && loaded && !loading && !error}}" class="text-button" bindtap="retry">继续加载内容</button>
 </view>

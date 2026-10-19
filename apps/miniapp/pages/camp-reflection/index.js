@@ -2,13 +2,13 @@ const business = require('../../services/business-api')
 const reflection = require('../../utils/reflection')
 const navigation = require('../../utils/navigation')
 Page({
-  data: { sessionId: '', phase: '', context: {}, note: '', length: 0, revision: 0, status: 'private', shared: false, anonymous: false, loading: true, error: '', saving: false, voiceStarting: false, voicePressing: false, cancelOnRelease: false, showVoicePrivacy: false, privacyContractName: '', microphoneDenied: false, recording: false, transcribing: false, voiceError: '', draftDirty: false, pastShares: [], source: '', sources: [], sourceConflict: false, originalVersion: '', scoreText: '' },
+  data: { sessionId: '', phase: '', context: {}, note: '', length: 0, revision: 0, status: 'private', statusText: '', shared: false, anonymous: false, loading: true, error: '', saving: false, voiceStarting: false, voicePressing: false, cancelOnRelease: false, showVoicePrivacy: false, privacyContractName: '', microphoneDenied: false, recording: false, transcribing: false, voiceError: '', draftDirty: false, pastShares: [], source: '', sources: [], sourceConflict: false, originalVersion: '', scoreText: '' },
   onLoad(options) { this.setData({ sessionId: options.id || '' }); this.bindIdentity(); return this.load() },
   bindIdentity() { if (!this.unwatchIdentity && business.watchIdentity) this.unwatchIdentity = business.watchIdentity(() => this.clearPrivate('身份已变化，请重新读取本人记录')) },
   clearPrivate(error = '') {
     this.loadVersion = (this.loadVersion || 0) + 1
     this.scope = null; this.cancelVoice()
-    this.setData({ context: {}, note: '', length: 0, revision: 0, status: 'private', shared: false, anonymous: false, pastShares: [], source: '', sources: [], sourceConflict: false, originalVersion: '', scoreText: '', draftDirty: false, loading: false, saving: false, error })
+    this.setData({ context: {}, note: '', length: 0, revision: 0, status: 'private', statusText: '', shared: false, anonymous: false, pastShares: [], source: '', sources: [], sourceConflict: false, originalVersion: '', scoreText: '', draftDirty: false, loading: false, saving: false, error })
   },
   current(scope = this.scope) {
     if (this.leftPage || this.unloaded) return false
@@ -67,16 +67,15 @@ Page({
       this.setData({ note: '', length: 0, draftDirty: true })
     } finally { this.resetPending = false }
   },
-  save() { return this.saveDraft('submit') },
-  savePrivate() { return this.saveDraft('private') },
-  async saveDraft(action) {
+  // 轻友心声 has one action: publish for review. The legacy private API stays server-side for old clients only.
+  async save() {
     if (this.data.saving || !this.canWrite()) return
     const note = this.data.note.trim(), length = reflection.count(note)
     const unified = this.data.phase === 'after' && this.data.context.unifiedAfter
-    if ((!length && (action === 'submit' || !unified)) || length > 150) return wx.showToast({ title: '请留下一至150字的心声', icon: 'none' })
-    if (action === 'submit' && !this.data.context.authorName) return wx.showToast({ title: '请先完善轻生活小名', icon: 'none' })
+    if (!length || length > 150) return wx.showToast({ title: '请留下一至150字的心声', icon: 'none' })
+    if (!this.data.context.authorName) return wx.showToast({ title: '请先完善轻生活小名', icon: 'none' })
     const scope = this.scope, version = this.loadVersion
-    const payload = { registrationId: this.data.context.registrationId, phase: this.data.phase, revision: this.data.revision, note, action, shareConsent: action === 'submit', anonymous: action === 'submit' ? false : this.data.anonymous }
+    const payload = { registrationId: this.data.context.registrationId, phase: this.data.phase, revision: this.data.revision, note, action: 'submit', shareConsent: true, anonymous: false }
     if (unified && (!this.data.originalVersion || !this.data.source)) return wx.showToast({ title: '请重新读取并选择原稿来源', icon: 'none' })
     if (unified) Object.assign(payload, { originalVersion: this.data.originalVersion, source: this.data.source })
     // Submit the visible draft only. An unfinished recording must never change it later.
@@ -95,7 +94,7 @@ Page({
         const records = (this.data.context.records || []).filter(row => row.phase !== this.data.phase).concat(result)
         this.setData({ context: { ...this.data.context, records }, ...reflection.draft({ records }, this.data.phase), pastShares: reflection.pastShares({ records }, this.data.phase), length, draftDirty: false })
       }
-      wx.showToast({ title: action === 'submit' ? '已提交，等待审核' : '私人原稿已保存', icon: 'none' })
+      wx.showToast({ title: '已提交，等待审核', icon: 'none' })
     } catch (error) { if (version === this.loadVersion && this.current(scope)) wx.showToast({ title: error.message, icon: 'none' }) }
     finally { if (version === this.loadVersion && this.current(scope)) this.setData({ saving: false }) }
   },

@@ -56,7 +56,7 @@ test('partial self cancellation never borrows a valid companion reflection or at
  reg.participants=[{id:'person-self',registrationId:'cancelled-self',status:'cancelled',activeRegistration:false,selected:true},{id:'family',registrationId:'valid-family',status:'confirmed',activeRegistration:true,selected:true}]
  f.context.activity.startDate='2020-01-01';f.context.activity.endDate='2020-01-03';f.reflectionContext.canAfter=true
  f.context.activity.days=[{id:'day'}];f.context.overview.attendance=[{registrationId:'other-old-self',sessionDayId:'day',attendanceStatus:'checked_in'}]
- await p.refresh();assert.equal(p.data.hasSelfActiveRegistration,false);assert.equal(p.data.canReview,false);assert.equal(p.data.canRecordFeeling,false);assert.equal(p.data.dayViews[0].checked,false)
+ await p.refresh();assert.equal(p.data.hasSelfActiveRegistration,false);assert.equal(p.data.canReview,false);assert.equal(p.data.dayViews[0].checked,false)
  assert(!f.nodes().some(n=>n.attrs?.bindtap==='openReflection'))
  assert.equal(domain.campServiceStatus({status:'confirmed',mixedOrders:true,paymentStatus:'paid',settlementStatus:'confirmed',settlementType:'money',finalAmount:3800}).payment,'费用分别核对')
 })

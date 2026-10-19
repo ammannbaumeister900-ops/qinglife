@@ -244,12 +244,10 @@ test('empty list retries show loading without a simultaneous empty message', asy
   }
 })
 
-test('before private drafts require actual save success; formal after uses the unified editor', async () => {
- const f=fixture('camp-flow');f.business.campReflection=async()=>({canAfter:true});f.page.setData({reflectionAccess:{allowed:true},registration:{status:'confirmed',participants:[{id:'person-self'}]},canRecordFeeling:true,canReview:true,canWriteReview:true,feelingPhase:'after',feelingSaved:true,reviewSaved:true,feelingNote:'已保存正文'});
- f.page.onFeelingInput({detail:{value:'新的感受'}});assert.equal(f.page.data.feelingSaved,false);assert.equal(f.page.data.reviewSaved,false);
- f.business.saveExperience=()=>{throw Error('after must not write through the old API')};await f.page.saveFeeling();assert.match(f.links.at(-1),/camp-reflection/);assert.equal(f.page.data.feelingSaved,false);
- f.page.setData({feelingPhase:'before'});f.business.saveExperience=async()=>{throw Error('save offline')};await f.page.saveFeeling();assert.equal(f.page.data.feelingSaved,false);assert.equal(f.page.data.feelingNote,'新的感受');f.business.saveExperience=async()=>{};await f.page.saveFeeling();assert.equal(f.page.data.feelingSaved,true);
- f.page.onReviewInput({detail:{value:'新的回顾'}});assert.equal(f.page.data.reviewSaved,false);await f.page.saveReview();assert.match(f.links.at(-1),/camp-reflection/);assert.equal(f.page.data.reviewSaved,false,'navigation must not pretend to save');
+test('the review never writes through the old private API; its one entry opens the 轻友心声 editor', async () => {
+ const f=fixture('camp-flow');f.business.campReflection=async()=>({canAfter:true});f.page.setData({reflectionAccess:{allowed:true},registration:{status:'confirmed',participants:[{id:'person-self'}]},canReview:true,canWriteReview:true});
+ for(const h of ['onFeelingInput','saveFeeling','onReviewInput','saveReview'])assert.equal(f.page[h],undefined,h);
+ f.business.saveExperience=()=>{throw Error('the review must not write through the old API')};await f.page.openReflection();assert.match(f.links.at(-1),/camp-reflection/);
 })
 
 test('daily edited drafts survive a failed preflight/write and do not claim to be saved', async () => {
@@ -286,14 +284,6 @@ test('error templates retain actionable retries and avoid unsupported update/con
   for(const name of ['home','camp','mine'])assert.ok(fs.readFileSync(path.join(root,'pages',name,'index.wxml'),'utf8').includes('bindtap="onShow">重试'))
 })
 
-
-test('before edits during an in-flight save remain unsaved after the earlier payload succeeds', async () => {
- const f=fixture('camp-flow'),write=deferred(),payloads=[];
- f.page.setData({view:'feeling',canRecordFeeling:true,feelingPhase:'before',feelingNote:'提交时的感受'});
- f.business.saveExperience=value=>{payloads.push(plain(value));return write.promise};const pending=f.page.saveFeeling();
- f.page.onFeelingInput({detail:{value:'请求期间的新草稿'}});write.resolve();await pending;
- assert.equal(payloads[0].note,'提交时的感受');assert.equal(f.page.data.feelingNote,'请求期间的新草稿');assert.equal(f.page.data.feelingSaved,false);assert.match(f.toasts.at(-1),/新修改未保存/);
-})
 
 test('daily edits across preflight, write and background refresh remain editable without duplicate saves', async () => {
   const f=fixture('friend-flow'),state=f.context.state,preflight=deferred(),write=deferred();let checks=0

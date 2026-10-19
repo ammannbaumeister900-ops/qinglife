@@ -5,10 +5,10 @@ function page(api, wxOverrides = {}, timers = { setTimeout, clearTimeout }) { ap
 
 test('new posts default to nickname while legacy records remain anonymous', () => { assert.equal(reflection.draft({ records: [] }, 'before').anonymous, false); const old = reflection.draft({ records: [{ phase: 'before', note: '期待', revision: 3, shareConsent: 1, status: 'published' }] }, 'before'); assert.equal(old.shared, true); assert.equal(old.anonymous, true); assert.equal(reflection.draft({ records: [{phase:'before',anonymous:0}] }, 'before').anonymous,false); const text = '轻'.repeat(150); assert.equal(reflection.count(reflection.voiceText(text, '草稿')), 153) })
 
-test('one draft supports private save and explicit nickname submission without accepting an anonymous UI action', async () => {
+test('one draft publishes with an explicit nickname submission; no private-only or anonymous UI action', async () => {
  const calls=[],p=page({enabled:()=>true,campReflection:async()=>({registrationId:'self',authorName:'小禾',canBefore:true,records:[]}),saveCampReflection:async data=>{calls.push(data);return {...data,status:data.action==='submit'?'submitted':'private',revision:calls.length,shareConsent:data.shareConsent?1:0}}});
- await p.load();p.onInput({detail:{value:'同一份原稿'}});await p.savePrivate();assert.equal(calls[0].action,'private');assert.equal(calls[0].shareConsent,false);assert.equal(p.data.note,'同一份原稿');
- p.data.anonymous=true;await p.save();assert.equal(calls[1].action,'submit');assert.equal(calls[1].shareConsent,true);assert.equal(calls[1].anonymous,false);assert.equal(calls[1].registrationId,'self');assert(!('author' in calls[1]));assert.equal(p.toggleAnonymous,undefined);
+ await p.load();p.onInput({detail:{value:'同一份原稿'}});assert.equal(p.savePrivate,undefined)
+ p.data.anonymous=true;await p.save();assert.equal(calls.length,1);assert.equal(calls[0].action,'submit');assert.equal(calls[0].shareConsent,true);assert.equal(calls[0].anonymous,false);assert.equal(calls[0].registrationId,'self');assert(!('author' in calls[0]));assert.equal(p.toggleAnonymous,undefined);assert.equal(p.data.note,'同一份原稿');assert.equal(p.data.statusText,'待审核');
 })
 
 test('barrage and full text share the server supplied nickname or anonymous author', () => { let component, modal;vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../components/camp-voices/index.js'),'utf8'),{Component:c=>{component=c},wx:{showModal:m=>{modal=m}}});const state={data:{voices:[{id:'named',phase:'before',author:'小禾',note:'来时'},{id:'anonymous',phase:'after',author:'本期轻友',note:'归去'}]},setData(){}};component.methods.read.call(state,{currentTarget:{dataset:{id:'named'}}});assert.equal(modal.title,'小禾 · 轻友心声');component.methods.read.call(state,{currentTarget:{dataset:{id:'anonymous'}}});assert.equal(modal.title,'本期轻友 · 轻友心声');const wxml=fs.readFileSync(path.join(__dirname,'../components/camp-voices/index.wxml'),'utf8');assert.equal((wxml.match(/item.author/g)||[]).length,2) })
@@ -178,7 +178,7 @@ test('a failed text submission keeps edits available for retry', async () => {
 
 test('one in-box hold control and one submit remain; recording never disables editing or anonymity', () => {
  const markup = fs.readFileSync(path.join(__dirname, '../pages/camp-reflection/index.wxml'), 'utf8')
- assert.equal((markup.match(/<textarea /g) || []).length, 1); assert.equal((markup.match(/bindtap="save"/g) || []).length, 1); assert.equal((markup.match(/bindtap="savePrivate"/g)||[]).length,1); assert(!/reflection-anonymous|匿名发布/.test(markup)); assert(!/voice-review|voice-entry|加入草稿/.test(markup)); assert.match(markup, /bindlongpress="beginVoice"/); assert.match(markup, /bindtouchend="endVoice"/); assert.match(markup, /bindtouchcancel="cancelVoice"/)
+ assert.equal((markup.match(/<textarea /g) || []).length, 1); assert.equal((markup.match(/bindtap="save"/g) || []).length, 1); assert(!/savePrivate|仅自己保存/.test(markup)); assert(!/reflection-anonymous|匿名发布/.test(markup)); assert(!/voice-review|voice-entry|加入草稿/.test(markup)); assert.match(markup, /bindlongpress="beginVoice"/); assert.match(markup, /bindtouchend="endVoice"/); assert.match(markup, /bindtouchcancel="cancelVoice"/)
  const input = markup.match(/<textarea class="reflection-input"[^>]+/)[0], mic = markup.match(/<button class="voice-hold[^>]+/)[0]
  assert(!/voiceStarting|recording|transcribing/.test(input)); assert(!/disabled="[^\"]*(voiceStarting|recording|transcribing)/.test(mic))
 })
@@ -224,7 +224,7 @@ test('closed editor preserves old originals but cannot type, record, transcribe 
  let writes=0,recordings=0
  const p=page({enabled:()=>true,campReflection:async()=>({canBefore:false,canAfter:false,voiceAvailable:true,records:[{phase:'before',note:'既有原稿',revision:3}]}),saveCampReflection:async()=>writes++},{getRecorderManager:()=>{recordings++;throw Error('must not record')}})
  await p.load();assert.equal(p.data.note,'既有原稿')
- p.onInput({detail:{value:'不能写入'}});p.voiceTouchStart({touches:[{clientY:400}]});await p.beginVoice();await p.savePrivate();await p.save()
+ p.onInput({detail:{value:'不能写入'}});p.voiceTouchStart({touches:[{clientY:400}]});await p.beginVoice();await p.save()
  assert.equal(p.data.note,'既有原稿');assert.equal(recordings,0);assert.equal(writes,0)
  const markup=fs.readFileSync(path.join(__dirname,'../pages/camp-reflection/index.wxml'),'utf8')
  assert.match(markup,/<view wx:if="{{context.canBefore \|\| context.canAfter}}" class="reflection-paper/)

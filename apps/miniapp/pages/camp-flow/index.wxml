@@ -137,7 +137,7 @@
     <view wx:if="{{state.registration.status === 'pending'}}" class="privacy-note">请返回清体营查看本期报名状态，或联系工作人员确认。当前不会自动发送确认通知。</view>
     <view wx:if="{{serviceStatus.operationalRisk}}" class="operational-risk">历史报名已确认，缴费和名额需运营核查。</view>
     <button class="primary" bindtap="openJourney">查看安排</button>
-    <button wx:if="{{state.backend && hasSelfActiveRegistration}}" class="secondary result-reflection" disabled="{{!reflectionAccess.allowed || reflectionOpening}}" bindtap="openReflection">写心声</button>
+    <button wx:if="{{state.backend && hasSelfActiveRegistration}}" class="secondary result-reflection" disabled="{{!reflectionAccess.allowed || reflectionOpening}}" bindtap="openReflection">写轻友心声</button>
     <view wx:if="{{state.backend && hasSelfActiveRegistration && !reflectionAccess.allowed}}" class="service-status-note">{{reflectionAccess.reason}}</view>
     <button class="text-button" bindtap="backToCamp">返回清体营</button>
   </block>
@@ -154,26 +154,19 @@
     <view wx:for="{{cancelledHistory}}" wx:key="registrationId" class="service-status-note">已取消记录 · {{item.isSelf ? '本人' : item.participantName || '参与者'}} · {{item.reference}}</view>
     <view wx:if="{{hasSelfActiveRegistration}}" class="journey-reflection service-reflection">
       <view class="journey-reflection-title">轻友心声</view>
-      <view wx:if="{{reflectionAccess.allowed}}" class="service-status-note">可公开发表或仅自己保存。</view>
-      <button wx:if="{{state.backend}}" class="secondary" disabled="{{!reflectionAccess.allowed || reflectionOpening}}" loading="{{reflectionOpening}}" bindtap="openReflection">写下我的心声</button>
+      <view wx:if="{{reflectionAccess.allowed}}" class="service-status-note">写下的心声经运营审核后在本期公开展示。</view>
+      <button wx:if="{{state.backend}}" class="secondary" disabled="{{!reflectionAccess.allowed || reflectionOpening}}" loading="{{reflectionOpening}}" bindtap="openReflection">写轻友心声</button>
       <view wx:if="{{state.backend && !reflectionAccess.allowed}}" class="service-status-note">{{reflectionAccess.reason}}</view>
       <button wx:if="{{reflectionAccess.retry}}" class="text-button" bindtap="refresh">重试</button>
     </view>
     <button class="text-button service-back" bindtap="backToCamp">返回清体营</button>
-  </block>
-  <block wx:elif="{{view === 'feeling'}}">
-    <view class="writing-heading"><view class="task-title">{{feelingPhase === 'before' ? '活动前感受' : '活动后感受'}}</view><view class="task-copy">选填，不影响参加或完成活动。</view></view>
-    <button wx:if="{{state.backend && hasSelfActiveRegistration && feelingPhase === 'after'}}" class="primary" disabled="{{!reflectionAccess.allowed || reflectionOpening}}" bindtap="openReflection">写活动后感受</button>
-    <view wx:if="{{state.backend && hasSelfActiveRegistration && feelingPhase === 'after' && !reflectionAccess.allowed}}" class="service-status-note">{{reflectionAccess.reason}}</view>
-    <view wx:if="{{!state.backend || feelingPhase !== 'after'}}" class="feeling-editor"><text class="label">我的感受（选填）</text><textarea class="textarea" disabled="{{!canRecordFeeling || feelingSaving}}" maxlength="-1" placeholder="留下一句话（选填）" value="{{feelingNote}}" bindinput="onFeelingInput"/><view class="privacy-note">{{feelingLength}} / 150</view><view wx:if="{{feelingLength > 150}}" class="form-error">历史原文完整保留；修改后保存须在150字内。</view><view class="privacy-note">默认仅自己可见，不会随邀请或活动内容公开。</view><view wx:if="{{feelingError}}" class="form-error feeling-error" role="alert">{{feelingError}}</view><button class="primary" loading="{{feelingSaving}}" disabled="{{feelingSaving || !canRecordFeeling}}" bindtap="saveFeeling">保存感受</button><view wx:if="{{feelingSaved}}" class="saved-note">已保存 · 仅自己可见</view></view>
-    <button class="text-button" bindtap="openJourney">返回本次安排</button>
   </block>
   <block wx:elif="{{view === 'invite'}}">
     <view class="invite-heading"><view class="task-title">邀请朋友了解轻生活</view><view class="task-copy">只分享活动介绍，不包含你的私人感受。</view></view>
     <view wx:if="{{state.invitationEligible !== true || state.profile.minor}}" class="empty-state">轻友邀请暂未开放，请联系工作人员</view>
     <block wx:else><view wx:if="{{!inviteActivities.length}}" class="empty-state">暂时没有下一场开放活动</view>
     <button wx:for="{{inviteActivities}}" wx:key="id" class="invitation-row" disabled="{{invitePreparing}}" data-id="{{item.id}}" bindtap="prepareInvitation"><view class="invitation-copy"><view class="invitation-session">第 {{item.sessionNumber}} 期<text wx:if="{{preparedInviteId === item.id}}"> · 已准备</text></view><view class="invitation-name">{{item.name}}</view><view class="invitation-date">{{item.date}}</view></view><text class="invitation-action">准备邀请</text></button>
-    <view wx:if="{{sharePath}}" class="prepared-invitation"><view class="prepared-invitation-name">已准备：{{shareTitle}}</view><button class="primary" open-type="share">分享活动邀请</button></view></block>
+    <view wx:if="{{sharePath}}" class="prepared-invitation"><view class="prepared-invitation-name">已准备：{{shareTitle}}</view><button class="primary" open-type="share">分享给朋友</button></view></block>
   </block>
   <block wx:else>
     <view class="experience-heading">
@@ -181,35 +174,35 @@
       <view class="experience-title">体验回顾</view>
       <view class="experience-name">{{activity.name}}</view>
       <view wx:if="{{activity.date}}" class="experience-date">{{activity.date}}</view>
-      <view class="experience-privacy">仅自己可见 · 不随活动邀请分享</view>
+      <view class="experience-privacy">私人记录仅自己可见 · 不随活动邀请分享</view>
     </view>
     <block wx:if="{{canReview}}">
       <view class="experience-records-heading"><text>本期私人记录</text><text class="experience-count">{{experienceTimeline.length}} 条</text></view>
       <view class="experience-records">
-        <view wx:for="{{experienceTimeline}}" wx:key="displayKey" wx:if="{{!(reviewEditing && item.isAfter)}}" class="experience-record">
+        <view wx:for="{{experienceTimeline}}" wx:key="displayKey" class="experience-record">
           <view class="experience-meta"><text class="experience-phase">{{item.label}}</text><text>{{item.updatedText}}</text></view>
           <view wx:if="{{item.note}}" class="experience-note {{item.hasLongNote && !reviewExpanded[item.displayKey] ? 'is-clamped' : ''}}">{{item.note}}</view>
           <view wx:elif="{{!item.scoreText}}" class="experience-empty-note">已保存空白感受</view>
           <view wx:if="{{item.scoreText}}" class="experience-scores">{{item.scoreText}}</view>
-          <view wx:if="{{item.hasLongNote || (item.isAfter && canWriteReview)}}" class="experience-record-actions">
+          <view wx:if="{{item.hasLongNote}}" class="experience-record-actions">
             <button wx:if="{{item.hasLongNote}}" class="experience-text-action" data-key="{{item.displayKey}}" bindtap="toggleExperienceRecord" aria-expanded="{{!!reviewExpanded[item.displayKey]}}">{{reviewExpanded[item.displayKey] ? '收起全文' : '阅读全文'}}</button>
-            <button wx:if="{{item.isAfter && canWriteReview}}" class="experience-text-action experience-edit" bindtap="editReview">编辑活动后感受</button>
           </view>
         </view>
-        <view wx:if="{{!experienceTimeline.length && !reviewEditing}}" class="experience-empty"><view class="experience-empty-title">本期还没有私人记录</view><view>可以写下活动后感受，也可以直接返回。</view></view>
+        <view wx:if="{{!experienceTimeline.length}}" class="experience-empty"><view class="experience-empty-title">本期还没有私人记录</view><view>可以写一段轻友心声，也可以直接返回。</view></view>
       </view>
-      <view wx:if="{{canWriteReview && reviewEditing && !state.backend}}" class="experience-editor" id="experience-editor">
-        <view class="experience-editor-heading"><view>活动后感受 <text class="experience-optional">选填</text></view><button class="experience-text-action experience-close" disabled="{{feelingSaving}}" bindtap="closeReview">收起</button></view>
-        <view class="experience-field-note">仅自己可见，不是医疗结论。保存会更新本次活动后感受。</view>
-        <textarea id="experience-note" class="experience-textarea" aria-label="活动后感受（选填）" maxlength="1000" value="{{reviewNote}}" placeholder="写下自己的感受（选填）" bindinput="onReviewInput" adjust-position="true" cursor-spacing="24" />
-        <view class="experience-editor-bottom"><view class="experience-editor-status"><view>{{reviewNote.length}}/1000</view><view wx:if="{{reviewError}}" class="experience-error" role="alert">{{reviewError}}</view><view wx:if="{{reviewDirty}}">有修改未保存</view></view><button class="experience-save" loading="{{feelingSaving}}" disabled="{{feelingSaving}}" bindtap="saveReview">{{feelingSaving ? '正在保存' : '保存感受'}}</button></view>
+      <!-- The review only reads; this period's 轻友心声 (public snapshot or own text) and its review state. -->
+      <view wx:if="{{reviewVoices.length}}" class="experience-voices">
+        <view class="experience-records-heading"><text>本期轻友心声</text></view>
+        <view wx:for="{{reviewVoices}}" wx:key="phase" class="experience-record">
+          <view class="experience-meta"><text class="experience-phase">{{item.label}}</text><text>{{item.statusText}}</text></view>
+          <view wx:if="{{item.note}}" class="experience-note">{{item.note}}</view>
+        </view>
       </view>
-      <button wx:elif="{{canWriteReview && !reviewHasAfter}}" class="experience-write" bindtap="editReview"><text>写活动后感受</text><text aria-hidden="true">＋</text></button>
-      <view wx:if="{{reviewDirty && !reviewEditing}}" class="experience-draft-note">有修改未保存</view>
+      <view wx:if="{{!state.backend && canWriteReview}}" class="experience-draft-note">演示环境不保存轻友心声。</view>
     </block>
     <view wx:else class="experience-empty"><view class="experience-empty-title">本次体验尚未开始回顾</view><view>回顾按本人参与情况和活动阶段开放。</view></view>
     <view wx:if="{{state.backend && ((canWriteReview && (registration.status === 'confirmed' || registration.status === 'completed')) || (canReview && state.invitationEligible === true && !state.profile.minor))}}" class="experience-services">
-      <button wx:if="{{hasSelfActiveRegistration && canWriteReview && (registration.status === 'confirmed' || registration.status === 'completed')}}" class="experience-service" disabled="{{!reflectionAccess.allowed || reflectionOpening}}" bindtap="openReflection"><view><view>轻友心声</view><view class="experience-service-note">{{reflectionAccess.allowed ? '可公开发表或仅自己保存。' : reflectionAccess.reason}}</view></view><text aria-hidden="true">›</text></button>
+      <button wx:if="{{hasSelfActiveRegistration && canWriteReview && (registration.status === 'confirmed' || registration.status === 'completed')}}" class="experience-service" disabled="{{!reflectionAccess.allowed || reflectionOpening}}" bindtap="openReflection"><view><view>写轻友心声</view><view class="experience-service-note">{{reflectionAccess.allowed ? '经运营审核后在本期公开展示。' : reflectionAccess.reason}}</view></view><text aria-hidden="true">›</text></button>
       <button wx:if="{{reflectionAccess.retry}}" class="text-button" bindtap="refresh">重试</button>
       <button wx:if="{{canReview && state.invitationEligible === true && !state.profile.minor}}" class="experience-service" bindtap="openInvite"><text>邀请朋友了解下一期</text><text aria-hidden="true">›</text></button>
     </view>

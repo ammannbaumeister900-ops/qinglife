@@ -1,9 +1,11 @@
 const business = require('../../services/business-api')
 const discovery = require('../../utils/discovery')
 const presets = require('../../utils/invitation-presets')
+// Display-only period number for the generate button; empty when the period has no number yet.
+const numberOf = session => session && session.sessionNumber != null ? String(session.sessionNumber) : ''
 const statusText = { pending:'待确认', confirmed:'已确认', waitlisted:'候补中', cancelled:'已取消', completed:'已完成' }
 Page({
-  data: { loading:true, error:'', eligible:false, sessions:[], records:[], sharePath:'', preparing:false, presets, selectedPreset:presets[0], selectedSessionId:'' },
+  data: { loading:true, error:'', eligible:false, sessions:[], records:[], sharePath:'', preparing:false, presets, selectedPreset:presets[0], selectedSessionId:'', pickedNumber:'' },
   onShow() { this.bindIdentity(); return this.refresh() },
   bindIdentity() {
     if (business.identityScope) business.identityScope()
@@ -20,13 +22,13 @@ Page({
   async refresh() {
     const version = this.requestVersion = (this.requestVersion || 0) + 1
     if (wx.hideShareMenu) wx.hideShareMenu()
-    this.setData({loading:true,error:'',sharePath:'',records:[],sessions:[],eligible:false,preparing:false,selectedSessionId:''})
+    this.setData({loading:true,error:'',sharePath:'',records:[],sessions:[],eligible:false,preparing:false,selectedSessionId:'',pickedNumber:''})
     try {
       const [{state,activities},records] = await Promise.all([business.context(),business.myReferrals()])
       if (version !== this.requestVersion) return
       this.scope = business.identityScope ? business.identityScope() : null
       const sessions = discovery.activities(activities).filter(s=>s.canRegister)
-      this.setData({ eligible:!!state.loggedIn && state.invitationEligible === true && !state.profile?.minor, sessions, selectedSessionId:sessions.length?sessions[0].id:'', records:records.map(r=>({...r,statusText:statusText[r.registrationStatus]||r.registrationStatus})) })
+      this.setData({ eligible:!!state.loggedIn && state.invitationEligible === true && !state.profile?.minor, sessions, selectedSessionId:sessions.length?sessions[0].id:'', pickedNumber:sessions.length?numberOf(sessions[0]):'', records:records.map(r=>({...r,statusText:statusText[r.registrationStatus]||r.registrationStatus})) })
     } catch (e) {
       if (version === this.requestVersion) this.setData({error:e.message||'暂时无法读取邀请记录'})
     } finally {
@@ -42,7 +44,7 @@ Page({
     const id=e.currentTarget.dataset.id
     if (!this.data.sessions.some(s=>s.id===id)) return
     if (wx.hideShareMenu) wx.hideShareMenu()
-    this.setData({selectedSessionId:id,sharePath:''})
+    this.setData({selectedSessionId:id,sharePath:'',pickedNumber:numberOf(this.data.sessions.find(s=>s.id===id))})
   },
   async prepare(e) {
     if(this.data.preparing || !this.data.eligible || this.data.loading) return
@@ -71,6 +73,7 @@ Page({
       if (version === this.requestVersion) this.setData({preparing:false})
     }
   },
+  scrollToRecords() { wx.pageScrollTo({ selector:'#referral-records', duration:300 }) },
   onShareAppMessage() {
     return {title:this.data.sharePath?this.data.selectedPreset.title+' · 第 '+this.data.selectedSessionNumber+' 期清体营':'轻生活',path:this.data.sharePath||'/pages/home/index',imageUrl:this.data.selectedPreset.image}
   }

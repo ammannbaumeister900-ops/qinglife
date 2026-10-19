@@ -1,6 +1,9 @@
+// One source for the review states the writer sees in the editor and in the read-only review.
+const STATUS_TEXT = { submitted: '待审核', published: '正在本期展示', approved: '内容已审核，待发布核对', hidden: '已下架', rejected: '本次未选用', withdrawn: '已收回' }
+function statusText(status) { return STATUS_TEXT[status] || '已保存 · 仅自己可见' }
 function count(text) { return Array.from(String(text || '')).length }
 function phase(context) { return context.canAfter === true ? 'after' : context.canBefore === true ? 'before' : '' }
-function legacyDraft(context, selected) { const record = (context.records || []).find(row => row.phase === selected); return { note: record ? record.note : '', revision: record ? record.revision : 0, status: record ? record.status : 'private', shared: !!(record && Number(record.shareConsent)), anonymous: record ? record.anonymous == null || Number(record.anonymous) === 1 : false } }
+function legacyDraft(context, selected) { const record = (context.records || []).find(row => row.phase === selected); return { note: record ? record.note : '', revision: record ? record.revision : 0, status: record ? record.status : 'private', statusText: statusText(record ? record.status : 'private'), shared: !!(record && Number(record.shareConsent)), anonymous: record ? record.anonymous == null || Number(record.anonymous) === 1 : false } }
 function draft(context, selected, chosen) {
  const result = legacyDraft(context, selected)
  if (selected !== 'after' || !context.unifiedAfter) return result
@@ -20,6 +23,13 @@ function selectedPhase(context) {
   if (active) return active
   const records = context.records || []
   return records.some(row => row.phase === 'after') ? 'after' : records.some(row => row.phase === 'before') ? 'before' : 'after'
+}
+// Read-only review of this period's 轻友心声: the public snapshot when shared, otherwise the writer's own text.
+function reviewVoices(context) {
+ return ((context && context.records) || []).map(row => {
+  const shared = !!Number(row.shareConsent), note = shared ? row.sharedNote || row.note || '' : row.note || ''
+  return { phase: row.phase, label: row.phase === 'before' ? '活动前' : '活动后', note, statusText: statusText(row.status) }
+ }).filter(row => row.note || row.statusText !== statusText('private'))
 }
 function pastShares(context, selected) { return (context.records || []).filter(row => row.phase !== selected && row.note).map(row => ({ phase: row.phase, note: Number(row.shareConsent) ? row.sharedNote || row.note : row.note, shared: !!Number(row.shareConsent), status: row.status })) }
 // Entry presentation consumes the existing server window; dates only explain a denial.
@@ -49,4 +59,4 @@ async function readEntry(readContext, registration, activity) {
  try { return entry(await readContext(), registration, activity) }
  catch (error) { return { allowed: false, reason: error.code === 403 ? error.message : '心声资格读取失败，请重试', retry: error.code !== 403 } }
 }
-module.exports = { activeSelf, count, phase, draft, voiceText, selectedPhase, pastShares, entry, readEntry }
+module.exports = { activeSelf, count, phase, draft, voiceText, selectedPhase, pastShares, entry, readEntry, statusText, reviewVoices }

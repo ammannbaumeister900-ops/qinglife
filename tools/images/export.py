@@ -1,7 +1,7 @@
 """按 ART-DIRECTION §7 素材账本导出轻生活视觉改版照片。
 
 原图只读；导出到仓库外 outputs/qing-images/ 供上传 CDN。
-仅首页本地兜底图与认知页分享图写入小程序包。
+仅首页本地兜底图写入小程序包；分享卡片见 share-cards.py。
 
 用法：python tools/images/export.py [--src DIR] [--out DIR]
 依赖：Pillow
@@ -45,7 +45,7 @@ LEDGER = [
         "id": "guide-42", "source": "导游高清照片/微信图片_20261008143029_42_250.jpg",
         "use": "share-about", "role": "认知页分享卡片",
         "crop": (0.083, 0, 0.917, 1), "size": (500, 400), "max_kb": 128, "releaseReady": True,
-        "local": MINIAPP_BRAND / "share-about.jpg",
+        # 包内 share-about.jpg 自 P9 起由 tools/images/share-cards.py 按统一分享卡片模板生成，这里只出 CDN 版。
     },
     {
         "id": "scene-50", "source": "活动现场照片/微信图片_20261008160238_50_483.jpg",
