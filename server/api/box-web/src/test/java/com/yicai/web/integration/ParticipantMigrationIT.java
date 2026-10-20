@@ -24,7 +24,7 @@ class ParticipantMigrationIT {
         Path server=Paths.get(System.getProperty("qinglife.migrations")).getParent();
         try(Connection c=ds.getConnection()) {
             db.execute("CREATE TABLE ql_migration_run(name VARCHAR(200) PRIMARY KEY,sha256 CHAR(64) NOT NULL,state VARCHAR(16) NOT NULL,completed_at DATETIME(3)) ENGINE=InnoDB");
-            for(Path f:DatabaseMigration.files(server))if(!f.getFileName().toString().startsWith("V1_4_22__")&&!f.getFileName().toString().startsWith("V1_4_23__")&&!f.getFileName().toString().startsWith("V1_4_24__")) {
+            for(Path f:before(server,"V1_4_22__")) {
                 ScriptUtils.executeSqlScript(c,new EncodedResource(new FileSystemResource(f),StandardCharsets.UTF_8));
                 db.update("INSERT INTO ql_migration_run VALUES(?,?,'complete',NOW(3))",f.getFileName().toString(),DatabaseMigration.checksum(f));
             }
@@ -53,7 +53,7 @@ class ParticipantMigrationIT {
             for(String table:Arrays.asList("ql_pass_operator_verification","ql_pass_verification_revocation"))assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM "+table,Integer.class));
             assertNull(db.queryForObject("SELECT pass_verification_id FROM ql_settlement_log WHERE id=?",String.class,settlement));
             assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM sys_role_menu WHERE menu_id BETWEEN 2500 AND 2504",Integer.class));
-            DatabaseMigration.run(c,server);assertEquals(41,db.queryForObject("SELECT COUNT(*) FROM ql_migration_run WHERE state='complete'",Integer.class));
+            DatabaseMigration.run(c,server);assertEquals(DatabaseMigration.files(server).size(),db.queryForObject("SELECT COUNT(*) FROM ql_migration_run WHERE state='complete'",Integer.class));
         }
     }
     static String id(){return UUID.randomUUID().toString();}
@@ -66,7 +66,7 @@ class ParticipantMigrationIT {
         Path server=Paths.get(System.getProperty("qinglife.migrations")).getParent();
         try(Connection c=ds.getConnection()) {
             db.execute("CREATE TABLE ql_migration_run(name VARCHAR(200) PRIMARY KEY,sha256 CHAR(64) NOT NULL,state VARCHAR(16) NOT NULL,completed_at DATETIME(3)) ENGINE=InnoDB");
-            for(Path f:DatabaseMigration.files(server))if(!f.getFileName().toString().startsWith("V1_4_24__")) {
+            for(Path f:before(server,"V1_4_24__")) {
                 ScriptUtils.executeSqlScript(c,new EncodedResource(new FileSystemResource(f),StandardCharsets.UTF_8));
                 db.update("INSERT INTO ql_migration_run VALUES(?,?,'complete',NOW(3))",f.getFileName().toString(),DatabaseMigration.checksum(f));
             }
@@ -98,7 +98,38 @@ class ParticipantMigrationIT {
             for(String table:Arrays.asList("ql_pass_operator_verification","ql_pass_verification_revocation"))assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM "+table,Integer.class));
             assertNull(db.queryForObject("SELECT pass_verification_id FROM ql_settlement_log WHERE id=?",String.class,round));
             assertEquals("false",db.queryForObject("SELECT config_value FROM sys_config WHERE config_key='qinglife.finance.participant_write_enabled'",String.class));
-            assertEquals(41,db.queryForObject("SELECT COUNT(*) FROM ql_migration_run WHERE state='complete'",Integer.class));
+            assertEquals(DatabaseMigration.files(server).size(),db.queryForObject("SELECT COUNT(*) FROM ql_migration_run WHERE state='complete'",Integer.class));
+        }
+    }
+    static List<Path> before(Path server,String next)throws Exception {
+        List<Path> result=new ArrayList<>();
+        for(Path f:DatabaseMigration.files(server)){if(f.getFileName().toString().startsWith(next))return result;result.add(f);}
+        throw new IllegalArgumentException("Missing migration boundary "+next);
+    }
+    @Test void contentIncrementPreservesPublishedAndDraftArticlesPermissionsAndFinanceGate()throws Exception {
+        String base=System.getenv("QINGLIFE_TEST_MYSQL_URL");
+        assertNotNull(base);assertTrue(base.matches("jdbc:mysql://127\\.0\\.0\\.1:[0-9]+/qinglife_it_[a-z0-9_]+\\?.*"));
+        String name="qinglife_it_content_upgrade_"+id().replace("-","").substring(0,16),prefix=base.substring(0,base.indexOf("/qinglife_it_")),options=base.substring(base.indexOf('?'));
+        try(Connection c=DriverManager.getConnection(prefix+"/"+options,"root","");Statement s=c.createStatement()){s.execute("CREATE DATABASE "+name+" CHARACTER SET utf8mb4");}
+        JdbcTemplate db=new JdbcTemplate(new DriverManagerDataSource(prefix+"/"+name+options,"root",""));
+        Path server=Paths.get(System.getProperty("qinglife.migrations")).getParent();
+        try(Connection c=db.getDataSource().getConnection()) {
+            db.execute("CREATE TABLE ql_migration_run(name VARCHAR(200) PRIMARY KEY,sha256 CHAR(64) NOT NULL,state VARCHAR(16) NOT NULL,completed_at DATETIME(3)) ENGINE=InnoDB");
+            for(Path f:before(server,"V1_4_25__")) {
+                ScriptUtils.executeSqlScript(c,new EncodedResource(new FileSystemResource(f),StandardCharsets.UTF_8));
+                db.update("INSERT INTO ql_migration_run VALUES(?,?,'complete',NOW(3))",f.getFileName().toString(),DatabaseMigration.checksum(f));
+            }
+            db.update("INSERT INTO essay(id,title,content,Introduction,status,order_num,home_featured,author_name) VALUES(91,'Synthetic draft','<p>Private</p>','Draft',0,0,0,'Original author'),(92,'Synthetic published','<p>Reviewed</p>','Public',1,1,1,'Original author')");
+            List<Map<String,Object>> articles=db.queryForList("SELECT id,title,content,Introduction,status,order_num,home_featured,author_name FROM essay ORDER BY id");
+            List<Map<String,Object>> permissions=db.queryForList("SELECT * FROM sys_role_menu ORDER BY role_id,menu_id"),config=db.queryForList("SELECT * FROM sys_config ORDER BY config_id");
+            DatabaseMigration.run(c,server);DatabaseMigration.run(c,server);
+            assertEquals(articles,db.queryForList("SELECT id,title,content,Introduction,status,order_num,home_featured,author_name FROM essay ORDER BY id"));
+            assertEquals(permissions,db.queryForList("SELECT * FROM sys_role_menu ORDER BY role_id,menu_id"));assertEquals(config,db.queryForList("SELECT * FROM sys_config ORDER BY config_id"));
+            assertEquals(3,db.queryForObject("SELECT COUNT(*) FROM ql_article_placement WHERE enabled=0 AND authorization_confirmed=0 AND editorial_approved=0 AND identity_confirmed=0 AND essay_id IS NULL AND revision=0",Integer.class));
+            assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM ql_article_placement_audit",Integer.class));
+            assertEquals(2,db.queryForObject("SELECT COUNT(*) FROM essay WHERE content_origin='manual' AND source_url IS NULL",Integer.class));
+            assertEquals("false",db.queryForObject("SELECT config_value FROM sys_config WHERE config_key='qinglife.finance.participant_write_enabled'",String.class));
+            assertEquals(DatabaseMigration.files(server).size(),db.queryForObject("SELECT COUNT(*) FROM ql_migration_run WHERE state='complete'",Integer.class));
         }
     }
 }

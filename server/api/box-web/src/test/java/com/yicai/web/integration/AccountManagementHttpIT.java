@@ -212,7 +212,7 @@ class AccountManagementHttpIT {
     @Test void browserCreatesRoleAccountAndWechatBindingUsingRealLocalApi() throws Exception {
         Assumptions.assumeTrue("1".equals(System.getenv("QINGLIFE_ACCOUNT_UI_TEST")), "Optional local browser environment required");
         Path repo=Paths.get(System.getProperty("qinglife.migrations")).toAbsolutePath().normalize().getParent().getParent();
-        Path artifacts=repo.resolve(".tools/account-management-20261012");Files.createDirectories(artifacts);
+        Path artifacts=Paths.get(System.getenv().getOrDefault("QINGLIFE_ACCOUNT_UI_ARTIFACTS",repo.resolve(".tools/account-management-20261012").toString()));Files.createDirectories(artifacts);
         String name="ui-account-"+id().substring(0,8);String[] wx=account();long app=app(wx[0]);
         db.update("UPDATE app_user_info SET nick_name=? WHERE id=?",name,app);
         db.update("UPDATE ql_customer SET nickname=? WHERE id=?",name,wx[1]);

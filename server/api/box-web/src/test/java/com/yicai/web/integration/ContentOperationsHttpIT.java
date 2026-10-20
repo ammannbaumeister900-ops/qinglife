@@ -19,12 +19,13 @@ class ContentOperationsHttpIT extends RegistrationPricingHttpIT {
     String hash(String id){return ok(call("/life/essay/"+id+"/content-review",HttpMethod.GET,null,admin(),true)).get("hash").toString();}
     Map body(String id,int revision){return map("essayId",id,"expectedRevision",revision,"expectedArticleHash",hash(id),"enabled",true,"authorizationConfirmed",true,"editorialApproved",true,"identityConfirmed",true,"evidenceRef","Synthetic verified authorization and complete editorial review");}
     Map save(String key,Map body){return call("/life/essay/placements/"+key,HttpMethod.PUT,body,admin(),true);}
-    String viewer(){
+    String viewer(){return contentActor("life:essay:list","life:essay:query");}
+    String contentActor(String... permissions){
         long user=Math.abs(UUID.randomUUID().getMostSignificantBits()%100000000)+1000;String name="content-"+id().substring(0,12),password=id();
         db.update("INSERT INTO sys_role(role_id,role_name,role_key,role_sort,status,del_flag) VALUES(?,?,?,1,'0','0')",user,name,name);
         db.update("INSERT INTO sys_user(user_id,dept_id,user_name,nick_name,user_type,password,status,del_flag) VALUES(?,0,?,'Synthetic content reader','00',?,'0','0')",user,name,SecurityUtils.encryptPassword(password));
         db.update("INSERT INTO sys_user_role(user_id,role_id) VALUES(?,?)",user,user);
-        for(String permission:Arrays.asList("life:essay:list","life:essay:query"))db.update("INSERT INTO sys_role_menu(role_id,menu_id) SELECT ?,menu_id FROM sys_menu WHERE perms=?",user,permission);
+        for(String permission:permissions)db.update("INSERT INTO sys_role_menu(role_id,menu_id) SELECT ?,menu_id FROM sys_menu WHERE perms=?",user,permission);
         String key=id();cache.setCacheObject("captcha_codes:"+key,"synthetic",2,TimeUnit.MINUTES);
         Map login=http.postForObject("/login",map("username",name,"password",password,"code","synthetic","uuid",key),Map.class);okStatus(login);return ((Map)login.get("data")).get("token").toString();
     }
@@ -63,6 +64,15 @@ class ContentOperationsHttpIT extends RegistrationPricingHttpIT {
     @Test void concurrentConfigUpdatesKeepOneReviewedRevisionAndImmutableFingerprint() throws Exception {
         String a=article(true);Map body=body(a,0);admin();ExecutorService pool=Executors.newFixedThreadPool(2);
         try{List<Future<Map>> results=pool.invokeAll(Arrays.asList(()->save("about.founders",body),()->save("about.founders",body)));List<Object> codes=Arrays.asList(results.get(0).get().get("code"),results.get(1).get().get("code"));assertTrue(codes.contains(200));assertTrue(codes.contains(409));assertEquals(1,db.queryForObject("SELECT COUNT(*) FROM ql_article_placement_audit WHERE placement_key='about.founders'",Integer.class));assertTrue(db.queryForObject("SELECT snapshot_json FROM ql_article_placement_audit WHERE placement_key='about.founders'",String.class).contains(body.get("expectedArticleHash").toString()));}finally{pool.shutdownNow();}
+    }
+    @Test void explicitlyGrantedContentRoleCanEditAndReviewWithoutFinanceRights() {
+        String operator=contentActor("life:essay:list","life:essay:query","life:essay:add","life:essay:edit");String title="SYNTHETIC operator "+id();
+        okStatus(call("/life/essay",HttpMethod.POST,map("title",title,"Introduction","合成摘要","content","<p>合成正文</p>","status",1,"orderNum",0,"labels",new Long[0]),operator,true));
+        String article=db.queryForObject("SELECT CAST(id AS CHAR) FROM essay WHERE title=?",String.class,title);
+        okStatus(call("/life/essay/"+article+"/content-review",HttpMethod.GET,null,operator,true));
+        okStatus(call("/life/essay/placements/about.huahua-family",HttpMethod.PUT,body(article,0),operator,true));
+        assertEquals(403,call("/life/registration/list",HttpMethod.GET,null,operator,true).get("code"));
+        assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM sys_role_menu WHERE role_id IN(SELECT role_id FROM sys_role WHERE role_key IN('ql_admin','ql_operator')) AND menu_id BETWEEN 2510 AND 2513",Integer.class));
     }
     @Test void realBrowserMaintainsArticleAndReviewedStoryLink() throws Exception {
         Assumptions.assumeTrue("1".equals(System.getenv("QINGLIFE_CONTENT_UI_TEST")),"Opt-in compiled admin/browser environment required");

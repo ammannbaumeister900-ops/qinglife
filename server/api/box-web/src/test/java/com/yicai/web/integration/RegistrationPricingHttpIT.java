@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.test.context.*;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.http.*;
 import org.springframework.jdbc.core.JdbcTemplate;
 import java.nio.file.*;
@@ -26,6 +27,7 @@ import static org.junit.jupiter.api.Assertions.*;
  "qinglife.wechat.enabled=false","token.secret=synthetic-pricing-http-secret-0123456789abcdef",
  "spring.boot.admin.client.enabled=false","server.servlet.context-path=","ruoyi.imagePath=https://example.invalid/images/"})
 @ActiveProfiles("dev")
+@DirtiesContext(classMode=DirtiesContext.ClassMode.AFTER_CLASS)
 class RegistrationPricingHttpIT {
     @Autowired TestRestTemplate http;
     @org.springframework.boot.web.server.LocalServerPort int httpPort;
@@ -38,10 +40,15 @@ class RegistrationPricingHttpIT {
     static final java.util.concurrent.atomic.AtomicInteger phoneNumber=new java.util.concurrent.atomic.AtomicInteger(10000000);
     String admin;
     @DynamicPropertySource static void configure(DynamicPropertyRegistry p)throws Exception {
-        String url=System.getenv("QINGLIFE_HTTP_MYSQL_URL"),port=System.getenv("QINGLIFE_TEST_REDIS_PORT");
-        if(url==null||!url.matches("jdbc:mysql://127\\.0\\.0\\.1:[0-9]+/qinglife_it_http_[a-z0-9_]+\\?.*"))
+        String base=System.getenv("QINGLIFE_HTTP_MYSQL_URL"),port=System.getenv("QINGLIFE_TEST_REDIS_PORT");
+        if(base==null||!base.matches("jdbc:mysql://127\\.0\\.0\\.1:[0-9]+/qinglife_it_http_[a-z0-9_]+\\?.*"))
             throw new IllegalStateException("Fresh loopback HTTP database required");
         if(port==null||!port.matches("[0-9]+"))throw new IllegalStateException("Fresh isolated Redis required");
+        // Derived HTTP suites inherit the same methods. Each class needs its own
+        // migrated facts, otherwise a prior class changes friend history/phone ownership.
+        String schema="qinglife_it_http_class_"+UUID.randomUUID().toString().replace("-", "").substring(0,20);
+        String url=base.replaceFirst("/qinglife_it_http_[a-z0-9_]+", "/"+schema);
+        try(Connection c=DriverManager.getConnection(base,"root","");Statement statement=c.createStatement()){statement.execute("CREATE DATABASE "+schema+" CHARACTER SET utf8mb4");}
         try(Connection c=DriverManager.getConnection(url,"root","")){
             DatabaseMigration.run(c,Paths.get(System.getProperty("qinglife.migrations")).getParent());
             System.out.println("PRICING_HTTP_ISOLATED_DATABASE="+c.getCatalog());

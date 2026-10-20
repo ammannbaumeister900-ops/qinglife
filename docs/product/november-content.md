@@ -57,4 +57,6 @@ V1_4_25只增加文章来源列、关联与审计表，不发布文章、不授�
 - 自动演练：scripts/test-admin-article.cjs、scripts/test-prepare-article-export.cjs、55个小程序测试文件及scripts/test-content-canonical-page.cjs；ContentOperationsHttpIT/ArticleImportIT/RegistrationReadinessIT在独立MySQL/Redis运行。浏览器使用真实编译后台和API，QINGLIFE_CONTENT_UI_TEST=1显式启用，token仅stdin传入，不留在报告。证据集中在既有历史文章迁移归档/phase5-20261020。
 - 本轮不产生新的在线验收地址；现有体验版验收继续独立推进。阶段6可开始本地代码集成与全回归，但新体验版/联合业务验收须等待真实素材、来源/媒体/时间口径确认，以及阶段4运营与阶段5内容验收。发布、迁移现有环境及开关启用均另行授权。
 
+阶段6补充：按2026-10-21确认的上线边界，历史74篇全量和所有人物全文均不是11月硬性前置条件。只要求实际选入本版的内容具备真实资料与公开授权；未备齐的全文关联保持关闭。集成来源、真实本机地址、测试角色、操作清单及必需/可延后内容见[11月联合验收入口](../operations/november-integration.md)。
+
 验证完成：201项Java单元测试、99项独立MySQL/HTTP集成测试均0失败/错误/跳过；55个小程序测试文件、4项文章表单回归、4项离线字段衔接测试、请求边界回归、正式目录页面只读衔接检查均通过。管理后台生产构建与本次3个前端文件的严格lint通过。真实浏览器使用编译后的后台与独立API完成草稿维护、审核关联、匿名读取、修改后撤销旧入口3组流程，页面错误为0；仅为合成夹具功能验证，不代表真实内容、运营或微信真机验收。结果和截图保存在上述既有归档目录的validation-result.json、content-draft-link.png、content-review-audit.png。

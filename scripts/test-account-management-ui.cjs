@@ -10,7 +10,7 @@ async function main(input) {
   assert.match(input.name, /^ui-account-[a-z0-9]+$/)
   const root = path.resolve(__dirname, '..')
   const dist = path.join(root, 'apps/admin/dist')
-  const artifacts = path.join(root, '.tools/account-management-20261012')
+  const artifacts = process.env.QINGLIFE_ACCOUNT_UI_ARTIFACTS || path.join(root, '.tools/account-management-20261012')
   fs.mkdirSync(artifacts, { recursive: true })
   const server = http.createServer((req, res) => {
     if (req.url.startsWith('/test-api/')) {

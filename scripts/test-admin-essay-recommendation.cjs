@@ -9,7 +9,7 @@ const storyId = '9007199254741001'
 const labels = [{ id: storyId, name: '轻友故事', status: 1 }, { id: '8', name: '轻友故事', status: 1 }]
 function fixture(api = {}) {
   const calls = []
-  const sandbox = { isInteger() {}, getLabelList: async () => labels, getConfigKey: async key => {
+  const sandbox = { ArticlePlacements: {}, isInteger() {}, getLabelList: async () => labels, getConfigKey: async key => {
     assert.equal(key, 'qinglife.reading.story_label_id'); return { code: 200, msg: storyId, data: null }
   }, ...api }
   vm.runInNewContext(script, sandbox)
@@ -41,10 +41,10 @@ function verifyPublicDestinations() {
       INSERT INTO essay_label VALUES(1,7),(2,8),(3,7),(4,7),(5,8),(6,7),(6,8),(7,8);`)
     const ids = id => db.prepare(query(id)).all().map(row => row.id)
     assert.deepEqual(ids('selectFeaturedStories'), [6, 1], 'only enabled recommended canonical-tag stories')
-    assert.deepEqual(ids('selectFeaturedGeneralReadings'), [2, 8], 'homepage excludes canonical stories even with multiple tags')
+    assert.deepEqual(ids('selectFeaturedGeneralReadings'), [2, 6, 1, 8], 'homepage includes all recommended topics including canonical stories')
     db.exec("UPDATE sys_config SET config_value='8'")
     assert.deepEqual(ids('selectFeaturedStories'), [2, 6], 'destination follows configured ID rather than the label display name')
-    assert.deepEqual(ids('selectFeaturedGeneralReadings'), [1, 8])
+    assert.deepEqual(ids('selectFeaturedGeneralReadings'), [2, 6, 1, 8], 'changing the story tag does not exclude topics from home')
   } finally { db.close() }
 }
 async function main() {
@@ -52,15 +52,15 @@ async function main() {
   const { context: c } = fixture()
   assert.equal(c.recommendationReady, false)
   await c.loadRecommendationLabels()
-  assert.equal(c.recommendationHint, '推荐到首页精选')
+  assert.equal(c.recommendationHint, '参与首页精选，不限制题材；按排序优先展示。')
   c.form.labels = [storyId, '8']
-  assert.equal(c.recommendationHint, '推荐到了解轻生活的轻友故事')
+  assert.equal(c.recommendationHint, '参与首页精选，同时进入了解轻生活的轻友故事列表；人物全文入口另行审核关联。')
   c.form.homeFeatured = 1
   c.form.labels = ['8']
-  assert.equal(c.recommendationHint, '推荐到首页精选', 'same-name labels must not change canonical membership')
+  assert.equal(c.recommendationHint, '参与首页精选，不限制题材；按排序优先展示。', 'same-name labels must not change canonical membership')
   assert.equal(c.form.homeFeatured, 1, 'changing labels keeps the switch and changes its destination')
   c.form.labels = [7]; c.storyLabelId = '7'
-  assert.equal(c.recommendationHint, '推荐到了解轻生活的轻友故事', 'numeric label IDs are compatible')
+  assert.equal(c.recommendationHint, '参与首页精选，同时进入了解轻生活的轻友故事列表；人物全文入口另行审核关联。', 'numeric label IDs are compatible')
 
   const legacy = fixture({ getConfigKey: async () => ({ data: storyId }) }).context
   await legacy.loadRecommendationLabels()

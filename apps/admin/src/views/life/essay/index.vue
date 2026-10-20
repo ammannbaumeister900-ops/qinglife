@@ -309,7 +309,7 @@ export default {
         return this.recommendationState === 'error' ? '推荐配置读取失败，暂不能开启推荐。' : '正在读取推荐配置…'
       }
       const isStory = (this.form.labels || []).some(id => String(id) === this.storyLabelId)
-      return isStory ? '推荐到了解轻生活的轻友故事' : '推荐到首页精选'
+      return isStory ? '参与首页精选，同时进入了解轻生活的轻友故事列表；人物全文入口另行审核关联。' : '参与首页精选，不限制题材；按排序优先展示。'
     }
   },
   created() {
