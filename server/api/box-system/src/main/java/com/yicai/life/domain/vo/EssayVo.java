@@ -75,6 +75,9 @@ public class EssayVo {
     /** Preserved source byline; never an authentication identity. */
     private String authorName;
 
+    private String contentOrigin;
+    private String sourceUrl;
+
 	private String authorNickName;
 
     /**

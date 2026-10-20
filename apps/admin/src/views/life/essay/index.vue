@@ -77,6 +77,7 @@
         :show-search.sync="showSearch"
         @queryTable="getList"
       />
+      <el-button v-hasPermi="['life:essay:query']" size="small" @click="$refs.placements.show()">认知页文章关联</el-button>
     </el-row>
 
     <el-table
@@ -143,6 +144,7 @@
             icon="el-icon-edit"
             @click="handleUpdate(scope.row)"
           >修改</el-button>
+          <el-button v-hasPermi="['life:essay:query']" size="mini" type="text" @click="$refs.placements.show(scope.row)">内容位置</el-button>
           <el-button
             v-hasPermi="['life:essay:remove']"
             size="mini"
@@ -171,6 +173,11 @@
         <el-form-item label="介绍" prop="Introduction">
           <el-input v-model="form.Introduction" placeholder="请输入介绍" />
         </el-form-item>
+        <el-form-item label="录入类型"><el-radio-group v-model="form.contentOrigin" @change="form.sourceUrl = ''"><el-radio label="manual">本站文章</el-radio><el-radio label="wechat">公众号录入</el-radio></el-radio-group></el-form-item>
+        <el-form-item v-if="form.contentOrigin === 'wechat'" label="公众号原文"><el-input v-model="form.sourceUrl" maxlength="2048" placeholder="https://mp.weixin.qq.com/s/…" /><div class="featured-hint">原文链接仅作来源留存；请录入获授权的正文与媒体，小程序内阅读，不自动抓取或外跳。</div></el-form-item>
+        <el-form-item label="原署名"><el-input v-model="form.authorName" maxlength="128" placeholder="保留原作者署名，不关联旧后台账号" /></el-form-item>
+        <el-form-item label="原文时间"><el-date-picker v-model="form.insertTime" type="datetime" value-format="yyyy-MM-dd HH:mm:ss" placeholder="有可靠来源时填写；旧创建时间不等于首次发布时间" /></el-form-item>
+        <el-form-item v-if="provenance.length" label="迁移来源"><div v-for="item in provenance" :key="item.sourceSystem + ':' + item.sourceId">{{ item.sourceSystem }} · 源ID {{ item.sourceId }} · 批次 {{ item.batchId }}</div></el-form-item>
         <el-row>
           <el-col :span="12">
             <el-form-item label="排序" prop="orderNum">
@@ -192,7 +199,7 @@
         <el-form-item label="封面（选填）" prop="titleUrl" label-width="110px">
           <imageLocalUpload v-model="form.titleUrl" :limit="1" />
         </el-form-item>
-        <el-form-item label="首页精选"><el-switch v-model="form.homeFeatured" :active-value="1" :inactive-value="0" /><div class="featured-hint">只有启用且标记为精选的文章会进入小程序首页轮播。</div></el-form-item>
+        <el-form-item label="首页精选"><el-switch v-model="form.homeFeatured" :active-value="1" :inactive-value="0" /><div class="featured-hint">不限制题材；只有启用且标记精选的文章参与首页推荐，按排序优先展示。认知页故事关联单独维护。</div></el-form-item>
         <el-form-item label="标签" prop="label">
           <el-checkbox-group v-model="form.labels">
             <el-checkbox v-for="item in labelList" :key="item.id" :label="item.id">{{ item.name }}</el-checkbox>
@@ -211,16 +218,18 @@
         <el-button @click="cancel">取 消</el-button>
       </div>
     </el-dialog>
+    <article-placements ref="placements" />
   </div>
 </template>
 
 <script>
-import { listEssay, getEssay, delEssay, addEssay, updateEssay, changeStatus } from '@/api/life/essay'
-import { isInteger } from '@/api/tool/validate'
+import { listEssay, getEssay, delEssay, addEssay, updateEssay, changeStatus, articleProvenance } from '@/api/life/essay'
+import ArticlePlacements from './ArticlePlacements.vue'
 import { getLabelList } from '@/api/life/label'
 
 export default {
   name: 'Essay',
+  components: { ArticlePlacements },
   data() {
     return {
       // 按钮loading
@@ -264,7 +273,7 @@ export default {
         homeFeatured: undefined
       },
       // 表单参数
-      form: {},
+      form: {}, provenance: [],
       // 表单校验
       rules: {
         title: [
@@ -274,8 +283,8 @@ export default {
           { required: true, message: '文章介绍不能为空', trigger: 'blur' }
         ],
         orderNum: [
-          { required: true, message: '文章排序不能为空', trigger: 'blur' },
-          { validator: isInteger, trigger: 'blur' }
+          { required: true, transform: value => value == null ? value : String(value), message: '文章排序不能为空', trigger: 'blur' },
+          { validator: (rule, value, callback) => /^(0|[1-9]\d*)$/.test(String(value)) ? callback() : callback(new Error('请输入0或正整数')), trigger: 'blur' }
         ],
         content: [
           { required: true, message: '文章内容不能为空', trigger: 'blur' }
@@ -311,7 +320,8 @@ export default {
         title: undefined,
         content: undefined,
         Introduction: undefined,
-        status: '1',
+        status: '0',
+        contentOrigin: 'manual', sourceUrl: '', authorName: '',
         orderNum: undefined,
         insertTime: undefined,
         author: undefined,
@@ -324,6 +334,7 @@ export default {
         updateNotRead: false
       }
       this.resetForm('form')
+      this.provenance = []
     },
     /** 搜索按钮操作 */
     handleQuery() {
@@ -359,11 +370,13 @@ export default {
         this.loading = false
         this.form = response.data
         this.form.status = this.form.status + ''
+        this.form.labels = this.form.labels || []
         for (var i = 0; i < this.form.labels.length; i++) {
           this.form.labels[i] = this.form.labels[i] + ''
         }
         this.open = true
         this.title = '修改文章'
+        articleProvenance(id).then(result => { if (this.form.id === response.data.id) this.provenance = result.data || [] }).catch(() => { this.provenance = [] })
       })
       getLabelList().then((response) => {
         this.labelList = response

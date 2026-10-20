@@ -1,7 +1,8 @@
 const content = require('../../config/about-content')
 const { presentAbout, storyArticle } = require('../../utils/about-presentation')
 const navigation = require('../../utils/navigation')
-Page({
+const { withStoryContent } = require('../../utils/story-content')
+Page(withStoryContent({
   data: { ...presentAbout(content), fontScale: 1, failedImages: {} },
   onLoad() {
     this.setData({ ...presentAbout(content), failedImages: {} })
@@ -23,4 +24,4 @@ Page({
   },
   learnRegistration() { navigation.switchTab({ url: '/pages/camp/index' }) },
   onShareAppMessage() { return { title: '认识轻生活', path: '/pages/about/index', imageUrl: '/assets/brand/logo-sage.png' } }
-})
+}))

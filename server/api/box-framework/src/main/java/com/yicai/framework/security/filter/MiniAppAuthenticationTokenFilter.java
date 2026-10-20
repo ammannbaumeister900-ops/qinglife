@@ -42,6 +42,7 @@ public class MiniAppAuthenticationTokenFilter extends OncePerRequestFilter {
                 || PATHS.match("/app/qinglife/sessions/*", path)
                 || "/app/qinglife/readings".equals(path)
                 || PATHS.match("/app/qinglife/readings/*", path)
+                || PATHS.match("/app/qinglife/content-placements/*", path)
                 || "/app/qinglife/contact".equals(path)
                 || PATHS.match("/app/qinglife/camp-voices/*", path)
                 || PATHS.match("/app/qinglife/invitations/*", path);

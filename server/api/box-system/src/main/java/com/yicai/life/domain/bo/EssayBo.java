@@ -71,6 +71,9 @@ public class EssayBo extends BaseEntity {
     @Size(max = 128)
     private String authorName;
 
+    private String contentOrigin;
+    private String sourceUrl;
+
     /**
      * 封面
      */

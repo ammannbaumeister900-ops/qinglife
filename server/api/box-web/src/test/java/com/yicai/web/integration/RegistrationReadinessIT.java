@@ -457,7 +457,7 @@ class RegistrationReadinessIT {
             @SuppressWarnings("unchecked") java.util.List<Map<String,Object>> stories=(java.util.List<Map<String,Object>>)mini.homeReadings().get("stories");
             assertEquals(8,stories.size());assertEquals(Boolean.TRUE,stories.get(0).get("isStory"));
             @SuppressWarnings("unchecked") java.util.List<Map<String,Object>> featured=(java.util.List<Map<String,Object>>)mini.homeReadings().get("featured");
-            assertEquals(1,featured.size());assertEquals(String.valueOf(general),featured.get(0).get("id"));
+            assertEquals(8,featured.size());assertTrue(featured.stream().anyMatch(row->Boolean.TRUE.equals(row.get("isStory"))));
             assertThrows(CustomException.class,()->mini.readingDetail(9007199254741010L));
             db.update("UPDATE label SET name='Synthetic renamed' WHERE id=?",tag);
             Path migration=Paths.get(System.getProperty("qinglife.migrations"),"V1_4_6__reading_story_tag.sql");

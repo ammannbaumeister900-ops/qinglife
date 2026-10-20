@@ -130,6 +130,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter
                         "/app/qinglife/sessions/*",
                         "/app/qinglife/readings",
                         "/app/qinglife/readings/*",
+                        "/app/qinglife/content-placements/*",
                         "/app/qinglife/contact",
                         "/app/qinglife/camp-voices/*",
                         "/app/qinglife/invitations/*").permitAll()

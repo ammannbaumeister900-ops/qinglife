@@ -187,6 +187,7 @@ async function context(id) {
 }
 module.exports = { isDemo, identityScope, assertIdentity, watchIdentity, privateOverview, normalizeHabit, applyHabit, refreshHabit, BASE_KEY, baseUrl, enabled, request, activity, sessions, context, login: ensureToken,
   featuredReadings: () => request('/readings/featured', 'GET', null, false),
+  articlePlacement: key => request('/content-placements/' + encodeURIComponent(key), 'GET', null, false),
   readings: (filters = {}) => request('/readings', 'GET', filters, false),
   readingTopics: () => request('/readings/topics', 'GET', null, false),
   homeReadings: () => request('/readings/home', 'GET', null, false),

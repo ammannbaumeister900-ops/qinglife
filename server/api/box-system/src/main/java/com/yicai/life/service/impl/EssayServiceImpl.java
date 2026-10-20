@@ -123,6 +123,7 @@ public class EssayServiceImpl extends ServicePlusImpl<EssayMapper, Essay, EssayV
         // An omitted status is a private draft; only explicit enablement creates unread rows.
         if (add.getStatus() == null) add.setStatus(0);
         if (add.getHomeFeatured() == null) add.setHomeFeatured(0);
+        if (add.getContentOrigin() == null) add.setContentOrigin("manual");
         add.setInsertTime(bo.getInsertTime() == null ? LocalDateTimeUtil.now() :
             java.time.LocalDateTime.ofInstant(bo.getInsertTime().toInstant(), java.time.ZoneId.of("Asia/Shanghai")));
         add.setAuthor(SecurityUtils.getLoginUser().getUser().getUserId());
@@ -200,6 +201,7 @@ public class EssayServiceImpl extends ServicePlusImpl<EssayMapper, Essay, EssayV
             LambdaQueryWrapper<EssayLabel> lqw = new LambdaQueryWrapper<>();
             lqw.eq(EssayLabel::getEssay, bo.getId());
             List<EssayLabel> list = essayLabelMapper.selectList(lqw);
+            if(bo.getLabels()==null) return result; // An omitted label field preserves existing relations.
             if(bo.getLabels().length == 0){
                 if(list != null){
                     for(EssayLabel label : list){
@@ -249,6 +251,8 @@ public class EssayServiceImpl extends ServicePlusImpl<EssayMapper, Essay, EssayV
      * @param entity 实体类数据
      */
     private void validEntityBeforeSave(Essay entity){
+        com.yicai.life.service.ArticleContentService.metadata(entity.getContentOrigin(),entity.getSourceUrl());
+        if(entity.getStatus()!=null && entity.getStatus()!=0 && entity.getStatus()!=1)throw new com.yicai.common.exception.CustomException("文章状态无效",400);
         entity.setContent(EssayHtmlSanitizer.clean(entity.getContent()));
     }
 
