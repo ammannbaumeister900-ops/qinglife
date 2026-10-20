@@ -52,7 +52,8 @@ function fixture(name) {
     run: () => page[name === 'mine' ? 'refresh' : 'onShow']() }
 }
 
-for (const name of ['home','camp','mine']) {
+// Mine is a directory whose public entries survive private read failures; see the mine-specific contract below.
+for (const name of ['home','camp']) {
   test(name + ': first loading, failure, retry and successful empty response do not overlap normal content', async () => {
     const f = fixture(name), first = deferred()
     f.business.context = () => first.promise
@@ -97,8 +98,45 @@ for (const name of ['home','camp','mine']) {
   })
 }
 
+test('mine: private read failures stay local, keep the directory and recover by retry', async () => {
+  const f = fixture('mine'), first = deferred()
+  f.business.context = () => first.promise
+  const pending = f.run()
+  assert.equal(f.page.data.loading, true)
+  assert.equal(f.page.data.signedIn, true)
+  first.reject(new Error('offline')); await pending
+  assert.equal(f.page.data.loading, false)
+  assert.equal(f.page.data.profileError, '网络不太稳定，个人信息暂时没能读取。')
+  assert.ok(!f.page.data.ready, 'failed first read must not mark the page ready')
+  assert.equal(f.condition('profileError'), true)
+  f.business.context = async () => f.context
+  await f.run()
+  assert.equal(f.page.data.profileError, '')
+  assert.equal(f.page.data.ready, true)
+  const oldState = plain(f.page.data.state), refresh = deferred()
+  f.business.context = () => refresh.promise
+  const refreshing = f.run()
+  assert.equal(f.page.data.refreshing, true)
+  assert.deepEqual(plain(f.page.data.state), oldState)
+  refresh.reject(new Error('')); await refreshing
+  assert.equal(f.page.data.profileError, '个人信息暂时没能读取。')
+  assert.deepEqual(plain(f.page.data.state), oldState)
+})
+
+test('mine: an expired credential becomes the guest directory with an expiry notice, never an error page', async () => {
+  const f = fixture('mine'); await f.run()
+  let token = 'synthetic'
+  f.business.identityScope = () => ({ token })
+  f.business.context = async () => { token = ''; const error = new Error(''); error.code=401; throw error }
+  await f.run()
+  assert.deepEqual(plain(f.page.data.state), { backend: true, loggedIn: false })
+  assert.equal(f.page.data.signedIn, false)
+  assert.equal(f.page.data.profileError, '')
+  assert.equal(f.page.data.notice.text, '登录已过期，请重新登录后查看个人信息。')
+})
+
 test('expired identity invalidates ready state; even an empty error message cannot expose fake normal content', async () => {
-  for (const name of ['home','camp','mine']) {
+  for (const name of ['home','camp']) {
     const f = fixture(name); await f.run()
     f.business.context = async () => { const error = new Error(''); error.code=401; throw error }
     await f.run()

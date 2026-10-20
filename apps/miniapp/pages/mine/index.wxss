@@ -1,60 +1,79 @@
-.mine-page { padding: 28rpx 40rpx calc(180rpx + env(safe-area-inset-bottom)); background: var(--ql-bg); }
+/* 我的 · 个人服务目录：身份与下一步 → 我的参与 → 更多服务 → 联系 → 退出。只引用 --q-* 令牌。 */
+.mine-page { padding: 16rpx 40rpx calc(118rpx + 72rpx + env(safe-area-inset-bottom)); background: var(--q-linen); color: var(--q-ink); font-family: var(--q-sans); }
 .mine-page::before { display: none; }
-.profile-head { display: flex; align-items: center; gap: 24rpx; padding: 12rpx 0 32rpx; }
-.profile-avatar { display: flex; flex: none; align-items: center; justify-content: center; width: 80rpx; height: 80rpx; border-radius: 10rpx; background: var(--ql-bg-deep); color: var(--ql-ink); font-size: 30rpx; }
-.profile-title { font-size: 32rpx; font-weight: 500; line-height: 1.6; overflow-wrap: anywhere; }
-.mine-page button.profile-nickname-entry { min-height: 44px; margin: 0; padding: 8rpx 0; border-radius: 0; background: transparent; color: var(--ql-ink); text-align: left; white-space: normal; }
-.mine-page .primary, .mine-page .secondary, .mine-page .text-button { min-height: 44px; padding: 16rpx 24rpx; border-radius: 10rpx; font-size: 28rpx; line-height: 1.5; }
-.mine-page .profile-login { width: auto; min-height: 48px; margin: 16rpx 0 0; }
-.asset-list { border-top: 1rpx solid var(--ql-border); }
-.mine-page .asset { display: flex; align-items: center; gap: 24rpx; width: 100%; min-height: 44px; margin: 0; padding: 24rpx 0; border-bottom: 1rpx solid var(--ql-border); border-radius: 0; background: transparent; color: var(--ql-ink); text-align: left; line-height: 1.6; white-space: normal; }
+.mine-page button { margin: 0; border-radius: 0; background: transparent; color: var(--q-ink); font-weight: 400; text-align: left; line-height: 1.6; white-space: normal; }
+.mine-page button:active { opacity: .8; transform: none; }
+
+/* 身份区：一个状态、一行说明、至多一个主要动作；所有登录与读取结果都在这里就地说明。 */
+.identity { padding: 16rpx 0 48rpx; }
+.identity-row { display: flex; align-items: center; gap: 28rpx; }
+.profile-avatar { display: flex; flex: none; align-items: center; justify-content: center; width: 104rpx; height: 104rpx; border-radius: 16rpx; background: var(--q-field); color: var(--q-ink-2); font-size: 40rpx; font-weight: 500; }
+.profile-avatar.is-member { color: var(--q-moss); }
+.identity-main { flex: 1; min-width: 0; }
+.profile-title { font-size: 40rpx; font-weight: 600; line-height: 1.4; overflow-wrap: anywhere; }
+.identity-meta { margin-top: 6rpx; color: var(--q-ink-2); font-size: 28rpx; line-height: 1.6; overflow-wrap: anywhere; }
+.identity-notice { margin-top: 28rpx; padding: 20rpx 24rpx; border-left: 6rpx solid var(--q-moss); background: var(--q-field); color: var(--q-ink); font-size: 30rpx; line-height: 1.7; overflow-wrap: anywhere; }
+.identity-notice + .identity-notice { margin-top: 12rpx; }
+.notice-warning, .notice-error { border-left-color: var(--q-amber); background: var(--q-sand); }
+.identity-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 16rpx 40rpx; margin-top: 28rpx; }
+.mine-page .identity-action { display: flex; align-items: center; justify-content: center; box-sizing: border-box; width: auto; min-height: 96rpx; padding: 0 44rpx; border-radius: 12rpx; font-size: 32rpx; font-weight: 500; line-height: 1.4; text-align: center; }
+.mine-page .primary.identity-action { background: var(--q-forest); color: var(--q-on-dark); }
+.mine-page .primary.identity-action[disabled] { background: var(--q-forest); color: var(--q-on-dark); opacity: .72; }
+.mine-page .secondary.identity-action { border: 1px solid var(--q-line); background: transparent; color: var(--q-ink); }
+.mine-page .identity-dismiss { display: flex; align-items: center; width: auto; min-height: 88rpx; padding: 0 8rpx; color: var(--q-ink-2); font-size: 30rpx; }
+
+/* 我的参与：常用的个人入口，行高与字重高于其他服务。 */
+.section-label { margin-bottom: 8rpx; color: var(--q-ink-2); font-size: 28rpx; line-height: 1.6; }
+.asset-list, .service-list { border-top: 1px solid var(--q-line); }
+.mine-page .asset { display: flex; align-items: center; gap: 24rpx; width: 100%; min-height: 112rpx; padding: 24rpx 0; border-bottom: 1px solid var(--q-line); }
 .asset-main { flex: 1; min-width: 0; }
-.asset-name { font-size: 30rpx; font-weight: 500; overflow-wrap: anywhere; }
-.asset-description { margin-top: 6rpx; color: var(--ql-ink-light); font-size: 28rpx; line-height: 1.6; overflow-wrap: anywhere; }
-.asset-chevron { flex: none; color: var(--ql-ink-light); font-size: 32rpx; }
-.pass-ledger { margin-top: 32rpx; padding-bottom: 24rpx; border-bottom: 1rpx solid var(--ql-border); }
+.asset-name { font-size: 32rpx; font-weight: 500; line-height: 1.5; overflow-wrap: anywhere; }
+.asset-description { margin-top: 4rpx; color: var(--q-ink-2); font-size: 28rpx; line-height: 1.6; overflow-wrap: anywhere; }
+.asset-chevron { flex: none; color: var(--q-ink-2); font-size: 36rpx; line-height: 1; }
+
+.pass-ledger { margin-top: 40rpx; padding-bottom: 24rpx; border-bottom: 1px solid var(--q-line); }
 .pass-balance-row, .pass-summary { display: flex; flex-wrap: wrap; align-items: baseline; gap: 16rpx; }
 .pass-balance-row { justify-content: space-between; margin-bottom: 20rpx; }
-.pass-label { font-size: 30rpx; font-weight: 500; }
-.pass-caption, .pass-unit, .pass-record-label, .pass-record-date { color: var(--ql-ink-light); font-size: 28rpx; line-height: 1.6; }
-.pass-balance { color: var(--ql-ink); font-size: 36rpx; font-weight: 500; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
-.pass-record { display: flex; align-items: flex-start; justify-content: space-between; gap: 20rpx; padding: 16rpx 0; font-size: 28rpx; line-height: 1.6; }
+.pass-label { font-size: 32rpx; font-weight: 500; }
+.pass-caption, .pass-unit, .pass-record-label, .pass-record-date { color: var(--q-ink-2); font-size: 28rpx; line-height: 1.6; }
+.pass-balance { color: var(--q-ink); font-size: 40rpx; font-weight: 500; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.pass-record { display: flex; align-items: flex-start; justify-content: space-between; gap: 20rpx; padding: 16rpx 0; font-size: 30rpx; line-height: 1.6; }
 .pass-record-main { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .pass-record-date { margin-top: 4rpx; }
 .pass-record-amount { flex: none; text-align: right; font-variant-numeric: tabular-nums; }
-.utility-list { margin-top: 24rpx; }
-.mine-page .utility-entry { display: flex; align-items: center; gap: 24rpx; width: 100%; min-height: 44px; margin: 0; padding: 20rpx 0; border-radius: 0; background: transparent; color: var(--ql-ink-light); font-size: 28rpx; text-align: left; line-height: 1.6; white-space: normal; }
-.utility-name { flex: 1; }
-.contact-section { margin-top: 24rpx; padding: 28rpx 0; border-top: 1rpx solid var(--ql-border); }
-.contact-label { color: var(--ql-ink-light); font-size: 28rpx; }
-.contact-top { display: flex; align-items: center; gap: 20rpx; margin-top: 12rpx; }
+
+/* 更多服务：同一目录的次一级，保持可点面积，降低字号与字重。 */
+.service-section { margin-top: 56rpx; }
+.mine-page .service-entry { display: flex; align-items: center; gap: 24rpx; width: 100%; min-height: 100rpx; padding: 20rpx 0; border-bottom: 1px solid var(--q-line); font-size: 30rpx; }
+.service-name { flex: 1; min-width: 0; font-size: 30rpx; line-height: 1.6; overflow-wrap: anywhere; }
+
+/* 联系区紧接服务列表的底线，不再自带顶线，避免两条分隔线叠在一起。 */
+.contact-section { margin-top: 56rpx; padding-bottom: 28rpx; }
+.contact-label { color: var(--q-ink-2); font-size: 28rpx; }
+.contact-top { display: flex; flex-wrap: wrap; align-items: center; gap: 20rpx; margin-top: 12rpx; }
 .contact-main { flex: 1; min-width: 0; }
-.contact-title { color: var(--ql-ink); font-size: 30rpx; line-height: 1.6; overflow-wrap: anywhere; }
-.contact-wechat { color: var(--ql-ink); font-size: 28rpx; line-height: 1.6; overflow-wrap: anywhere; }
-.mine-page button.contact-copy { flex: none; width: auto; margin: 0; background: transparent; }
-.contact-hint { margin-top: 12rpx; color: var(--ql-ink-light); font-size: 28rpx; line-height: 1.6; }
-.mine-page .staff-entry { padding-top: 24rpx; border-top: 1rpx solid var(--ql-border); }
-.mine-page .empty-state { margin: 0; padding: 32rpx 0; border: none; border-radius: 0; background: transparent; color: var(--ql-ink-light); font-size: 28rpx; text-align: left; overflow-wrap: anywhere; }
-.mine-page .refresh-note { position: static; margin: 0 0 12rpx; padding: 0; border-radius: 0; background: transparent; color: var(--ql-ink-light); font-size: 28rpx; }
-.mine-page button:active { opacity: .8; transform: none; }
+.contact-title { color: var(--q-ink); font-size: 30rpx; line-height: 1.6; overflow-wrap: anywhere; }
+.contact-wechat { color: var(--q-ink); font-size: 30rpx; line-height: 1.6; overflow-wrap: anywhere; }
+.mine-page button.contact-copy { display: flex; flex: none; align-items: center; justify-content: center; width: auto; min-height: 88rpx; padding: 0 28rpx; border: 1px solid var(--q-line); border-radius: 12rpx; font-size: 28rpx; }
+.contact-hint { margin-top: 12rpx; color: var(--q-ink-2); font-size: 28rpx; line-height: 1.6; }
+.mine-page .staff-entry { border-top: 1px solid var(--q-line); }
+
+/* 退出：易找到，但只是页尾的一行次要文字。 */
+.logout-area { margin-top: 48rpx; border-top: 1px solid var(--q-line); }
+.staff-entry + .logout-area { border-top: none; }
+.mine-page .logout-entry { display: flex; align-items: center; width: 100%; min-height: 96rpx; padding: 0; color: var(--q-ink-2); font-size: 30rpx; }
+.mine-page .logout-entry[disabled] { background: transparent; color: var(--q-ink-2); opacity: .72; }
+
+.mine-page .refresh-note { position: static; margin: 0 0 8rpx; padding: 0; border-radius: 0; background: transparent; color: var(--q-ink-2); font-size: 28rpx; }
+
 @media (max-width: 350px) {
-  .profile-title { font-size: 16px; }
-  .asset-name, .pass-label, .contact-title { font-size: 15px; }
-  .profile-avatar { font-size: 14px; }
-  .asset-description, .pass-caption, .pass-unit, .pass-record-label, .pass-record-date, .pass-record,
-  .mine-page .utility-entry, .contact-label, .contact-wechat, .contact-hint, .mine-page .empty-state,
-  .mine-page .refresh-note, .mine-page .primary, .mine-page .secondary, .mine-page .text-button { font-size: 14px; }
+  .mine-page { padding-left: 20px; padding-right: 20px; }
+  .profile-title { font-size: 19px; }
+  .profile-avatar { width: 48px; height: 48px; font-size: 18px; }
+  .asset-name, .pass-label, .mine-page .identity-action { font-size: 16px; }
+  .identity-notice, .service-name, .mine-page .service-entry, .contact-title, .contact-wechat, .pass-record,
+  .mine-page .logout-entry, .mine-page .identity-dismiss { font-size: 15px; }
+  .identity-meta, .section-label, .asset-description, .pass-caption, .pass-unit, .pass-record-label, .pass-record-date,
+  .contact-label, .contact-hint, .mine-page .refresh-note, .mine-page button.contact-copy { font-size: 14px; }
 }
 @media (prefers-reduced-motion: reduce) { .mine-page button { transition: none; } }
-
-/* The directory carries the task; supporting copy stays only when needed. */
-.mine-page .profile-head { padding-bottom: 36rpx; }
-.mine-page .profile-title { font-size: 36rpx; font-weight: 600; }
-.mine-page .asset { min-height: 96rpx; padding: 22rpx 0; }
-.mine-page .asset-name { font-size: 32rpx; }
-.mine-page .asset-description { font-size: 26rpx; }
-.mine-page .pass-ledger { margin-top: 36rpx; }
-.mine-page .pass-record-label, .mine-page .pass-record-date { font-size: 26rpx; }
-.mine-page .utility-list { margin-top: 28rpx; }
-.mine-page .contact-hint { font-size: 26rpx; }
-@media (max-width: 350px) { .mine-page .asset-name { font-size: 16px; } .mine-page .asset-description, .mine-page .contact-hint { font-size: 13px; } }
