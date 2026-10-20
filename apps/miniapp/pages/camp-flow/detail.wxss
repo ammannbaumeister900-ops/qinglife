@@ -9,7 +9,6 @@
 .detail-page .detail-activity-state.disabled { color: var(--detail-muted); }
 .detail-page .detail-activity-state.warning { color: var(--q-amber); }
 .detail-page .detail-title { margin: 0; max-width: 10em; font-family: var(--q-serif); font-size: 32px; font-weight: 600; line-height: 1.38; overflow-wrap: break-word; }
-.detail-page .detail-theme { margin-top: 10px; color: var(--detail-muted); font-size: 15px; line-height: 1.75; }
 .detail-page .detail-core-facts { margin-top: 17px; font-size: 14px; line-height: 1.7; }
 .detail-page .detail-core-date { font-size: 16px; font-weight: 500; }
 .detail-page .detail-year { margin-right: 6px; font-family: inherit; font-size: inherit; font-weight: inherit; }
@@ -52,13 +51,6 @@
 .detail-page .detail-day-copy { flex: 1; min-width: 0; }
 .detail-page .detail-day-title { font-size: 16px; font-weight: 500; line-height: 1.6; overflow-wrap: break-word; }
 .detail-page .detail-day-time { margin-top: 5px; color: var(--detail-muted); font-size: 14px; line-height: 1.7; }
-.detail-page .detail-full-schedule .detail-day-row { padding-top: 12px; padding-bottom: 12px; }
-.detail-page .detail-full-schedule .detail-date-only { display: block; padding-top: 9px; padding-bottom: 9px; }
-.detail-page .detail-date-only .detail-day-date { width: auto; }
-.detail-page .detail-date-only .detail-day-label { display: inline; margin-left: 12px; }
-.detail-page .detail-schedule-toggle { display: flex; justify-content: space-between; align-items: center; width: 100%; min-height: 48px; margin: 0; padding: 12px 0; border-top: 1px solid var(--detail-line); border-radius: 0; background: transparent; color: var(--detail-green); font-size: 14px; line-height: 1.7; text-align: left; }
-.detail-page .detail-chevron { flex: none; width: 7px; height: 7px; margin-right: 4px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(45deg); }
-.detail-page .detail-chevron.expanded { transform: rotate(225deg); }
 .detail-page .detail-arrangement-note { margin-top: -6px; margin-bottom: 15px; color: var(--detail-muted); font-size: 14px; line-height: 1.85; }
 .detail-page .detail-rules { margin-top: 30px; padding-top: 20px; border-top: 1px solid var(--detail-line); }
 .detail-page .detail-rule + .detail-rule { margin-top: 20px; }
@@ -89,7 +81,6 @@
   .detail-page .detail-copy { font-size: 14px; }
   .detail-page .detail-day-row { gap: 14px; }
   .detail-page .detail-day-date { width: 66px; }
-  .detail-page .detail-date-only .detail-day-date { width: auto; }
   .detail-page .detail-actionbar { gap: 10px; padding-right: 20px; padding-left: 20px; }
   .detail-page .detail-actionbar .action-primary { padding-right: 13px; padding-left: 13px; font-size: 14px; }
   .detail-page .price-number { font-size: 21px; }

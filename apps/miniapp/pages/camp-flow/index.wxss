@@ -87,7 +87,7 @@
   .camp-flow-page, .camp-flow-page .card-copy, .task-copy, .camp-flow-page .privacy-note,
   .camp-flow-page .empty, .camp-flow-page .empty-state, .camp-flow-page .empty-copy,
   .camp-flow-page .primary, .camp-flow-page .secondary, .camp-flow-page .text-button, .registration-actionbar button,
-  .camp-flow-page .empty-action, .camp-flow-page .form-error, .detail-status, .detail-theme, .fact-row,
+  .camp-flow-page .empty-action, .camp-flow-page .form-error, .detail-status, .fact-row,
   .price-currency, .price-unit, .price-caption, .price-note, .rhythm-meta, .fit-item,
   .leader-detail-label, .rule-title, .rule-copy, .action-status, .registration-step,
   .camp-flow-page .list-title, .camp-flow-page .list-note, .camp-flow-page .label,

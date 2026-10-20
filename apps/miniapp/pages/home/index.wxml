@@ -40,7 +40,6 @@
           <view wx:else class="home-camp-date-text">{{item.dateLabel}}</view>
         </view>
         <view class="home-camp-facts">
-          <view class="home-camp-fact"><text class="home-fact-label">时间</text><text>{{featured.timeLabel}}</text></view>
           <view class="home-camp-fact"><text class="home-fact-label">地点</text><text>{{featured.placeLabel}}</text></view>
         </view>
         <button class="home-camp-detail home-primary" data-view="detail" bindtap="openActivity">查看课程介绍</button>

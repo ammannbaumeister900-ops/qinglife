@@ -341,6 +341,25 @@ class RegistrationReadinessIT {
         assertEquals("Synthetic operational publication",db.queryForObject("SELECT draft_note FROM ql_camp_reflection WHERE id=?",String.class,id));
     }
 
+    @Test void selectedPublicationRollsBackBothEarlierStateAndLogsOnLaterEvidenceOrAuditFailure() {
+        String period=session(4),owner=customer(),other=customer(),reg=add(owner,period,"confirmed"),otherReg=add(other,period,"confirmed");
+        QlCampReflectionService voices=context.getBean(QlCampReflectionService.class);List<String> ids=Arrays.asList(UUID.randomUUID().toString(),UUID.randomUUID().toString());Collections.sort(ids);
+        for(int i=0;i<2;i++)db.update("INSERT INTO ql_camp_reflection(id,registration_id,customer_id,session_id,phase,draft_note,shared_note,share_consent,share_anonymous,consent_version,consent_at,status,created_at,updated_at) VALUES(?,?,?,?,?,'Synthetic','Synthetic publication',1,1,'synthetic-v1',NOW(),'submitted',NOW(),NOW())",ids.get(i),i==0?reg:otherReg,i==0?owner:other,period,"before");
+        QlReflectionPublishBatchBo batch=new QlReflectionPublishBatchBo();List<QlReflectionPublishBatchBo.Item> items=new ArrayList<>();
+        for(int i=0;i<2;i++){QlReflectionPublishBatchBo.Item item=new QlReflectionPublishBatchBo.Item();item.setId(ids.get(i));item.setRevision(1);item.setDisplayNote("Synthetic approved publication");item.setPublicationReview(publicationCheck(i==0?reg:otherReg,1,"ready").getPublicationReview());items.add(item);}batch.setItems(items);
+        // The second reference belongs to the first author: the first publication must also roll back.
+        items.get(1).setPublicationReview(publicationCheck(reg,1,"ready").getPublicationReview());
+        assertThrows(CustomException.class,()->voices.publishBatch(batch,9L,Collections.singleton("registration")));
+        for(String id:ids){assertEquals("submitted",db.queryForObject("SELECT status FROM ql_camp_reflection WHERE id=?",String.class,id));assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM ql_camp_reflection_log WHERE reflection_id=?",Integer.class,id));}
+        items.get(1).setPublicationReview(publicationCheck(otherReg,1,"ready").getPublicationReview());
+        db.execute("CREATE TRIGGER ql_it_fail_batch_audit BEFORE INSERT ON ql_camp_reflection_log FOR EACH ROW BEGIN IF NEW.reflection_id='"+ids.get(1)+"' THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='synthetic second audit failure'; END IF; END");
+        try{assertThrows(RuntimeException.class,()->voices.publishBatch(batch,9L,Collections.singleton("registration")));}finally{db.execute("DROP TRIGGER ql_it_fail_batch_audit");}
+        for(String id:ids){assertEquals("submitted",db.queryForObject("SELECT status FROM ql_camp_reflection WHERE id=?",String.class,id));assertEquals(1,db.queryForObject("SELECT revision FROM ql_camp_reflection WHERE id=?",Integer.class,id));}
+        assertEquals(2,voices.publishBatch(batch,9L,Collections.singleton("registration")));assertEquals(2,voices.publicVoices(period).size());
+        for(String id:ids){assertEquals(1,db.queryForObject("SELECT COUNT(*) FROM ql_camp_reflection_log WHERE reflection_id=? AND action='approvePublish' AND publication_review IS NOT NULL",Integer.class,id));voices.moderate(id,"hide",moderation(2,null),9L);}
+        assertTrue(voices.publicVoices(period).isEmpty());
+    }
+
     @Test void campReflectionPermissionsDoNotExpandFinanceOrLeaderGrants() {
         assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM sys_role_menu rm JOIN sys_role r ON r.role_id=rm.role_id WHERE rm.menu_id IN (2410,2411,2412) AND r.role_key IN ('ql_finance','ql_leader')",Integer.class));
         assertEquals(6,db.queryForObject("SELECT COUNT(*) FROM sys_role_menu rm JOIN sys_role r ON r.role_id=rm.role_id WHERE rm.menu_id IN (2410,2411,2412) AND r.role_key IN ('ql_admin','ql_operator')",Integer.class));

@@ -41,6 +41,12 @@
       <view wx:if="{{stats}}" class="about-definition">{{stats.definition}}</view>
     </view>
   </view>
+  <view wx:if="{{recommendedStories.length || storyError}}" class="about-recommended-stories">
+    <view class="about-subheading about-serif">轻友故事</view>
+    <button wx:for="{{recommendedStories}}" wx:key="id" class="about-story-link" data-id="{{item.id}}" bindtap="openRecommendedStory">{{item.title}}</button>
+    <view wx:if="{{storyError}}" class="about-body">{{storyError}}</view>
+    <button wx:if="{{storyError}}" class="about-story-link" bindtap="loadRecommendedStories">重试</button>
+  </view>
   <view class="about-transparent" id="about-transparency"><view class="about-heading about-serif">{{transparency.title}}</view><view class="about-body about-transparent-intro">{{transparency.intro}}</view>
     <view class="about-facts"><view wx:for="{{transparency.participation}}" wx:key="label" class="about-fact-row"><view class="about-fact-label">{{item.label}}</view><view class="about-body about-fact-text"><block wx:if="{{item.parts}}"><text wx:for="{{item.parts}}" wx:for-item="part" wx:key="text" class="{{part.emphasis ? 'about-emphasis' : ''}}">{{part.text}}</text></block><text wx:else>{{item.text}}</text></view></view></view>
     <view wx:if="{{transparency.photo && !failedImages[transparency.photo.id]}}" class="about-juice"><image class="about-juice-image" src="{{transparency.photo.url}}" mode="aspectFill" data-id="{{transparency.photo.id}}" binderror="imageFailed" aria-label="{{transparency.photo.alt}}" /><view class="about-caption">{{transparency.photo.caption}}</view></view>

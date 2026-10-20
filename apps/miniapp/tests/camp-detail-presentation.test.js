@@ -13,17 +13,20 @@ test('duration uses inclusive civil dates independently of schedule records', ()
     assert.equal(datePresentation({ startDate,endDate,date:'接口日期原文' }).duration,null)
 })
 
-test('date-only schedules are not previewed; all records remain available at bounded height', () => {
+test('date-only schedules stay out of the display; actual course content remains complete without expansion', () => {
   const days=Array.from({length:180},(_,i)=>({id:'d'+i,dayNo:i+1,activityDate:new Date(Date.UTC(2026,9,1+i)).toISOString().slice(0,10)}))
   const dates=present({startDate:'2026-10-01',endDate:'2027-03-29',days})
-  assert.equal(dates.previewDays.length,0);assert.equal(dates.fullDays.length,180);assert.equal(dates.scheduleHeight,312)
-  assert.equal(dates.fullDays.at(-1).label,'第180天');assert.equal(dates.scheduleLabel,'查看已列日期（180条）')
+  assert.deepEqual(dates.scheduleDays,[]);assert.equal(dates.hasScheduleContent,false)
+  assert.equal(dates.duration,180);assert.equal(days.length,180)
   days[8].theme='真实第9天安排';days[179].time='10:00—17:00'
   const populated=present({days})
-  assert.deepEqual(populated.previewDays.map(d=>d.key),['d8','d179'])
-  assert.equal(populated.fullDays.length,180);assert.equal(populated.fullDays[8].theme,'真实第9天安排')
-  assert.equal(populated.fullDays.at(-1).time,'10:00—17:00')
-  const empty=present({days:[{}]});assert.equal(empty.fullDays.length,0);assert.equal(empty.canExpand,false)
+  assert.deepEqual(populated.scheduleDays.map(d=>d.key),['d8','d179'])
+  assert.equal(populated.scheduleDays[0].theme,'真实第9天安排')
+  assert.equal(populated.scheduleDays.at(-1).time,'10:00—17:00')
+  const complete=present({days:days.map(day=>({...day,theme:'当天实际课程'}))})
+  assert.equal(complete.scheduleDays.length,180,'meaningful course content is not truncated at three rows')
+  assert.equal(complete.scheduleDays.at(-1).label,'第180天')
+  const empty=present({days:[{}]});assert.equal(empty.scheduleDays.length,0);assert.equal(empty.hasScheduleContent,false)
 })
 
 test('source content and zero prices are preserved without mock opening or source mutations', () => {

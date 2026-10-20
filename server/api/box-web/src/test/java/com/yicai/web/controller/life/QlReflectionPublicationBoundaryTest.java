@@ -163,6 +163,13 @@ class QlReflectionPublicationBoundaryTest {
         }
         verifyNoInteractions(db, originals);
     }
+    @Test void batchPublicationRequiresBothPermissionsAndStillChecksTheReadableEvidenceScope() {
+        com.yicai.life.domain.bo.QlReflectionPublishBatchBo b=new com.yicai.life.domain.bo.QlReflectionPublishBatchBo();
+        grant("life:reflection:review");assertThrows(AccessDeniedException.class,()->controller.publishBatch(b));
+        grant("life:reflection:publish");assertThrows(AccessDeniedException.class,()->controller.publishBatch(b));
+        grant("life:reflection:review","life:reflection:publish");
+        assertEquals(400,assertThrows(CustomException.class,()->controller.publishBatch(b)).getCode());noWrites();
+    }
     @Test void historicalPublishedContentCanStillBeHiddenAndLogsTheOperator() {
         grant("life:reflection:publish");
         record.put("status", "published");

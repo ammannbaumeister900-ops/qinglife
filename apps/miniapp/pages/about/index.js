@@ -4,7 +4,7 @@ const navigation = require('../../utils/navigation')
 const business = require('../../services/business-api')
 const { camps } = require('../../utils/home-presentation')
 Page({
-  data: { ...presentAbout(content), fontScale: 1, failedImages: {}, latestCamp: null },
+  data: { ...presentAbout(content), fontScale: 1, failedImages: {}, latestCamp: null, recommendedStories: [], storyError: '' },
   onLoad() {
     this.setData({ ...presentAbout(content), failedImages: {} })
     this.measureFont()
@@ -15,6 +15,30 @@ Page({
     const tab = this.getTabBar && this.getTabBar()
     if (tab) tab.setData({ selected: 1 })
     this.loadLatestCamp()
+    this.loadRecommendedStories()
+  },
+  onHide() { this.storyRequest = (this.storyRequest || 0) + 1 },
+  onUnload() { this.onHide() },
+  async loadRecommendedStories() {
+    const version = this.storyRequest = (this.storyRequest || 0) + 1
+    this.setData({ recommendedStories: [], storyError: '' })
+    if (!business.enabled()) return
+    try {
+      // The public endpoint enforces enabled + recommended + canonical story-label membership.
+      const response = await business.homeReadings()
+      if (!response || !Array.isArray(response.stories)) throw new Error('故事数据无效')
+      const stories = response.stories.filter(item => item && item.isStory === true && /^\d{1,19}$/.test(String(item.id)) && typeof item.title === 'string' && item.title.trim())
+        .map(item => ({ id: String(item.id), title: item.title }))
+      if (version === this.storyRequest) this.setData({ recommendedStories: stories })
+    } catch (error) {
+      if (version === this.storyRequest) this.setData({ storyError: '轻友故事暂时未能读取，请重试。' })
+    }
+  },
+  openRecommendedStory(event) {
+    const id = event.currentTarget.dataset.id
+    if (this.data.recommendedStories.some(item => item.id === String(id))) {
+      navigation.navigateTo({ url: '/pages/article/index?id=' + encodeURIComponent(id) + '&source=business' })
+    }
   },
   // Public period list only (no token, no private overview); any failure or empty list hides the card.
   async loadLatestCamp() {

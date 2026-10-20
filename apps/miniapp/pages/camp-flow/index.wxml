@@ -12,7 +12,6 @@
     <view class="detail-entry">
       <view class="detail-period-state"><view wx:if="{{activity.sessionNumber != null}}" class="detail-period"><text class="detail-period-number">{{activity.sessionNumber}}</text><text>期</text></view><text wx:else>期次待公布</text><text class="detail-activity-state {{!availability.canRegister ? 'disabled' : activity.status === '候补中' ? 'warning' : ''}}">{{activity.status}}</text></view>
       <view class="detail-title">{{activity.name}}</view>
-      <view wx:if="{{activity.theme && activity.theme !== activity.name}}" class="detail-theme">{{activity.theme}}</view>
       <view class="detail-core-facts">
         <view class="detail-core-date"><text wx:if="{{detail.year}}" class="detail-year">{{detail.year}}年</text>{{detail.date}}<text wx:if="{{detail.duration != null}}"> · {{detail.duration}}天</text></view>
         <view wx:if="{{detail.place}}" class="detail-core-place">{{detail.place}}</view>
@@ -40,14 +39,10 @@
     </view>
     <view class="detail-section detail-arrangement">
       <view class="detail-section-title">活动安排</view>
-      <view wx:if="{{detail.hasScheduleContent && !detailExpanded}}" class="detail-preview-days">
-        <view wx:for="{{detail.previewDays}}" wx:key="key" class="detail-day-row"><view class="detail-day-date">{{item.date}}<text wx:if="{{item.label}}" class="detail-day-label">{{item.label}}</text></view><view class="detail-day-copy"><view wx:if="{{item.theme}}" class="detail-day-title">{{item.theme}}</view><view wx:if="{{item.time}}" class="detail-day-time">{{item.time}}</view></view></view>
+      <view wx:if="{{detail.hasScheduleContent}}" class="detail-schedule-days">
+        <view wx:for="{{detail.scheduleDays}}" wx:key="key" class="detail-day-row"><view class="detail-day-date">{{item.date}}<text wx:if="{{item.label}}" class="detail-day-label">{{item.label}}</text></view><view class="detail-day-copy"><view wx:if="{{item.theme}}" class="detail-day-title">{{item.theme}}</view><view wx:if="{{item.time}}" class="detail-day-time">{{item.time}}</view></view></view>
       </view>
       <view wx:if="{{!detail.hasScheduleContent}}" class="detail-arrangement-note">具体安排请与工作人员核对。</view>
-      <scroll-view wx:if="{{detailExpanded && detail.canExpand}}" class="detail-full-schedule" scroll-y="true" enhanced="true" style="height: {{detail.scheduleHeight}}px;" aria-label="完整活动日程">
-        <view wx:for="{{detail.fullDays}}" wx:key="key" class="detail-day-row {{!item.hasContent ? 'detail-date-only' : ''}}"><view class="detail-day-date">{{item.date}}<text wx:if="{{item.label}}" class="detail-day-label">{{item.label}}</text></view><view wx:if="{{item.hasContent}}" class="detail-day-copy"><view wx:if="{{item.theme}}" class="detail-day-title">{{item.theme}}</view><view wx:if="{{item.time}}" class="detail-day-time">{{item.time}}</view></view></view>
-      </scroll-view>
-      <button wx:if="{{detail.canExpand}}" class="detail-schedule-toggle" bindtap="toggleDetailSchedule" aria-expanded="{{detailExpanded}}"><text>{{detailExpanded ? (detail.hasScheduleContent ? '收起完整安排' : '收起日期列表') : detail.scheduleLabel}}</text><view class="detail-chevron {{detailExpanded ? 'expanded' : ''}}"></view></button>
     </view>
     <view wx:if="{{detail.changeRule}}" class="detail-section detail-rules">
       <view wx:if="{{detail.changeRule}}" class="detail-rule"><view class="detail-rule-title">改期与取消</view><view class="detail-rule-copy">{{detail.changeRule}}</view></view>

@@ -16,7 +16,7 @@ async function fixture(old, options = {}) {
     sessionGuides: async () => ({ data: people }), getSession: async () => ({ data: plain(old) }),
     addSession: async payload => { requests.push(plain(payload)) }, updateSession: async payload => { requests.push(plain(payload)) },
     previewSessionCover: async () => new Blob([], { type: 'image/png' }), Blob, URL: { revokeObjectURL() {}, createObjectURL() { return 'blob:synthetic' } },
-    setTimeout() { return 1 }, clearTimeout() {} }
+    setTimeout() { return 1 }, clearTimeout() {}, ...(options.Date ? { Date: options.Date } : {}) }
   vm.runInNewContext(script.replace(/^import .*$/gm, '').replace('export default', 'component ='), sandbox)
   const component = sandbox.component
   const p = Object.assign({ $route: route }, component.data.call({ $route: route }), component.methods, {
@@ -113,4 +113,44 @@ test('explicit manual dates retain inclusive day endpoints and invalid order is 
   p.openDate = '2026-11-20'; p.closeDate = '2026-11-19'; await save(); assert.equal(requests.length, 0); assert.equal(errors.length, 1)
   p.closeDate = '2026-11-25'; await save()
   assert.equal(requests[0].registrationOpenAt, '2026-11-20 00:00:00'); assert.equal(requests[0].registrationCloseAt, '2026-11-25 23:59:59')
+})
+
+// Reproduces the observed browser: the constructor uses UTC+8, while local getters expose UTC.
+class MixedZoneDate extends Date {
+  constructor(...args) {
+    if (args.length >= 2) super(Date.UTC(args[0], args[1], args[2] == null ? 1 : args[2], ...args.slice(3)) - 8 * 3600000)
+    else super(...args)
+  }
+  getFullYear() { return this.getUTCFullYear() }
+  getMonth() { return this.getUTCMonth() }
+  getDate() { return this.getUTCDate() }
+  getDay() { return this.getUTCDay() }
+}
+
+test('date-only inputs preserve API days and unchanged save payloads even with mixed browser time zones', async () => {
+  const row = historical({ startDate: '2026-10-23', endDate: '2026-10-25', registrationOpenAt: '2026-10-08 00:00:00', registrationCloseAt: '2026-10-22 23:59:59' })
+  const { p, save, requests } = await fixture(row, { Date: MixedZoneDate })
+  assert.equal(p.form.startDate, '2026-10-23'); assert.equal(p.form.endDate, '2026-10-25')
+  assert.equal(p.openDate, '2026-10-08'); assert.equal(p.closeDate, '2026-10-22')
+  await save()
+  assert.equal(requests[0].startDate, row.startDate); assert.equal(requests[0].endDate, row.endDate)
+  assert.equal(requests[0].registrationOpenAt, row.registrationOpenAt); assert.equal(requests[0].registrationCloseAt, row.registrationCloseAt)
+})
+
+test('new booking defaults remain calendar days across years and leap days with inconsistent local getters', async () => {
+  assert.equal(new MixedZoneDate(2026, 9, 23).getDate(), 22, 'fixture actually reproduces the one-day loss')
+  const { p, start } = await fixture(null, { Date: MixedZoneDate })
+  start('2026-10-23'); assert.equal(p.openDate, '2026-10-09'); assert.equal(p.closeDate, '2026-10-22')
+  start('2028-03-01'); assert.equal(p.openDate, '2028-02-16'); assert.equal(p.closeDate, '2028-02-29')
+  start('2027-01-01'); assert.equal(p.openDate, '2026-12-18'); assert.equal(p.closeDate, '2026-12-31')
+})
+
+test('edited date strings survive submit and reversed activity dates are still rejected', async () => {
+  const { p, save, requests, errors } = await fixture(historical(), { Date: MixedZoneDate })
+  p.form.startDate = '2026-10-23'; p.form.endDate = '2026-10-22'
+  await save(); assert.equal(requests.length, 0); assert.equal(errors.at(-1), '结束日期不能早于开始日期')
+  p.form.endDate = '2026-10-25'; p.openDate = '2026-10-08'; p.closeDate = '2026-10-22'; p.openManual = p.closeManual = true
+  await save()
+  assert.equal(requests[0].startDate, '2026-10-23'); assert.equal(requests[0].endDate, '2026-10-25')
+  assert.equal(requests[0].registrationOpenAt, '2026-10-08 00:00:00'); assert.equal(requests[0].registrationCloseAt, '2026-10-22 23:59:59')
 })

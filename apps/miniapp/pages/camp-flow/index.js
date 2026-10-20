@@ -27,7 +27,7 @@ Page({
     quote: { ready: false, rows: [], total: '', error: '' }, quoteLoading: false,
     reflectionAccess: { allowed: false, reason: '正在读取心声资格', retry: false }, reflectionOpening: false,
     experienceTimeline: [], reviewScope: '', reviewExpanded: {}, reviewVoices: [],
-    detail: {}, detailExpanded: false, detailActivityId: '', detailFailedImages: {},
+    detail: {}, detailActivityId: '', detailFailedImages: {},
     activity: demo.activities[0],
     state: {},
     selectedCount: 1,
@@ -159,10 +159,8 @@ Page({
     const id = String(activity.id || ''), changed = id !== this.data.detailActivityId
     const failures = changed ? {} : this.data.detailFailedImages
     return { detail: detailPresentation.present(activity, registration, failures), detailActivityId: id,
-      detailExpanded: changed ? false : this.data.detailExpanded, detailFailedImages: failures }
+      detailFailedImages: failures }
   },
-
-  toggleDetailSchedule() { this.setData({ detailExpanded: !this.data.detailExpanded }) },
 
   detailImageFailed(event) {
     const url = event.currentTarget.dataset.url

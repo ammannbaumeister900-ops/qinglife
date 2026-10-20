@@ -10,14 +10,11 @@ function dateParts(activity) {
     year: (startYear === endYear ? startYear : startYear + '—' + endYear) + (days > 0 ? ' · ' + days + ' 天' : '') }
 }
 // Public endpoint membership survives derived status changes; private context rows stay excluded.
-function camps(activities = [], selectedId = '', gatheringTimes = {}) {
+function camps(activities = [], selectedId = '') {
   const rows = discovery.activities(activities.filter(a => a.publicListed === true || (a.publicListed == null && ['open', 'in_progress'].includes(a.sourceStatus))))
     .slice(0, 3).map(a => {
-      const gathering = gatheringTimes[a.id]
-      const confirmedTime = gathering && gathering.state === 'releaseReady' && gathering.evidenceRef && /^([01]\d|2[0-3]):[0-5]\d$/.test(gathering.time || '')
       return { ...a, title: a.name || '清体营', dateLabel: discovery.dateRange(a), dateParts: dateParts(a),
         periodLabel: a.sessionNumber == null ? '期次待公布' : '第' + a.sessionNumber + '期',
-        timeLabel: confirmedTime ? '首日 ' + gathering.time + ' 集合' : '集合时间待公布',
         placeLabel: a.place || a.city || '地点待公布' }
     })
   const featured = rows.find(a => a.id === selectedId) || rows[0] || null

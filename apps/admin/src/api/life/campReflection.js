@@ -7,3 +7,4 @@ export function approveAndPublishReflection(id, data) { return request({ url: '/
 
 export function deferReflection(id, data) { return request({ url: '/life/camp-reflection/' + id + '/review-check', method: 'put', data }) }
 export function reflectionReviewHistory(id) { return request({ url: '/life/camp-reflection/' + id + '/review-history', method: 'get' }) }
+export function publishReflections(data) { return request({ url: '/life/camp-reflection/publish-batch', method: 'put', data }) }

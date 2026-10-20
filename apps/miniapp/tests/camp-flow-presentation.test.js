@@ -113,17 +113,23 @@ test('detail follows the approved hierarchy with real content, both fees and exi
   assert(!source.includes('内部视觉样稿'));assert(!source.includes('一起吃饭、活动'))
 })
 
-test('detail schedule preserves all rows, media failures and existing service/registration entries',async()=>{
+test('detail removes date-only expansion, retains course content, media handling and registration entries',async()=>{
   const f=await fixture('detail','none'),a=f.context.activity
   a.startDate='2099-01-01';a.endDate='2099-01-17'
   a.days=Array.from({length:17},(_,i)=>({id:'d'+i,dayNo:i+1,activityDate:'2099-01-'+String(i+1).padStart(2,'0')}))
   a.cover='https://example.test/scene.jpg';await f.page.refresh()
   assert.equal(f.page.data.detail.duration,17)
   assert.equal(f.nodes().filter(n=>has(n,'detail-day-row')).length,0)
-  f.page.toggleDetailSchedule()
-  assert.equal(f.nodes().filter(n=>has(n,'detail-day-row')).length,17)
-  assert.equal(f.nodes().find(n=>has(n,'detail-full-schedule')).attrs.style,'height: 312px;')
-  f.page.toggleDetailSchedule();assert.equal(f.nodes().filter(n=>has(n,'detail-day-row')).length,0)
+  assert.equal(control(f.nodes(),'toggleDetailSchedule'),undefined)
+  assert(!f.nodes().some(n=>has(n,'detail-full-schedule')||has(n,'detail-theme')))
+  assert.equal(f.page.toggleDetailSchedule,undefined)
+  assert(!('detailExpanded' in f.page.data))
+  assert.equal(f.page.data.activity.theme,a.theme,'the source field is retained')
+  a.days.forEach((day,index)=>{if(index%4===0)day.theme='实际课程 '+index})
+  await f.page.refresh()
+  const rows=f.nodes().filter(n=>has(n,'detail-day-row'))
+  assert.equal(rows.length,5,'all meaningful course rows stay visible, including those after the third')
+  assert(content(rows.at(-1)).includes('实际课程 16'))
   f.page.previewDetailImage({currentTarget:{dataset:{url:a.cover}}})
   assert.deepEqual(plain(f.previews[0].urls),[a.cover])
   f.page.detailImageFailed({currentTarget:{dataset:{url:a.cover}}})
@@ -132,7 +138,26 @@ test('detail schedule preserves all rows, media failures and existing service/re
   await f.page.startRegistration();assert.equal(f.page.data.view,'register');assert.equal(f.writes.length,0)
   f.page.setData({view:'detail'});f.page.openJourney();assert.equal(f.page.data.view,'journey')
   f.page.setData({view:'detail'});a.id='different-session';await f.page.refresh()
-  assert.equal(f.page.data.detailExpanded,false);assert.equal(f.page.data.detail.showCover,true)
+  assert.equal(f.page.data.detail.showCover,true)
+})
+
+test('simplified detail keeps dates, place and the existing action for every activity status', async () => {
+  const f = await fixture('detail', 'none'), a = f.context.activity
+  for (const [status, canRegister, label] of [
+    ['开放报名', true, '报名这一期'], ['即将满员', true, '报名这一期'],
+    ['候补中', true, '申请候补'], ['已满', false, '已满'],
+    ['已取消', false, '已取消'], ['已结束', false, '已结束']
+  ]) {
+    Object.assign(a, { status, seatsLeft: canRegister && status !== '候补中' ? 2 : 0 })
+    await f.page.refresh()
+    const nodes = f.nodes(), action = control(nodes, 'startRegistration')
+    assert.equal(action.attrs.disabled, !canRegister, status)
+    assert.equal(content(action), label, status)
+    assert(content(nodes.find(n => has(n, 'detail-activity-state'))).includes(status))
+    const facts = content(nodes.find(n => has(n, 'detail-core-facts')))
+    assert(facts.includes('2099') && facts.includes('3天') && facts.includes(a.city), status)
+    assert(!nodes.some(n => has(n, 'detail-theme') || has(n, 'detail-full-schedule')))
+  }
 })
 
 test('registration renders inline participant feedback and preserves fields and draft through both steps', async () => {

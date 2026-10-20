@@ -10,6 +10,7 @@ Page({
     avatarText: '登录',
     passConsumptions: [],
     loginLoading: false,
+    logoutLoading: false,
     staffAccess: false,
     contact: resolveContact()
   },
@@ -19,11 +20,49 @@ Page({
   openStaff() { wx.navigateTo({url: "/staff/workspace/index?view=desk"}) },
 
   async onShow() {
+    this._mineVisit = (this._mineVisit || 0) + 1
+    if (business.watchIdentity && !this._unwatchIdentity) {
+      business.identityScope()
+      this._unwatchIdentity = business.watchIdentity(() => this.clearPrivate())
+    }
     this.setData({ staffAccess: false })
     const tab = this.getTabBar && this.getTabBar()
     if (tab) tab.setData({ selected: 3 })
     await Promise.all([this.refresh(), this.refreshContact()])
     if (this.data.state.loggedIn) await this.refreshStaffAccess()
+  },
+
+  clearPrivate() {
+    this._mineRun = (this._mineRun || 0) + 1
+    this.setData({ state: {}, avatarText: '登录', passConsumptions: [], staffAccess: false,
+      ready: false, loading: false, refreshing: false, loadError: '' })
+  },
+  onHide() {
+    this._mineVisit = (this._mineVisit || 0) + 1
+    if (this._unwatchIdentity) this._unwatchIdentity()
+    this._unwatchIdentity = null
+    this.clearPrivate()
+  },
+  onUnload() { this.onHide() },
+
+  async logout() {
+    if (!this.data.state.loggedIn || this.data.loginLoading || this.data.logoutLoading) return
+    const scope = business.identityScope ? business.identityScope() : null
+    const visit = this._mineVisit
+    const answer = await new Promise(resolve => wx.showModal({ title: '退出登录',
+      content: '退出后可重新微信登录，已有参与和记录会保留。', confirmText: '退出登录',
+      success: resolve, fail: () => resolve({ confirm: false }) }))
+    if (!answer.confirm || visit !== this._mineVisit || this.data.logoutLoading ||
+      (scope && scope !== business.identityScope())) return
+    this.setData({ logoutLoading: true })
+    let message = '已退出登录'
+    try { await business.logout() }
+    catch (error) { message = '已退出本机，服务端注销未确认' }
+    finally {
+      this.clearPrivate()
+      this.setData({ logoutLoading: false })
+    }
+    if (visit === this._mineVisit) wx.showToast({ title: message, icon: 'none' })
   },
 
   async refreshContact() {
@@ -41,16 +80,19 @@ Page({
 
   async refreshStaffAccess() {
     if (!business.enabled()) return
-    try { await staffApi.request('/me'); this.setData({ staffAccess: true }) }
-    catch (error) { this.setData({ staffAccess: false }) }
+    const run = this._mineRun
+    try { await staffApi.request('/me'); if (run === this._mineRun) this.setData({ staffAccess: true }) }
+    catch (error) { if (run === this._mineRun) this.setData({ staffAccess: false }) }
   },
 
   async login() {
-    if (this.data.loginLoading) return
+    if (this.data.loginLoading || this.data.logoutLoading) return
     if (!business.enabled()) return navigation.navigateTo({ url: '/pages/mine-flow/index?view=auth' })
     this.setData({ loginLoading: true, loadError: '' })
+    const visit = this._mineVisit
     try {
       await business.login()
+      if (visit !== this._mineVisit) return
       await this.refresh()
       if (this.data.loadError) return wx.showToast({ title: '个人信息读取失败，请重试', icon: 'none' })
       await this.refreshStaffAccess()
@@ -63,14 +105,16 @@ Page({
   },
 
   async refresh() {
+    const run = this._mineRun = (this._mineRun || 0) + 1
     if (business.enabled()) {
       this.setData({ loading: !this.data.ready, refreshing: !!this.data.ready, loadError: '' })
       try {
         const { state } = await business.context()
+        if (run !== this._mineRun) return
         const passConsumptions=(state.passLedger||[]).filter(item=>item.entryType==='consume').slice(0,3)
         this.setData({ ready: true, state, passConsumptions, avatarText: state.loggedIn ? (state.profile.nickname || '轻').slice(0,1) : '登录' })
-      } catch (error) { this.setData({ loadError: error.message || '暂时无法读取，请重试', ...(error.code === 401 ? { ready: false, state: {}, passConsumptions: [] } : {}) }) }
-      finally { this.setData({ loading: false, refreshing: false }) }
+      } catch (error) { if (run === this._mineRun) this.setData({ loadError: error.message || '暂时无法读取，请重试', ...(error.code === 401 ? { ready: false, state: {}, passConsumptions: [] } : {}) }) }
+      finally { if (run === this._mineRun) this.setData({ loading: false, refreshing: false }) }
       return
     }
     const state = store.getState()

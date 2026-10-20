@@ -39,11 +39,11 @@ for (const page of navPages) {
 const campDetail = fs.readFileSync(path.join(root, 'pages/camp-flow/index.wxml'), 'utf8')
 // Verify decision facts and actions rather than obsolete card-layout class names.
 const detail = campDetail.slice(campDetail.indexOf("view === 'detail' && detail.ready"), campDetail.indexOf("view === 'register'}}"));
-for (const binding of ['activity.name', 'activity.sessionNumber', 'detail.date', 'detail.place', 'activity.fee', 'activity.returningFee', 'activity.capacity', 'detail.changeRule', 'detail.fullDays']) assert.ok(detail.includes(binding), '详情缺少真实字段 ' + binding);
+for (const binding of ['activity.name', 'activity.sessionNumber', 'detail.date', 'detail.place', 'activity.fee', 'activity.returningFee', 'activity.capacity', 'detail.changeRule', 'detail.scheduleDays']) assert.ok(detail.includes(binding), '详情缺少真实字段 ' + binding);
 assert.ok(detail.includes('bindtap="startRegistration"'));
 assert.ok(detail.includes('disabled="{{!availability.canRegister}}"'));
 assert.ok(detail.includes('bindtap="openJourney"'));
-assert.ok(detail.includes('bindtap="toggleDetailSchedule"'));
+assert.ok(!detail.includes('toggleDetailSchedule') && !detail.includes('activity.theme'), '详情不再显示主题和日期展开入口');
 
 const emptyStatePages = ['camp', 'content', 'friends', 'camp-flow', 'friend-flow', 'mine-flow']
 for (const page of emptyStatePages) {

@@ -144,6 +144,45 @@ public class QlCampReflectionService {
   moderate(id,action,bo,operator,Collections.emptySet());
  }
 
+ /** One bounded selection is committed with its per-item audit records, or rolled back in full. */
+ @Transactional
+ public int publishBatch(QlReflectionPublishBatchBo bo,Long operator,Set<String> readableTypes) {
+  if(operator==null)throw new CustomException("缺少审核人员身份",403);
+  if(bo==null||bo.getItems()==null||bo.getItems().isEmpty()||bo.getItems().size()>50)throw new CustomException("请选择一至50条心声",400);
+  List<QlReflectionPublishBatchBo.Item> items=new ArrayList<>(bo.getItems());Set<String> ids=new HashSet<>();
+  for(QlReflectionPublishBatchBo.Item item:items) {
+   if(item==null||item.getRevision()==null||item.getRevision()<1||item.getId()==null||!item.getId().matches("[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}")||!ids.add(item.getId().toLowerCase(Locale.ROOT)))throw new CustomException("心声编号或版本无效或重复",400);
+  }
+  items.sort(Comparator.comparing(item->item.getId().toLowerCase(Locale.ROOT)));
+  Map<String,Map<String,Object>> locked=new LinkedHashMap<>();
+  // Lock the entire selection before any state/evidence writes; concurrent withdrawals use these same rows.
+  for(QlReflectionPublishBatchBo.Item item:items) {
+   List<Map<String,Object>> rows=db.queryForList("SELECT id,status,revision,share_consent AS consent,consent_version AS consentVersion,consent_at AS consentAt,COALESCE(display_note,shared_note) AS displayNote FROM ql_camp_reflection WHERE id=? FOR UPDATE",item.getId());
+   if(rows.size()!=1)throw new CustomException("心声 "+item.getId()+" 不存在，整批未发布",409);
+   Map<String,Object> row=rows.get(0);
+   if(!Integer.valueOf(1).equals(row.get("consent"))||row.get("consentVersion")==null||Objects.toString(row.get("consentVersion"),"").trim().isEmpty()||row.get("consentAt")==null)throw new CustomException("心声 "+item.getId()+" 公开授权缺失或已撤回，整批未发布",409);
+   if(!item.getRevision().equals(((Number)row.get("revision")).intValue()))throw new CustomException("心声 "+item.getId()+" 已变化，请刷新后重选；整批未发布",409);
+   if(!Arrays.asList("submitted","rejected","approved","hidden").contains(row.get("status")))throw new CustomException("心声 "+item.getId()+" 状态已变化，整批未发布",409);
+   locked.put(item.getId(),row);
+  }
+  for(QlReflectionPublishBatchBo.Item item:items) {
+   Map<String,Object> row=locked.get(item.getId());String state=String.valueOf(row.get("status"));
+   try {
+    if(Arrays.asList("submitted","rejected").contains(state))moderate(item.getId(),"approvePublish",item,operator,readableTypes);
+    else {
+     int revision=item.getRevision();
+     if(item.getDisplayNote()!=null&&!item.getDisplayNote().trim().equals(Objects.toString(row.get("displayNote"),""))) {
+      QlReflectionModerationBo edit=new QlReflectionModerationBo();edit.setRevision(revision);edit.setDisplayNote(item.getDisplayNote());
+      moderate(item.getId(),"edit",edit,operator,readableTypes);revision++;
+     }
+     QlReflectionModerationBo publish=new QlReflectionModerationBo();publish.setRevision(revision);publish.setPublicationReview(item.getPublicationReview());
+     moderate(item.getId(),"publish",publish,operator,readableTypes);
+    }
+   } catch(CustomException error) {throw new CustomException("心声 "+item.getId()+"："+error.getMessage()+"；整批未发布",error.getCode());}
+  }
+  return items.size();
+ }
+
  @Transactional
  public void moderate(String id,String action,QlReflectionModerationBo bo,Long operator,Set<String> readableTypes) {
   List<Map<String,Object>> rows=db.queryForList("SELECT customer_id AS customerId,registration_id AS registrationId,session_id AS sessionId,consent_version AS consentVersion,consent_at AS consentAt,shared_note AS note,status,revision,share_consent AS consent,display_excerpt AS excerpt,display_note AS displayNote,sort_order AS sortOrder FROM ql_camp_reflection WHERE id=? FOR UPDATE",id);

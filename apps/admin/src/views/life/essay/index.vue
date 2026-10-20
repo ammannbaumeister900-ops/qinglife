@@ -115,7 +115,7 @@
           />
         </template>
       </el-table-column>
-      <el-table-column label="首页精选" align="center" width="90"><template slot-scope="scope"><el-tag size="mini" :type="Number(scope.row.homeFeatured) === 1 ? 'success' : 'info'">{{ Number(scope.row.homeFeatured) === 1 ? '精选' : '普通' }}</el-tag></template></el-table-column>
+      <el-table-column label="推荐" align="center" width="90"><template slot-scope="scope"><el-tag size="mini" :type="Number(scope.row.homeFeatured) === 1 ? 'success' : 'info'">{{ Number(scope.row.homeFeatured) === 1 ? '推荐' : '未推荐' }}</el-tag></template></el-table-column>
       <el-table-column label="作者" align="center" prop="authorNickName" />
       <el-table-column label="标签" align="center" prop="label" />
       <el-table-column
@@ -192,11 +192,16 @@
         <el-form-item label="封面（选填）" prop="titleUrl" label-width="110px">
           <imageLocalUpload v-model="form.titleUrl" :limit="1" />
         </el-form-item>
-        <el-form-item label="首页精选"><el-switch v-model="form.homeFeatured" :active-value="1" :inactive-value="0" /><div class="featured-hint">只有启用且标记为精选的文章会进入小程序首页轮播。</div></el-form-item>
         <el-form-item label="标签" prop="label">
           <el-checkbox-group v-model="form.labels">
-            <el-checkbox v-for="item in labelList" :key="item.id" :label="item.id">{{ item.name }}</el-checkbox>
+            <el-checkbox v-for="item in labelList" :key="item.id" :label="String(item.id)">{{ item.name }}</el-checkbox>
           </el-checkbox-group>
+        </el-form-item>
+        <el-form-item label="推荐">
+          <el-switch v-model="form.homeFeatured" :active-value="1" :inactive-value="0" :disabled="!recommendationReady" />
+          <div class="featured-hint">{{ recommendationHint }}</div>
+          <div v-if="String(form.status) !== '1'" class="featured-hint">文章停用时不会展示。</div>
+          <el-button v-if="recommendationState === 'error'" type="text" @click="loadRecommendationLabels">重新读取推荐配置</el-button>
         </el-form-item>
         <el-form-item label="内容" prop="content">
           <editorLocal v-model="form.content" type="url" :min-height="192" :file-size="100" />
@@ -218,6 +223,7 @@
 import { listEssay, getEssay, delEssay, addEssay, updateEssay, changeStatus } from '@/api/life/essay'
 import { isInteger } from '@/api/tool/validate'
 import { getLabelList } from '@/api/life/label'
+import { getConfigKey } from '@/api/system/config'
 
 export default {
   name: 'Essay',
@@ -243,6 +249,8 @@ export default {
       essayList: [],
       // labelList
       labelList: [],
+      storyLabelId: '',
+      recommendationState: 'loading',
       // 弹出层标题
       title: '',
       // 是否显示弹出层
@@ -283,10 +291,41 @@ export default {
       }
     }
   },
+  computed: {
+    recommendationReady() {
+      return this.recommendationState === 'ready'
+    },
+    recommendationHint() {
+      if (!this.recommendationReady) {
+        return this.recommendationState === 'error' ? '推荐配置读取失败，暂不能开启推荐。' : '正在读取推荐配置…'
+      }
+      const isStory = (this.form.labels || []).some(id => String(id) === this.storyLabelId)
+      return isStory ? '推荐到了解轻生活的轻友故事' : '推荐到首页精选'
+    }
+  },
   created() {
     this.getList()
   },
   methods: {
+    async loadRecommendationLabels() {
+      const version = this.recommendationRequest = (this.recommendationRequest || 0) + 1
+      this.recommendationState = 'loading'
+      this.storyLabelId = ''
+      try {
+        const [labels, config] = await Promise.all([getLabelList(), getConfigKey('qinglife.reading.story_label_id')])
+        if (version !== this.recommendationRequest) return
+        this.labelList = labels
+        // Match the backend's configured ID and enabled labels, never a display-name guess.
+        const id = String(config.data == null ? '' : config.data)
+        if (!/^[0-9]{1,19}$/.test(id) || !labels.some(label => String(label.id) === id && Number(label.status) === 1)) {
+          throw new Error('轻友故事标签配置无效')
+        }
+        this.storyLabelId = id
+        this.recommendationState = 'ready'
+      } catch (error) {
+        if (version === this.recommendationRequest) this.recommendationState = 'error'
+      }
+    },
     /** 查询文章列表 */
     getList() {
       this.loading = true
@@ -306,6 +345,10 @@ export default {
     },
     // 表单重置
     reset() {
+      this.recommendationRequest = (this.recommendationRequest || 0) + 1
+      this.recommendationState = 'loading'
+      this.storyLabelId = ''
+      this.labelList = []
       this.form = {
         id: undefined,
         title: undefined,
@@ -344,9 +387,7 @@ export default {
     /** 新增按钮操作 */
     handleAdd() {
       this.reset()
-      getLabelList().then((response) => {
-        this.labelList = response
-      })
+      this.loadRecommendationLabels()
       this.open = true
       this.title = '添加文章'
     },
@@ -365,12 +406,14 @@ export default {
         this.open = true
         this.title = '修改文章'
       })
-      getLabelList().then((response) => {
-        this.labelList = response
-      })
+      this.loadRecommendationLabels()
     },
     /** 提交按钮 */
     submitForm() {
+      if (Number(this.form.homeFeatured) === 1 && !this.recommendationReady) {
+        this.msgError('请先成功读取推荐配置，再保存推荐文章。')
+        return
+      }
       this.$refs['form'].validate((valid) => {
         if (valid) {
           this.buttonLoading = true

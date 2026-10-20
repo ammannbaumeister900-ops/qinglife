@@ -3,6 +3,7 @@ const store = require('../utils/store')
 const BASE_KEY = 'qinglife_business_base_url'
 const ENVIRONMENTS = ['demo', 'staging', 'production']
 let loginPromise = null
+let logoutPromise = null
 let identity = null
 let identityRevision = 0
 const identityListeners = new Set()
@@ -90,6 +91,25 @@ function ensureToken() {
   }, fail: error => { try { assertIdentity(scope); reject(error) } catch (changed) { reject(changed) } } })).finally(() => { if (loginPromise === attempt) loginPromise = null })
   loginPromise = attempt
   return attempt.promise
+}
+function logout() {
+  if (logoutPromise) return logoutPromise
+  const scope = identityScope()
+  logoutPromise = (async () => {
+    try {
+      if (scope.token) await request('/auth/logout', 'POST', {}, true, 10000, scope)
+    } catch (error) { if (error.code !== 401) throw error }
+    finally {
+      if (scope === identityScope()) {
+        wx.removeStorageSync('qinglife_business_token:' + scope.base)
+        loginPromise = null
+        // Invalidate even an empty scope so an outstanding wx.login cannot restore it.
+        identity = null
+        identityScope()
+      }
+    }
+  })().finally(() => { logoutPromise = null })
+  return logoutPromise
 }
 function request(path, method = 'GET', data, auth = true, timeout = 10000, expectedScope) {
   return Promise.resolve().then(async () => {
@@ -185,7 +205,7 @@ async function context(id) {
   if (scoped) assertIdentity(scoped.scope)
   return { activities: list, activity: selected, overview, state }
 }
-module.exports = { isDemo, identityScope, assertIdentity, watchIdentity, privateOverview, normalizeHabit, applyHabit, refreshHabit, BASE_KEY, baseUrl, enabled, request, activity, sessions, context, login: ensureToken,
+module.exports = { isDemo, identityScope, assertIdentity, watchIdentity, privateOverview, normalizeHabit, applyHabit, refreshHabit, BASE_KEY, baseUrl, enabled, request, activity, sessions, context, login: ensureToken, logout,
   featuredReadings: () => request('/readings/featured', 'GET', null, false),
   readings: (filters = {}) => request('/readings', 'GET', filters, false),
   readingTopics: () => request('/readings/topics', 'GET', null, false),

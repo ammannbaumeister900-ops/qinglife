@@ -40,14 +40,14 @@ const text=n=>flatten([n]).filter(x=>'text'in x).map(x=>x.text).join('').trim()
 function fixture(options={}){
   let page
   const state={...plain(require('../utils/store').defaultState()),backend:true,loggedIn:true,phoneLinked:true,profile:{nickname:'小禾'},passAccounts:[],passLedger:[],currentPassBalance:0,...options.state}
-  const context={state},links=[],copies=[],toasts=[],tabs=[],staffCalls=[]
+  const context={state},links=[],copies=[],toasts=[],tabs=[],staffCalls=[],modals=[]
   const business={enabled:()=>options.backend!==false,context:async()=>context,contact:async()=>({name:'桃子',wechat:'qinglife2014'}),login:async()=>{}}
   const staff={request:async p=>{staffCalls.push(p);if(!options.staff)throw Error('forbidden');return {}}}
   const mocks={'../../services/business-api':business,'../../services/staff-api':staff,'../../utils/store':{getState:()=>plain(state)},'../../utils/navigation':{navigateTo:x=>links.push(x.url),switchTab:x=>links.push(x.url)}}
-  vm.runInNewContext(fs.readFileSync(path.join(root,'pages/mine/index.js'),'utf8'),{Page:p=>page=p,wx:{navigateTo:x=>links.push(x.url),showToast:x=>toasts.push(x.title),setClipboardData:x=>{copies.push(x.data);x.success()}},require:id=>mocks[id]||require(path.resolve(root,'pages/mine',id))})
+  vm.runInNewContext(fs.readFileSync(path.join(root,'pages/mine/index.js'),'utf8'),{Page:p=>page=p,wx:{navigateTo:x=>links.push(x.url),showToast:x=>toasts.push(x.title),showModal:x=>modals.push(x),setClipboardData:x=>{copies.push(x.data);x.success()}},require:id=>mocks[id]||require(path.resolve(root,'pages/mine',id))})
   page.data=plain(page.data);page.setData=p=>Object.assign(page.data,p);page.getTabBar=()=>({setData:p=>tabs.push(p)})
   const nodes=()=>flatten(render(parse().children,page.data))
-  return {page,context,business,staff,links,copies,toasts,tabs,staffCalls,nodes}
+  return {page,context,business,staff,links,copies,toasts,tabs,staffCalls,modals,nodes}
 }
 const event=view=>({currentTarget:{dataset:{view}}})
 
@@ -114,6 +114,52 @@ test('loading and error hide ordinary tasks while refresh retains them and retry
   f.business.context=async()=>{throw Error('offline')};await f.page.refresh()
   assert(!f.nodes().some(n=>has(n,'asset')));assert(f.nodes().some(n=>n.attrs?.bindtap==='onShow'))
   f.business.context=async()=>f.context;await f.page.onShow();assert(f.nodes().some(n=>has(n,'asset')))
+})
+
+test('logout is available for a signed-in backend account even when reading fails; cancellation preserves it',async()=>{
+  const f=fixture({staff:true});await f.page.onShow();let calls=0;f.business.logout=async()=>calls++
+  f.page.setData({loadError:'offline'});assert(f.nodes().some(n=>n.attrs?.bindtap==='logout'))
+  const cancelled=f.page.logout();f.modals.at(-1).success({confirm:false});await cancelled
+  assert.equal(calls,0);assert.equal(f.page.data.state.loggedIn,true)
+  const pending=f.page.logout();f.modals.at(-1).success({confirm:true});await pending
+  assert.equal(calls,1);assert.equal(f.page.data.state.loggedIn,undefined);assert.equal(f.page.data.staffAccess,false)
+  assert.deepEqual(plain(f.page.data.passConsumptions),[]);assert.equal(f.toasts.at(-1),'已退出登录')
+  assert(!f.nodes().some(n=>n.attrs?.bindtap==='logout'))
+  f.context.state={...f.context.state,loggedIn:false};await f.page.onShow()
+  assert(f.nodes().some(n=>n.attrs?.bindtap==='login'));assert(!f.nodes().some(n=>n.attrs?.bindtap==='logout'))
+})
+
+test('logout blocks duplicate confirmation, clears on network failure and never claims remote success',async()=>{
+  const f=fixture();await f.page.onShow();let fail,calls=0
+  f.business.logout=()=>{calls++;return new Promise((resolve,reject)=>fail=reject)}
+  const pending=f.page.logout();f.modals.at(-1).success({confirm:true});await Promise.resolve()
+  assert.equal(f.page.data.logoutLoading,true)
+  assert.equal(f.nodes().find(n=>n.attrs?.bindtap==='logout').attrs.disabled,true)
+  await f.page.logout();assert.equal(calls,1)
+  fail(Error('offline'));await pending
+  assert.equal(f.page.data.logoutLoading,false);assert.equal(f.page.data.state.loggedIn,undefined)
+  assert.equal(f.toasts.at(-1),'已退出本机，服务端注销未确认')
+})
+
+test('late mine refresh and staff permission replies cannot repopulate personal data after logout',async()=>{
+  const f=fixture({staff:true});await f.page.onShow();let finishContext,finishStaff
+  f.business.context=()=>new Promise(resolve=>finishContext=resolve)
+  f.staff.request=()=>new Promise(resolve=>finishStaff=resolve)
+  const refresh=f.page.refresh(),staff=f.page.refreshStaffAccess();f.business.logout=async()=>{}
+  const pending=f.page.logout();f.modals.at(-1).success({confirm:true});await pending
+  finishContext(f.context);finishStaff({});await Promise.all([refresh,staff])
+  assert.equal(f.page.data.state.loggedIn,undefined);assert.equal(f.page.data.staffAccess,false)
+  assert.equal(f.page.data.avatarText,'登录');assert.deepEqual(plain(f.page.data.passConsumptions),[])
+})
+
+test('identity change clears mine immediately and a confirmation from a hidden page cannot log out',async()=>{
+  const f=fixture({staff:true});let scope={},changed,calls=0
+  f.business.identityScope=()=>scope;f.business.watchIdentity=fn=>{changed=fn;return()=>{}}
+  f.business.logout=async()=>calls++;await f.page.onShow()
+  const pending=f.page.logout();scope={};changed();f.modals.at(-1).success({confirm:true});await pending
+  assert.equal(calls,0);assert.equal(f.page.data.state.loggedIn,undefined);assert.equal(f.page.data.staffAccess,false)
+  await f.page.onShow();const hidden=f.page.logout();f.page.onHide();f.modals.at(-1).success({confirm:true});await hidden
+  assert.equal(calls,0);assert.equal(f.page.data.state.loggedIn,undefined)
 })
 
 module.exports={parse,render,flatten,fixture,has,text}

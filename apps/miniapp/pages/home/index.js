@@ -36,7 +36,7 @@ Page({
         const cancellationNotice = registrationHistory.cancellation(state, activities, business.baseUrl ? business.baseUrl() : '')
         this.setData({ showHomeTask: showHomeTask(state, view), cancellationNotice, state, stories: readings && readings.stories || [], featuredReadings: readings && readings.featured || [],
           storyIndex: 0, readingError: readings ? '' : '轻读暂时未能读取，请稍后重试。', ready: true,
-          returning: discovery.returning(state), ...presentation.camps(activities, this.data.selectedCampId, content.gatheringTimes),
+          returning: discovery.returning(state), ...presentation.camps(activities, this.data.selectedCampId),
           view, taskContext: taskContext(view, activities), failedImages: {} })
         this.setData({ loading: false, refreshing: false })
         await this.loadVoices(this.data.selectedCampId)
@@ -51,7 +51,7 @@ Page({
     const state = store.getState()
     const view = domain.homeTask(state, demo.activities)
     this.setData({ loading: false, refreshing: false, loadError: '', showHomeTask: showHomeTask(state, view), state, stories: [], storyIndex: 0, readingError: '', featuredReadings: readingSamples.slice(0, 4), ready: true,
-      returning: discovery.returning(state), ...presentation.camps(demo.activities, this.data.selectedCampId, content.gatheringTimes),
+      returning: discovery.returning(state), ...presentation.camps(demo.activities, this.data.selectedCampId),
       view, taskContext: taskContext(view, demo.activities), failedImages: {} })
   },
   onReady() { this.measurePreferences() },

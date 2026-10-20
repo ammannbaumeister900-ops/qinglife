@@ -46,4 +46,5 @@
 
     <button wx:if="{{staffAccess}}" class="utility-entry staff-entry" bindtap="openStaff"><view class="asset-main"><view>工作人员工作台</view><view class="asset-description">工作人员专属</view></view><text class="asset-chevron">›</text></button>
   </block>
+  <button wx:if="{{state.backend && state.loggedIn}}" class="utility-entry" bindtap="logout" loading="{{logoutLoading}}" disabled="{{loginLoading || logoutLoading}}">退出登录</button>
 </view>

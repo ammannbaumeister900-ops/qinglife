@@ -18,5 +18,6 @@ public class QlPublicationReviewBo {
     @Data public static class Reference {
         @NotNull @Pattern(regexp="registration|assessment|interaction|consent") private String type;
         @NotNull @Pattern(regexp="[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}") private String id;
+        @Pattern(regexp="[0-9a-f]{64}") private String sourceHash;
     }
 }

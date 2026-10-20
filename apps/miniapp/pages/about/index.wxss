@@ -77,6 +77,9 @@ page { background:var(--q-linen); --ql-nav-bg:var(--q-linen); }
 .about-definition { margin-top:24px; color:var(--q-on-dark-2); font-size:calc(14px * var(--about-font-scale,1)); line-height:1.8; }
 
 /* ⑤ 透明说明与行动 */
+.about-recommended-stories { margin:32px var(--q-gutter) 0; }
+.about-page .about-story-link { display:block; width:100%; min-height:48px; margin:12px 0 0; padding:12px 0; border:0; border-bottom:1px solid var(--q-line); border-radius:0; background:transparent; color:var(--q-ink); font-size:calc(16px * var(--about-font-scale,1)); line-height:1.85; text-align:left; white-space:normal; overflow-wrap:break-word; }
+.about-story-link::after { border:0; }
 .about-transparent { margin:48px var(--q-gutter) 0; }
 .about-transparent-intro { margin-top:18px; }
 .about-facts { margin-top:24px; border-top:1px solid var(--q-line); }
