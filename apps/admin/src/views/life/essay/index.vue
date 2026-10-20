@@ -325,7 +325,8 @@ export default {
         if (version !== this.recommendationRequest) return
         this.labelList = labels
         // Match the backend's configured ID and enabled labels, never a display-name guess.
-        const id = String(config.data == null ? '' : config.data)
+        // SysConfigController uses AjaxResult.success(String): the value is in msg.
+        const id = String(config.data == null ? config.msg || '' : config.data)
         if (!/^[0-9]{1,19}$/.test(id) || !labels.some(label => String(label.id) === id && Number(label.status) === 1)) {
           throw new Error('轻友故事标签配置无效')
         }

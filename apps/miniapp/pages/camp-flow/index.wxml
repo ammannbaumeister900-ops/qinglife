@@ -146,7 +146,6 @@
     <view wx:if="{{registration.status === 'pending'}}" class="privacy-note">请返回清体营查看本期报名状态，或联系工作人员确认。当前不会自动发送确认通知。</view>
     <view wx:if="{{serviceStatus.operationalRisk}}" class="operational-risk">历史报名已确认，缴费和名额需运营核查。</view>
     <button wx:if="{{canReapply && availability.canRegister}}" class="secondary" bindtap="startRegistration">重新报名</button>
-    <view wx:for="{{cancelledHistory}}" wx:key="registrationId" class="service-status-note">已取消记录 · {{item.isSelf ? '本人' : item.participantName || '参与者'}} · {{item.reference}}</view>
     <view wx:if="{{hasSelfActiveRegistration}}" class="journey-reflection service-reflection">
       <view class="journey-reflection-title">轻友心声</view>
       <view wx:if="{{reflectionAccess.allowed}}" class="service-status-note">写下的心声经运营审核后在本期公开展示。</view>

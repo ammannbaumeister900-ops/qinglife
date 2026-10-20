@@ -169,12 +169,19 @@ async function refreshHabit() {
   assertIdentity(result.scope)
   return applyHabit(result.overview.habit)
 }
-async function context(id) {
+async function context(id, { allowGuest = false } = {}) {
   const list = await sessions()
   const selected = id ? activity(await request('/sessions/' + encodeURIComponent(id), 'GET', null, false)) : list[0] || null
   if (selected && !list.some(item => item.id === selected.id)) list.push(selected)
   const token = wx.getStorageSync(tokenKey())
-  const scoped = token ? await privateOverview() : null
+  let scoped = null
+  if (token) {
+    try { scoped = await privateOverview() }
+    catch (error) {
+      // A public page can retain public content after an expired login. Private callers still fail.
+      if (!allowGuest || error.code !== 401) throw error
+    }
+  }
   const overview = scoped ? scoped.overview : { registrations: [], attendance: [], experienceRecords: [], passAccounts: [], passLedger: [] }
   const local = store.getState(), profile = overview.profile || {}
   for (const row of overview.registrations || []) {

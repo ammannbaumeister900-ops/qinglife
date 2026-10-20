@@ -105,7 +105,7 @@ class QlReflectionPublicationBoundaryTest {
         }
         verifyNoInteractions(originals);
     }
-    @Test void missingPublicationEvidenceBlocksNewAndRepeatPublicationEvenWithBothPermissions() {
+    @Test void missingRecordedSelfConsentBlocksNewAndRepeatPublicationEvenWithBothPermissions() {
         grant("life:reflection:review", "life:reflection:publish");
         for (String status : Arrays.asList("approved", "hidden")) {
             record.put("status", status);
@@ -116,6 +116,16 @@ class QlReflectionPublicationBoundaryTest {
         assertEquals(409, assertThrows(CustomException.class,
             () -> controller.approveAndPublish("voice", body)).getCode());
         noWrites();
+    }
+    @Test void selectedPublicationWorksWithoutDossierReadPermissionsOrManualConclusions() {
+        grant("life:reflection:review", "life:reflection:publish");
+        String reg="00000000-0000-0000-0000-000000000001";
+        record.put("registrationId",reg);record.put("sessionId","session");
+        record.put("consentVersion","v1");record.put("consentAt",new Date());
+        when(db.queryForList(startsWith("SELECT r.id FROM"),eq(reg),eq("A"),eq("session"))).thenReturn(Collections.singletonList(Collections.singletonMap("id",reg)));
+        controller.approveAndPublish("voice",body);
+        verify(db).update(startsWith("INSERT INTO ql_camp_reflection_log"),anyString(),eq("voice"),eq("approvePublish"),eq(2),eq(42L),any(Date.class),contains("\"mode\":\"selection\""));
+        verifyNoInteractions(originals);
     }
     @Test void absentOrRevokedSharingAndStaleRevisionCannotBePublishedOrReviewed() {
         grant("life:reflection:review", "life:reflection:publish");

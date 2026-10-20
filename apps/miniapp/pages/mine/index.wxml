@@ -22,8 +22,10 @@
       </view>
     </view>
 
-    <view wx:if="{{pendingEntry && !signedIn}}" class="identity-notice notice-info">使用「{{pendingEntry.label}}」需要先登录，登录后会直接打开。</view>
-    <view wx:if="{{notice}}" class="identity-notice notice-{{notice.kind}}">{{notice.text}}</view>
+    <view wx:if="{{notice || (pendingEntry && !signedIn)}}" class="identity-notice notice-{{notice ? notice.kind : 'info'}}">
+      <view wx:if="{{notice}}">{{notice.text}}</view>
+      <view wx:if="{{pendingEntry && !signedIn}}" class="{{notice ? 'identity-next' : ''}}">登录后打开「{{pendingEntry.label}}」。</view>
+    </view>
     <view wx:if="{{profileError}}" class="identity-notice notice-warning">{{profileError}}</view>
 
     <view wx:if="{{profileError}}" class="identity-actions"><button class="secondary identity-action" bindtap="onShow">重试</button></view>

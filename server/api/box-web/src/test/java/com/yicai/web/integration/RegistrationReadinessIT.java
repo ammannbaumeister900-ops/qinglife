@@ -365,6 +365,30 @@ class RegistrationReadinessIT {
         assertTrue(voices.publicVoices(period).isEmpty());
     }
 
+    @Test void selectionPublishesWithoutManualReviewFieldsAndRetainsAtomicityAndWithdrawal() {
+        String period=session(4),owner=customer(),other=customer(),reg=add(owner,period,"confirmed"),otherReg=add(other,period,"confirmed");
+        QlCampReflectionService voices=context.getBean(QlCampReflectionService.class);
+        List<String> ids=Arrays.asList(UUID.randomUUID().toString(),UUID.randomUUID().toString());Collections.sort(ids);
+        for(int i=0;i<2;i++)db.update("INSERT INTO ql_camp_reflection(id,registration_id,customer_id,session_id,phase,draft_note,shared_note,share_consent,share_anonymous,consent_version,consent_at,status,created_at,updated_at) VALUES(?,?,?,?,?,'Synthetic','Synthetic selection',1,1,'synthetic-v1',NOW(),'submitted',NOW(),NOW())",ids.get(i),i==0?reg:otherReg,i==0?owner:other,period,"before");
+        QlReflectionPublishBatchBo batch=new QlReflectionPublishBatchBo();List<QlReflectionPublishBatchBo.Item> items=new ArrayList<>();
+        for(String id:ids){QlReflectionPublishBatchBo.Item item=new QlReflectionPublishBatchBo.Item();item.setId(id);item.setRevision(1);item.setDisplayNote("Synthetic selected publication");items.add(item);}batch.setItems(items);
+        // A later invalid participation must roll back the earlier state and audit log.
+        db.update("UPDATE ql_registration SET registration_status='cancelled' WHERE id=?",otherReg);
+        assertThrows(CustomException.class,()->voices.publishBatch(batch,9L,Collections.emptySet()));
+        for(String id:ids){assertEquals("submitted",db.queryForObject("SELECT status FROM ql_camp_reflection WHERE id=?",String.class,id));assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM ql_camp_reflection_log WHERE reflection_id=?",Integer.class,id));}
+        db.update("UPDATE ql_registration SET registration_status='confirmed' WHERE id=?",otherReg);
+        db.execute("CREATE TRIGGER ql_it_fail_selection_audit BEFORE INSERT ON ql_camp_reflection_log FOR EACH ROW BEGIN IF NEW.reflection_id='"+ids.get(1)+"' THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='synthetic selection audit failure'; END IF; END");
+        try{assertThrows(RuntimeException.class,()->voices.publishBatch(batch,9L,Collections.emptySet()));}finally{db.execute("DROP TRIGGER ql_it_fail_selection_audit");}
+        for(String id:ids){assertEquals("submitted",db.queryForObject("SELECT status FROM ql_camp_reflection WHERE id=?",String.class,id));assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM ql_camp_reflection_log WHERE reflection_id=?",Integer.class,id));}
+        assertEquals(2,voices.publishBatch(batch,9L,Collections.emptySet()));assertEquals(2,voices.publicVoices(period).size());
+        assertEquals(2,((List<?>)voices.publicVoicePage(period,24,null).get("list")).size());
+        assertNotNull(voices.publicVoice(period,ids.get(0)).get("item"));
+        for(String id:ids)assertEquals("selection",db.queryForObject("SELECT JSON_UNQUOTE(JSON_EXTRACT(publication_review,'$.mode')) FROM ql_camp_reflection_log WHERE reflection_id=? AND action='approvePublish'",String.class,id));
+        db.update("UPDATE ql_camp_reflection SET share_consent=0,status='withdrawn',revision=revision+1 WHERE id=?",ids.get(0));
+        assertEquals(1,voices.publicVoices(period).size());assertEquals(404,assertThrows(CustomException.class,()->voices.publicVoice(period,ids.get(0))).getCode());
+        voices.moderate(ids.get(1),"hide",moderation(2,null),9L);assertTrue(voices.publicVoices(period).isEmpty());
+    }
+
     @Test void campReflectionPermissionsDoNotExpandFinanceOrLeaderGrants() {
         assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM sys_role_menu rm JOIN sys_role r ON r.role_id=rm.role_id WHERE rm.menu_id IN (2410,2411,2412) AND r.role_key IN ('ql_finance','ql_leader')",Integer.class));
         assertEquals(6,db.queryForObject("SELECT COUNT(*) FROM sys_role_menu rm JOIN sys_role r ON r.role_id=rm.role_id WHERE rm.menu_id IN (2410,2411,2412) AND r.role_key IN ('ql_admin','ql_operator')",Integer.class));

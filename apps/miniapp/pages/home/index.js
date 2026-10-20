@@ -30,7 +30,7 @@ Page({
     if (business.enabled()) {
       this.setData({ loading: !this.data.ready, refreshing: !!this.data.ready, loadError: '' })
       try {
-        const [{ state, activities }, readings] = await Promise.all([business.context(), business.homeReadings().catch(() => null)])
+        const [{ state, activities }, readings] = await Promise.all([business.context(undefined, { allowGuest: true }), business.homeReadings().catch(() => null)])
         if (version !== this.requestVersion) return
         const view = domain.homeTask(state, activities)
         const cancellationNotice = registrationHistory.cancellation(state, activities, business.baseUrl ? business.baseUrl() : '')

@@ -17,9 +17,33 @@ import java.util.*;
 public class QlReflectionPublicationReviewService {
     private final JdbcTemplate db;
 
+    /** Selection is the operator's review action; store actual authorization and content bindings,
+     * without inventing safety/identity conclusions or requiring unrelated dossier fields. */
+    private String prepareSelection(Map<String,Object> reflection, Long operator, String displayText) {
+        if(operator==null)throw new CustomException("缺少审核人员身份",403);
+        String customer=Objects.toString(reflection.get("customerId"),"");
+        String consentVersion=Objects.toString(reflection.get("consentVersion"),"").trim();
+        if(!Integer.valueOf(1).equals(reflection.get("consent"))||consentVersion.isEmpty()||reflection.get("consentAt")==null)
+            throw new CustomException("本人公开授权缺失或已撤回，不能发布",409);
+        if(customer.isEmpty()||reflection.get("registrationId")==null||reflection.get("sessionId")==null)
+            throw new CustomException("内容归属无效",409);
+        String note=Objects.toString(displayText,"").trim();
+        if(note.isEmpty()||note.codePointCount(0,note.length())>150)throw new CustomException("展示内容需为1—150字",400);
+        List<Map<String,Object>> current=db.queryForList(
+            "SELECT r.id FROM ql_registration r JOIN ql_customer c ON c.id=r.customer_id JOIN ql_session s ON s.id=r.session_id WHERE r.id=? AND r.customer_id=? AND r.session_id=? AND r.registration_status='confirmed' AND c.deleted_at IS NULL AND s.status NOT IN ('draft','cancelled') FOR UPDATE",
+            reflection.get("registrationId"),customer,reflection.get("sessionId"));
+        if(current.isEmpty())throw new CustomException("参与归属或期次已变化，暂不能发布",409);
+        Map<String,Object> saved=new LinkedHashMap<>();
+        saved.put("version",2);saved.put("mode","selection");saved.put("decision","ready");
+        saved.put("customerId",customer);saved.put("registrationId",reflection.get("registrationId"));saved.put("sessionId",reflection.get("sessionId"));
+        saved.put("reviewedRevision",reflection.get("revision"));saved.put("consentVersion",consentVersion);saved.put("consentAt",reflection.get("consentAt"));
+        saved.put("displayHash",DigestUtil.sha256Hex(displayText));
+        return JSONUtil.toJsonStr(saved);
+    }
+
     public String prepare(Map<String,Object> reflection, QlPublicationReviewBo review, Long operator,
                           Set<String> readableTypes, String displayText) {
-        if(review==null)throw new CustomException("请更新后台并补充发布核对依据",409);
+        if(review==null)return prepareSelection(reflection,operator,displayText);
         if(operator==null)throw new CustomException("缺少审核人员身份",403);
         if(!Integer.valueOf(1).equals(review.getVersion())
             ||!Arrays.asList("ready","deferred").contains(review.getDecision()))

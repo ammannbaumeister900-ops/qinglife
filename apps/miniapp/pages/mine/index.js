@@ -13,7 +13,7 @@ const NOTICES = {
   expired: '登录已过期，请重新登录后查看个人信息。',
   profileNetwork: '网络不太稳定，个人信息暂时没能读取。',
   profileFailed: '个人信息暂时没能读取。',
-  logoutPartial: '已在本机退出登录，但未能确认服务器端同步注销。',
+  logoutPartial: '已退出此设备，暂未确认服务端注销。',
   logoutFailed: '退出没有完成，请重试。'
 }
 
@@ -103,6 +103,8 @@ Page({
       this.setData({ logoutLoading: false })
     }
     if (visit !== this._mineVisit) return
+    // Logout starts at the page footer; bring its result and next action back into view.
+    if (wx.pageScrollTo) wx.pageScrollTo({ scrollTop: 0, duration: 200 })
     // Only report what happened on this device: the local credential is either gone or still here.
     if (failed && hasCredential()) {
       this.setData({ notice: { kind: 'error', text: NOTICES.logoutFailed } })

@@ -45,7 +45,7 @@ Page({
       try { scene = decodeURIComponent(options.scene) } catch (error) { scene = '' }
       if (!/^[a-f0-9]{32}$/i.test(scene)) scene = ''
     }
-    this.setData({ routeActivityId: options.id || '', linkedRegistrationId: options.registrationId || '', invitationCode: options.invite || scene })
+    this.setData({ routeActivityId: options.id || '', invitationCode: options.invite || scene })
     if (options.id && demo.activities.some(item => item.id === options.id)) store.updateState(state => { state.selectedActivityId = options.id; return state })
     // The retired private feeling editor's old links open the read-only review; all writing goes to 轻友心声.
     this.setData({ view: options.view === 'feeling' ? 'experience' : options.view || 'detail' })
@@ -120,7 +120,7 @@ Page({
         this.setData({ activity, state, registration, draft, reflectionAccess, serviceStatus: domain.campServiceStatus(registration), overview, experienceTimeline, loading: false, routeActivityId: activity.id,
           selectedCount: (this.data.view === 'register' ? draft : registration).participants.filter(person => person.selected).length,
           isRegistered: domain.hasActiveRegistration(registration), hasSelfActiveRegistration: reflection.activeSelf(registration), canReapply: registrationHistory.canReapply(registration),
-          cancelledHistory: (overview.registrations || []).filter(row => row.sessionId === activity.id && row.registrationStatus === 'cancelled').map(row => ({ ...row, reference: String(row.registrationId).slice(-8), linked: row.registrationId === this.data.linkedRegistrationId })).sort((a,b) => Number(b.linked) - Number(a.linked)), availability: domain.activityState(activity), todayDay,
+          availability: domain.activityState(activity), todayDay,
           dayViews: activity.days.map(day => ({ ...day, date: String(day.activityDate).slice(0,10), today: day.id === (todayDay && todayDay.id), checked: (overview.attendance || []).some(row => self && row.registrationId === self.registrationId && row.sessionDayId === day.id && ['checked_in','late'].includes(row.attendanceStatus)) })),
           canReview, canWriteReview: !!self, reviewVoices: this.data.view === 'experience' && canReview ? reflection.reviewVoices(reflectionContext) : [],
           inviteActivities: context.activities.filter(item => item.id !== activity.id && domain.activityState(item).canRegister),

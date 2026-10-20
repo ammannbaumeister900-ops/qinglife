@@ -10,7 +10,7 @@ const labels = [{ id: storyId, name: '轻友故事', status: 1 }, { id: '8', nam
 function fixture(api = {}) {
   const calls = []
   const sandbox = { isInteger() {}, getLabelList: async () => labels, getConfigKey: async key => {
-    assert.equal(key, 'qinglife.reading.story_label_id'); return { data: storyId }
+    assert.equal(key, 'qinglife.reading.story_label_id'); return { code: 200, msg: storyId, data: null }
   }, ...api }
   vm.runInNewContext(script, sandbox)
   const component = sandbox.component, context = { ...component.data(), ...component.methods,
@@ -62,9 +62,14 @@ async function main() {
   c.form.labels = [7]; c.storyLabelId = '7'
   assert.equal(c.recommendationHint, '推荐到了解轻生活的轻友故事', 'numeric label IDs are compatible')
 
+  const legacy = fixture({ getConfigKey: async () => ({ data: storyId }) }).context
+  await legacy.loadRecommendationLabels()
+  assert.equal(legacy.recommendationReady, true, 'also supports a data payload without mistaking a generic success message for an ID')
+
   for (const api of [
     { getConfigKey: async () => { throw Error('offline') } },
     { getConfigKey: async () => ({ data: '' }) },
+    { getConfigKey: async () => ({ code: 200, msg: '操作成功' }) },
     { getConfigKey: async () => ({ data: 'not-an-id' }) },
     { getConfigKey: async () => ({ data: '999' }) },
     { getLabelList: async () => labels.map(item => ({ ...item, status: 0 })) }

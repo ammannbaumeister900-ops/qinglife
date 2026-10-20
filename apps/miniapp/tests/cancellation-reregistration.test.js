@@ -25,12 +25,15 @@ test('cancel refresh resets old request and price; reapply submits a new pending
  await p.refresh();assert.equal(p.data.requestId,'');assert.equal(p.data.quote.ready,false);assert.equal(p.data.isRegistered,false)
  assert(f.nodes().some(n=>n.attrs?.bindtap==='startRegistration'&&content(n).includes('重新报名')))
  p.openJourney();assert(!f.nodes().some(n=>has(n,'service-reflection')));assert(!f.nodes().some(n=>content(n).includes('无法填写心声')))
+ assert(!f.nodes().some(n=>content(n).includes('已取消记录')))
  await p.startRegistration();assert.equal(p.data.view,'register')
  f.business.registrationQuote=async()=>({participants:[{index:0,friendType:'new',unitPrice:3800}],quotedAmount:3800})
  f.business.register=async payload=>{f.writes.push(payload);reg.status='pending';reg.participants=[{...reg.participants[0],registrationId:'fresh',status:'pending',activeRegistration:true}]}
  await p.nextStep();await p.submitRegistration()
  assert.equal(f.writes.length,1);assert.notEqual(f.writes[0].clientRequestId,'old-request');assert(!('registrationId' in f.writes[0].participants[0]))
  assert.equal(p.data.registration.participants[0].registrationId,'fresh');assert.equal(f.context.overview.registrations[0].registrationStatus,'cancelled')
+ assert(!f.nodes().some(n=>content(n).includes('已取消记录')))
+ assert.equal(p.data.serviceStatus.registration,'待确认')
 })
 test('closed full and whole-session cancellation keep reapplication closed',async()=>{
  for(const status of ['已取消','已满','报名已截止']) {

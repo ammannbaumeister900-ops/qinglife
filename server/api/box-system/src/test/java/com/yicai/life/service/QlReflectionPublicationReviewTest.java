@@ -79,10 +79,38 @@ class QlReflectionPublicationReviewTest {
         }
         noWrites();
     }
-    @Test void missingOldClientReviewAndMissingAuthenticatedOperatorFailClosed(){
-        assertEquals(409,assertThrows(CustomException.class,()->reviews.prepare(reflection(),null,42L,readable,"display")).getCode());
+    @Test void selectionNeedsNoManualConclusionsButStillBindsConsentParticipationAndContent(){
+        validReferences();
+        cn.hutool.json.JSONObject audit=JSONUtil.parseObj(reviews.prepare(reflection(),null,42L,Collections.emptySet(),"Approved display"));
+        assertEquals(2,audit.getInt("version"));assertEquals("selection",audit.getStr("mode"));
+        assertEquals("ready",audit.getStr("decision"));assertEquals(REG,audit.getStr("registrationId"));
+        assertEquals("v1",audit.getStr("consentVersion"));assertEquals(3,audit.getInt("reviewedRevision"));
+        assertEquals(cn.hutool.crypto.digest.DigestUtil.sha256Hex("Approved display"),audit.getStr("displayHash"));
+        for(String field:Arrays.asList("contentSafetyConclusion","identityConclusion","authorizationConclusion","references","basisSummary"))assertFalse(audit.containsKey(field));
+        noWrites();
+    }
+    @Test void selectionRejectsMissingConsentOrInvalidContentWithoutInventingReviewFields(){
+        validReferences();
+        for(String field:Arrays.asList("consent","consentVersion","consentAt","registrationId","sessionId","customerId")) {
+            Map<String,Object> r=reflection();r.remove(field);
+            assertEquals(409,assertThrows(CustomException.class,()->reviews.prepare(r,null,42L,Collections.emptySet(),"display")).getCode());
+        }
+        for(String text:Arrays.asList("",String.join("",Collections.nCopies(151,"a"))))assertEquals(400,assertThrows(CustomException.class,()->reviews.prepare(reflection(),null,42L,Collections.emptySet(),text)).getCode());
+        noWrites();
+    }
+    @Test void selectionRejectsUnqualifiedParticipationAndMissingAuthenticatedOperator(){
+        assertEquals(409,assertThrows(CustomException.class,()->reviews.prepare(reflection(),null,42L,Collections.emptySet(),"display")).getCode());
+        clearInvocations(db);
+        assertEquals(403,assertThrows(CustomException.class,()->reviews.prepare(reflection(),null,null,Collections.emptySet(),"display")).getCode());
         assertEquals(403,assertThrows(CustomException.class,()->reviews.prepare(reflection(),ready(),null,readable,"display")).getCode());
         verifyNoInteractions(db);
+    }
+    @Test void selectionPublishesThroughTheOriginalModerationAndAuditWithNoDossierPermission(){
+        validReferences();Map<String,Object> r=reflection();r.put("status","submitted");moderateRow(r);
+        QlReflectionModerationBo b=body(null);b.setDisplayNote("Approved display");
+        service().moderate("voice","approvePublish",b,42L,Collections.emptySet());
+        verify(db).update(startsWith("UPDATE ql_camp_reflection SET status="),eq("published"),eq("Approved display"),eq("Approved display"),eq(100),any(Date.class),eq("voice"));
+        verify(db).update(startsWith("INSERT INTO ql_camp_reflection_log"),anyString(),eq("voice"),eq("approvePublish"),eq(4),eq(42L),any(Date.class),contains("\"mode\":\"selection\""));
     }
     @Test void clientCannotReferenceAnotherOwnerMissingOrRevokedBusinessRecord(){
         // The actual SQL binds the reflected owner; the mock supplies no eligible row.

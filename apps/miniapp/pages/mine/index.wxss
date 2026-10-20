@@ -6,7 +6,7 @@
 
 /* 身份区：一个状态、一行说明、至多一个主要动作；所有登录与读取结果都在这里就地说明。 */
 .identity { padding: 16rpx 0 48rpx; }
-.identity-row { display: flex; align-items: center; gap: 28rpx; }
+.identity-row { display: flex; align-items: flex-start; gap: 28rpx; }
 .profile-avatar { display: flex; flex: none; align-items: center; justify-content: center; width: 104rpx; height: 104rpx; border-radius: 16rpx; background: var(--q-field); color: var(--q-ink-2); font-size: 40rpx; font-weight: 500; }
 .profile-avatar.is-member { color: var(--q-moss); }
 .identity-main { flex: 1; min-width: 0; }
@@ -14,6 +14,7 @@
 .identity-meta { margin-top: 6rpx; color: var(--q-ink-2); font-size: 28rpx; line-height: 1.6; overflow-wrap: anywhere; }
 .identity-notice { margin-top: 28rpx; padding: 20rpx 24rpx; border-left: 6rpx solid var(--q-moss); background: var(--q-field); color: var(--q-ink); font-size: 30rpx; line-height: 1.7; overflow-wrap: anywhere; }
 .identity-notice + .identity-notice { margin-top: 12rpx; }
+.identity-next { margin-top: 8rpx; color: var(--q-ink-2); font-size: 28rpx; }
 .notice-warning, .notice-error { border-left-color: var(--q-amber); background: var(--q-sand); }
 .identity-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 16rpx 40rpx; margin-top: 28rpx; }
 .mine-page .identity-action { display: flex; align-items: center; justify-content: center; box-sizing: border-box; width: auto; min-height: 96rpx; padding: 0 44rpx; border-radius: 12rpx; font-size: 32rpx; font-weight: 500; line-height: 1.4; text-align: center; }
@@ -54,7 +55,7 @@
 .contact-main { flex: 1; min-width: 0; }
 .contact-title { color: var(--q-ink); font-size: 30rpx; line-height: 1.6; overflow-wrap: anywhere; }
 .contact-wechat { color: var(--q-ink); font-size: 30rpx; line-height: 1.6; overflow-wrap: anywhere; }
-.mine-page button.contact-copy { display: flex; flex: none; align-items: center; justify-content: center; width: auto; min-height: 88rpx; padding: 0 28rpx; border: 1px solid var(--q-line); border-radius: 12rpx; font-size: 28rpx; }
+.mine-page button.contact-copy { display: flex; flex: none; align-items: center; justify-content: center; width: auto; min-height: 88rpx; padding: 0 28rpx; border: 1px solid var(--q-line); border-radius: 12rpx; font-size: 30rpx; }
 .contact-hint { margin-top: 12rpx; color: var(--q-ink-2); font-size: 28rpx; line-height: 1.6; }
 .mine-page .staff-entry { border-top: 1px solid var(--q-line); }
 
@@ -72,8 +73,10 @@
   .profile-avatar { width: 48px; height: 48px; font-size: 18px; }
   .asset-name, .pass-label, .mine-page .identity-action { font-size: 16px; }
   .identity-notice, .service-name, .mine-page .service-entry, .contact-title, .contact-wechat, .pass-record,
-  .mine-page .logout-entry, .mine-page .identity-dismiss { font-size: 15px; }
+  .mine-page .logout-entry, .mine-page .identity-dismiss, .mine-page button.contact-copy { font-size: 15px; }
   .identity-meta, .section-label, .asset-description, .pass-caption, .pass-unit, .pass-record-label, .pass-record-date,
-  .contact-label, .contact-hint, .mine-page .refresh-note, .mine-page button.contact-copy { font-size: 14px; }
+  .contact-label, .contact-hint, .mine-page .refresh-note, .identity-next { font-size: 14px; }
+  .mine-page .service-entry, .mine-page .identity-action, .mine-page .identity-dismiss,
+  .mine-page button.contact-copy, .mine-page .logout-entry { min-height: 44px; }
 }
 @media (prefers-reduced-motion: reduce) { .mine-page button { transition: none; } }

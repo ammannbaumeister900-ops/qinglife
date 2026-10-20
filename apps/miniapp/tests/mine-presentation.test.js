@@ -42,17 +42,17 @@ function fixture(options={}){
   let page
   const guest=options.state?.loggedIn===false
   const state={...plain(require('../utils/store').defaultState()),backend:true,loggedIn:true,phoneLinked:true,profile:{nickname:'小禾'},passAccounts:[],passLedger:[],currentPassBalance:0,...options.state}
-  const context={state},links=[],copies=[],toasts=[],tabs=[],staffCalls=[],modals=[],identity={scope:{token:guest?'':'synthetic'},watchers:[]}
+  const context={state},links=[],copies=[],toasts=[],tabs=[],staffCalls=[],modals=[],scrolls=[],identity={scope:{token:guest?'':'synthetic'},watchers:[]}
   let contextCalls=0
   const signIn=()=>{identity.scope={token:'synthetic'}},signOut=()=>{identity.scope={token:''}}
   const business={enabled:()=>options.backend!==false,identityScope:()=>identity.scope,watchIdentity:fn=>{identity.watchers.push(fn);return()=>{}},
     context:async()=>{contextCalls++;return context},contact:async()=>({name:'桃子',wechat:'qinglife2014'}),login:async()=>signIn(),logout:async()=>signOut()}
   const staff={request:async p=>{staffCalls.push(p);if(!options.staff)throw Error('forbidden');return {}}}
   const mocks={'../../services/business-api':business,'../../services/staff-api':staff,'../../utils/store':{getState:()=>plain(state)},'../../utils/navigation':{navigateTo:x=>links.push(x.url),switchTab:x=>links.push(x.url)}}
-  vm.runInNewContext(fs.readFileSync(path.join(root,'pages/mine/index.js'),'utf8'),{Page:p=>page=p,wx:{navigateTo:x=>links.push(x.url),showToast:x=>toasts.push(x.title),showModal:x=>modals.push(x),setClipboardData:x=>{copies.push(x.data);x.success()}},require:id=>mocks[id]||require(path.resolve(root,'pages/mine',id))})
+  vm.runInNewContext(fs.readFileSync(path.join(root,'pages/mine/index.js'),'utf8'),{Page:p=>page=p,wx:{navigateTo:x=>links.push(x.url),pageScrollTo:x=>scrolls.push(x),showToast:x=>toasts.push(x.title),showModal:x=>modals.push(x),setClipboardData:x=>{copies.push(x.data);x.success()}},require:id=>mocks[id]||require(path.resolve(root,'pages/mine',id))})
   page.data=plain(page.data);page.setData=p=>Object.assign(page.data,p);page.getTabBar=()=>({setData:p=>tabs.push(p)})
   const nodes=()=>flatten(render(parse().children,page.data))
-  return {page,context,business,staff,links,copies,toasts,tabs,staffCalls,modals,nodes,signIn,signOut,identity,contextCalls:()=>contextCalls}
+  return {page,context,business,staff,links,copies,toasts,tabs,staffCalls,modals,scrolls,nodes,signIn,signOut,identity,contextCalls:()=>contextCalls}
 }
 const event=view=>({currentTarget:{dataset:{view}}})
 const names=(nodes,row,label)=>nodes.filter(n=>has(n,row)).map(n=>text(flatten([n]).find(c=>has(c,label))))
@@ -86,7 +86,7 @@ test('guest is an ordinary state: one login control, full directory, no private 
 test('a private entry explains login in place and continues to the original destination afterwards',async()=>{
   const f=fixture({state:{loggedIn:false}});await f.page.onShow()
   f.page.openFlow(event('records'));assert.deepEqual(f.links,[])
-  assert(pageText(f).includes('使用「私人记录」需要先登录'))
+  assert(pageText(f).includes('登录后打开「私人记录」'))
   assert.equal(text(f.nodes().find(n=>n.attrs?.bindtap==='login')),'微信登录并继续')
   f.page.dismissPending();assert(!f.nodes().some(n=>has(n,'identity-notice')));assert.equal(tapCount(f,'dismissPending'),0)
   f.page.openFlow(event('records'));f.context.state.loggedIn=true;await f.page.login()
@@ -218,7 +218,7 @@ test('logout blocks duplicate taps; a failed revocation reports only the local r
   await f.page.logout();assert.equal(calls,1);assert.equal(f.modals.length,1)
   fail(Error('request:fail timeout'));await pending
   assert.equal(f.page.data.logoutLoading,false);assert.equal(f.page.data.state.loggedIn,false);assert.equal(f.page.data.signedIn,false)
-  assert(pageText(f).includes('已在本机退出登录，但未能确认服务器端同步注销'));assert(!f.toasts.includes('已退出登录'));assert(!pageText(f).includes('timeout'))
+  assert(pageText(f).includes('已退出此设备，暂未确认服务端注销'));assert(!f.toasts.includes('已退出登录'));assert(!pageText(f).includes('timeout'))
   assert(directoryVisible(f));assert.equal(tapCount(f,'login'),1)
   const kept=fixture();await kept.page.onShow();kept.business.logout=async()=>{throw Error('offline')}
   const retry=kept.page.logout();kept.modals.at(-1).success({confirm:true});await retry
@@ -246,3 +246,23 @@ test('identity change clears mine immediately and a confirmation from a hidden p
 })
 
 module.exports={parse,render,flatten,fixture,has,text}
+
+test('login cancellation shares one notice with its pending destination and preserves both actions',async()=>{
+  const f=fixture({state:{loggedIn:false}});await f.page.onShow();f.page.openFlow(event('records'))
+  f.business.login=async()=>{throw rejected({errMsg:'login:fail cancel'})};await f.page.login()
+  assert.equal(f.nodes().filter(n=>has(n,'identity-notice')).length,1)
+  assert(pageText(f).includes('已取消登录'));assert(pageText(f).includes('登录后打开「私人记录」'))
+  assert.equal(tapCount(f,'login'),1);assert.equal(tapCount(f,'dismissPending'),1);assert.equal(f.page.data.pendingEntry.key,'records')
+})
+
+test('footer logout brings success and both failure outcomes back to the identity area',async()=>{
+  for(const outcome of ['success','local-only','failed']){
+    const f=fixture();await f.page.onShow()
+    f.business.logout=async()=>{if(outcome!=='failed')f.signOut();if(outcome!=='success')throw Error('offline')}
+    const pending=f.page.logout();f.modals.at(-1).success({confirm:true});await pending
+    assert.equal(f.scrolls.length,1);assert.equal(f.scrolls[0].scrollTop,0)
+    assert.equal(f.page.data.signedIn,outcome==='failed')
+    if(outcome==='local-only')assert(pageText(f).includes('暂未确认服务端注销'))
+    if(outcome==='failed')assert(pageText(f).includes('退出没有完成'))
+  }
+})

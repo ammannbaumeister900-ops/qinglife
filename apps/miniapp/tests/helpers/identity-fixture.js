@@ -49,7 +49,7 @@ function fixture(options = {}) {
   function page(name = 'friend-flow', view = 'daily', extra = {}) {
     load(path.join(root, 'pages', name, 'index.js'), true)
     const p = capture; p.data = plain(p.data); p.setData = patch => Object.assign(p.data, patch)
-    p.onLoad({ view, ...extra }); return p
+    if (p.onLoad) p.onLoad({ view, ...extra }); return p
   }
   return { api, store, wx, page, records, requests, storage, key, nav, toasts, modals, habit, response,
     intercept: fn => { intercept = fn }, loginCalls: () => loginCalls,

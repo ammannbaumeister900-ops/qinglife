@@ -95,7 +95,9 @@ public class QlCampReflectionService {
   +" AND l.operator_id IS NOT NULL AND JSON_UNQUOTE(JSON_EXTRACT(l.publication_review,'$.decision'))='ready'"
   +" AND JSON_UNQUOTE(JSON_EXTRACT(l.publication_review,'$.displayHash'))=SHA2(COALESCE(f.display_note,f.shared_note),256)"
   +" AND JSON_UNQUOTE(JSON_EXTRACT(l.publication_review,'$.consentVersion'))=f.consent_version"
-  +" AND (JSON_UNQUOTE(JSON_EXTRACT(l.publication_review,'$.authorizationConclusion'))='not_applicable' OR (JSON_UNQUOTE(JSON_EXTRACT(l.publication_review,'$.authorizationConclusion'))='satisfied'"
+  +" AND ((JSON_UNQUOTE(JSON_EXTRACT(l.publication_review,'$.version'))='2' AND JSON_UNQUOTE(JSON_EXTRACT(l.publication_review,'$.mode'))='selection'"
+  +" AND JSON_UNQUOTE(JSON_EXTRACT(l.publication_review,'$.customerId'))=f.customer_id AND JSON_UNQUOTE(JSON_EXTRACT(l.publication_review,'$.registrationId'))=f.registration_id AND JSON_UNQUOTE(JSON_EXTRACT(l.publication_review,'$.sessionId'))=f.session_id)"
+  +" OR JSON_UNQUOTE(JSON_EXTRACT(l.publication_review,'$.authorizationConclusion'))='not_applicable' OR (JSON_UNQUOTE(JSON_EXTRACT(l.publication_review,'$.authorizationConclusion'))='satisfied'"
   +" AND (SELECT COUNT(*) FROM JSON_TABLE(l.publication_review,'$.references[*]' COLUMNS (kind VARCHAR(32) PATH '$.type',refId VARCHAR(36) PATH '$.id')) refs WHERE refs.kind='consent')>0"
   +" AND 0=(SELECT COUNT(*) FROM JSON_TABLE(l.publication_review,'$.references[*]' COLUMNS (kind VARCHAR(32) PATH '$.type',refId VARCHAR(36) PATH '$.id')) refs LEFT JOIN ql_consent_record cr ON cr.id=refs.refId AND cr.customer_id=f.customer_id LEFT JOIN ql_attachment a ON a.id=cr.evidence_attachment_id AND a.customer_id=cr.customer_id WHERE refs.kind='consent' AND (cr.id IS NULL OR cr.consent_type<>'brand_reuse' OR cr.status<>'granted' OR cr.withdrawn_at IS NOT NULL OR cr.granted_at IS NULL OR cr.recorded_by IS NULL OR a.id IS NULL OR a.scan_status<>'clean' OR a.visibility_scope<>'internal' OR (a.retention_until IS NOT NULL AND a.retention_until<CURRENT_DATE())))))";
 
@@ -189,7 +191,6 @@ public class QlCampReflectionService {
   if(rows.isEmpty()||((Number)rows.get(0).get("consent")).intValue()!=1)throw new CustomException("心声不存在或分享已撤回",404);
   Map<String,Object> row=rows.get(0);int revision=((Number)row.get("revision")).intValue();
   if(!Integer.valueOf(revision).equals(bo.getRevision()))throw new CustomException("心声已变化，请刷新后审核",409);
-  if(("approvePublish".equals(action)||"publish".equals(action))&&bo.getPublicationReview()==null)communityAccess.requirePublicationReview();
   String state=String.valueOf(row.get("status")),next,excerpt=Objects.toString(row.get("excerpt"),""),displayNote=(String)row.get("displayNote");
   switch(action) {
    case "approvePublish":
@@ -210,6 +211,7 @@ public class QlCampReflectionService {
   if(order<0||order>999)throw new CustomException("顺序必须为0至999",400);
   String reviewJson=null;
   if(Arrays.asList("publish","approvePublish","defer").contains(action)) {
+   if("defer".equals(action)&&bo.getPublicationReview()==null)throw new CustomException("暂缓操作缺少结论",400);
    String decision=bo.getPublicationReview()==null?null:bo.getPublicationReview().getDecision();
    if(bo.getPublicationReview()!=null&&!("defer".equals(action)?"deferred":"ready").equals(decision))throw new CustomException("核对结论与操作不符，依据不足请暂缓",409);
    reviewJson=publicationReviews.prepare(row,bo.getPublicationReview(),operator,readableTypes,displayNote==null?String.valueOf(row.get("note")):displayNote);

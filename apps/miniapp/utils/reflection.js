@@ -1,5 +1,5 @@
 // One source for the review states the writer sees in the editor and in the read-only review.
-const STATUS_TEXT = { submitted: '待审核', published: '正在本期展示', approved: '内容已审核，待发布核对', hidden: '已下架', rejected: '本次未选用', withdrawn: '已收回' }
+const STATUS_TEXT = { submitted: '待审核', published: '正在本期展示', approved: '已审核，待选用发布', hidden: '已下架', rejected: '本次未选用', withdrawn: '已收回' }
 function statusText(status) { return STATUS_TEXT[status] || '已保存 · 仅自己可见' }
 function count(text) { return Array.from(String(text || '')).length }
 function phase(context) { return context.canAfter === true ? 'after' : context.canBefore === true ? 'before' : '' }
