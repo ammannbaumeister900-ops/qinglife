@@ -16,10 +16,10 @@
           <image-upload v-else v-model="form.coverUrl" :limit="1" />
           <div class="hint">首页、列表和详情统一使用 2:1 横向封面；上传建议 1200 × 600 像素。</div>
         </el-form-item>
-        <el-form-item label="开始日期" prop="startDate"><el-date-picker v-model="form.startDate" type="date" value-format="yyyy-MM-dd" :picker-options="startOptions" placeholder="选择活动第一天" /></el-form-item>
-        <el-form-item label="结束日期" prop="endDate"><el-date-picker v-model="form.endDate" type="date" value-format="yyyy-MM-dd" :picker-options="endOptions" placeholder="选择活动最后一天" /><div class="hint">开始日 00:00 起，结束日全天有效（至当天 24:00）。</div></el-form-item>
-        <el-form-item label="报名开放日期"><el-date-picker v-model="openDate" type="date" value-format="yyyy-MM-dd" :picker-options="openOptions" placeholder="不填则不限制开放日期" @change="openManual = true" /></el-form-item>
-        <el-form-item label="报名截止日期"><el-date-picker v-model="closeDate" type="date" value-format="yyyy-MM-dd" :picker-options="closeOptions" placeholder="不填则至活动结束日" @change="closeManual = true" /><div class="hint">开放日从 00:00 开始，截止日全天可报名；仍受活动状态和名额限制。</div></el-form-item>
+        <el-form-item label="开始日期" prop="startDate"><el-input v-model="form.startDate" type="date" :max="form.endDate || undefined" aria-label="开始日期" /></el-form-item>
+        <el-form-item label="结束日期" prop="endDate"><el-input v-model="form.endDate" type="date" :min="form.startDate || undefined" aria-label="结束日期" /><div class="hint">开始日 00:00 起，结束日全天有效（至当天 24:00）。</div></el-form-item>
+        <el-form-item label="报名开放日期"><el-input v-model="openDate" type="date" :max="closeDate || undefined" aria-label="报名开放日期" @change="openManual = true" /><div class="hint">不填则不限制开放日期。</div></el-form-item>
+        <el-form-item label="报名截止日期"><el-input v-model="closeDate" type="date" :min="openDate || undefined" aria-label="报名截止日期" @change="closeManual = true" /><div class="hint">不填则至活动结束日。开放日从 00:00 开始，截止日全天可报名；仍受活动状态和名额限制。</div></el-form-item>
       </div>
       <h3>地点与导游</h3>
       <div class="form-grid">
@@ -49,8 +49,14 @@ import cities from '@/data/citys.json'
 import ImageUpload from '@/components/ImageUpload'
 const isAutoCover = value => !value || /\/session-covers\/v[123]-\d+\.png$/.test(value)
 const regions = cities.map(p => ({ value: p.label, label: p.label, children: (p.children || []).map(c => ({ value: c.label, label: c.label })) }))
-const day = date => { const pad = n => String(n).padStart(2, '0'); return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}` }
-const offsetDay = (value, offset) => { if (!value) return ''; const [year, month, date] = value.split('-').map(Number); return day(new Date(year, month - 1, date + offset)) }
+// Calendar-only values stay strings. UTC is used solely for day arithmetic, never local-time parsing/display.
+const offsetDay = (value, offset) => {
+  if (!value) return ''
+  const [year, month, date] = value.split('-').map(Number)
+  const result = new Date(Date.UTC(year, month - 1, date + offset))
+  const pad = n => String(n).padStart(2, '0')
+  return `${result.getUTCFullYear()}-${pad(result.getUTCMonth() + 1)}-${pad(result.getUTCDate())}`
+}
 const withHistorical = (options, value) => value && !options.some(item => item.dictValue === value) ? options.concat({ dictValue: value, dictLabel: value + '（历史值）' }) : options
 export default {
   name: 'QlSessionEdit',
@@ -67,11 +73,7 @@ export default {
   computed: {
     nameOptions() { return withHistorical(this.nameChoices, this.$route.params.id && this.form.name) },
     venueOptions() { return withHistorical(this.venueChoices, this.$route.params.id && this.form.publicVenue) },
-    guideOptions() { return this.guideChoices.concat(this.guides.filter(id => !this.guideChoices.some(person => person.id === id)).map(id => ({ id, name: '历史导游' }))) },
-    startOptions() { return { disabledDate: d => !!this.form.endDate && day(d) > this.form.endDate } },
-    endOptions() { return { disabledDate: d => !!this.form.startDate && day(d) < this.form.startDate } },
-    openOptions() { return { disabledDate: d => !!this.closeDate && day(d) > this.closeDate } },
-    closeOptions() { return { disabledDate: d => !!this.openDate && day(d) < this.openDate } }
+    guideOptions() { return this.guideChoices.concat(this.guides.filter(id => !this.guideChoices.some(person => person.id === id)).map(id => ({ id, name: '历史导游' }))) }
   },
   watch: {
     'form.sessionNumber'() { this.queueCoverPreview() },

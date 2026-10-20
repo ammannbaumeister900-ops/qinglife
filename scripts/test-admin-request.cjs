@@ -25,9 +25,16 @@ async function main() {
   await service.get('/life/customer/list', { params: { name: '轻友 A' } })
   assert.equal(calls[0].headers.Authorization, 'Bearer synthetic-token')
   assert.equal(calls[0].baseURL, '/test-api')
+  assert.equal(calls[0].headers['Accept-Language'], 'zh-CN')
   assert.match(calls[0].url, /name=%E8%BD%BB%E5%8F%8B%20A/)
   await service.post('/login', {}, { headers: { isToken: false } })
   assert.equal(calls[1].headers.Authorization, undefined)
+  assert.equal(calls[1].headers['Accept-Language'], 'zh-CN', 'login errors must use the same language as the Chinese UI')
+  const messages = []
+  sandbox.Message = options => messages.push(options.message)
+  service.defaults.adapter = async config => ({ data: { code: 500, msg: '验证码已失效' }, status: 200, headers: {}, config })
+  await assert.rejects(service.post('/login', {}, { headers: { isToken: false } }), /验证码已失效/)
+  assert.deepEqual(messages, ['验证码已失效'])
   for (const url of ['https://evil.invalid/a', '//evil.invalid/a', '/\\evil.invalid/a', ' /login', '/\n/evil.invalid/a']) {
     await assert.rejects(service.get(url), /接口地址不合法/)
   }

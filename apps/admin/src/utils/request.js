@@ -21,6 +21,8 @@ service.interceptors.request.use(config => {
       config.baseURL !== process.env.VUE_APP_BASE_API) {
     return Promise.reject(new Error('接口地址不合法'))
   }
+  // The admin interface is Chinese, including requests with their own header options.
+  config.headers['Accept-Language'] = 'zh-CN'
   // 是否需要设置 token
   const isToken = (config.headers || {}).isToken === false
   if (getToken() && !isToken) {

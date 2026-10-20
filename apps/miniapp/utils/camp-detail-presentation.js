@@ -39,7 +39,7 @@ function guideImage(leader) {
 
 function present(activity = {}, registration = {}, failedImages = {}) {
   const dates = datePresentation(activity), days = schedulePresentation(activity.days)
-  const preview = days.filter(day => day.hasContent).slice(0, 3)
+  const scheduleDays = days.filter(day => day.hasContent)
   const cover = text(activity.cover), guide = guideImage(activity.leader), rules = activity.rules || {}
   const terms = [...new Set([rules.body, ...(activity.talkFirst || [])].map(text).filter(Boolean))]
   const city = text(activity.city), place = text(activity.place), service = domain.campServiceStatus(registration)
@@ -53,9 +53,7 @@ function present(activity = {}, registration = {}, failedImages = {}) {
     hasFee: activity.fee != null && text(activity.fee) !== '',
     hasReturningFee: activity.returningFee != null && text(activity.returningFee) !== '',
     hasCapacity: activity.capacity != null && text(activity.capacity) !== '',
-    previewDays: preview, fullDays: days, hasScheduleContent: preview.length > 0, canExpand: days.length > preview.length,
-    scheduleLabel: (preview.length ? '查看完整安排' : '查看已列日期') + '（' + days.length + '条）',
-    scheduleHeight: Math.min(312, days.reduce((sum, day) => sum + (day.hasContent ? 84 : 46), 0)),
+    scheduleDays, hasScheduleContent: scheduleDays.length > 0,
     changeRule: text(rules.change), privacyRule: text(rules.privacy),
     registrationLabel: service.registration,
     registrationNote: service.registrationNote,

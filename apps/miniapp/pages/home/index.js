@@ -36,7 +36,7 @@ Page({
         const cancellationNotice = registrationHistory.cancellation(state, activities, business.baseUrl ? business.baseUrl() : '')
         this.setData({ showHomeTask: showHomeTask(state, view), cancellationNotice, state, stories: readings && readings.stories || [], featuredReadings: readings && readings.featured || [],
           storyIndex: 0, readingError: readings ? '' : '轻读暂时未能读取，请稍后重试。', ready: true,
-          returning: discovery.returning(state), ...presentation.camps(activities, this.data.selectedCampId, content.gatheringTimes),
+          returning: discovery.returning(state), ...presentation.camps(activities, this.data.selectedCampId),
           view, taskContext: taskContext(view, activities), failedImages: {} })
         this.setData({ loading: false, refreshing: false })
         await this.loadVoices(this.data.selectedCampId)
@@ -51,7 +51,7 @@ Page({
     const state = store.getState()
     const view = domain.homeTask(state, demo.activities)
     this.setData({ loading: false, refreshing: false, loadError: '', showHomeTask: showHomeTask(state, view), state, stories: [], storyIndex: 0, readingError: '', featuredReadings: readingSamples.slice(0, 4), ready: true,
-      returning: discovery.returning(state), ...presentation.camps(demo.activities, this.data.selectedCampId, content.gatheringTimes),
+      returning: discovery.returning(state), ...presentation.camps(demo.activities, this.data.selectedCampId),
       view, taskContext: taskContext(view, demo.activities), failedImages: {} })
   },
   onReady() { this.measurePreferences() },
@@ -193,7 +193,8 @@ Page({
   openReading() { navigation.openReadingList(false) },
   openStories() { navigation.openReadingList(true) },
   openArticle(event) { const { id, title } = event.currentTarget.dataset; navigation.navigateTo({ url: '/pages/article/index?id=' + encodeURIComponent(id) + '&title=' + encodeURIComponent(title || '') }) },
-  openCamp() { navigation.switchTab({ url: '/pages/camp/index' }) },
+  openCamp() { navigation.navigateTo({ url: '/pages/camp/index' }) },
+  openCampList() { navigation.navigateTo({ url: '/pages/camp/index' }) },
   openPrimary() {
     const view = this.data.view
     if (view.activityId) store.updateState(state => { state.selectedActivityId = view.activityId; return state })
@@ -202,6 +203,6 @@ Page({
     if (view.route === 'daily') return navigation.navigateTo({ url: '/pages/friend-flow/index?view=daily' })
     navigation.navigateTo({ url: '/pages/camp-flow/index?view=' + view.route + (view.activityId ? '&id=' + encodeURIComponent(view.activityId) : '') })
   },
-  about() { navigation.navigateTo({ url: '/pages/about/index' }) },
+  about() { navigation.switchTab({ url: '/pages/about/index' }) },
   onShareAppMessage() { return { title: '轻生活', path: '/pages/home/index' } }
 })

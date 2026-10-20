@@ -1,154 +1,34 @@
 'use strict'
 const { test } = require('node:test')
-const assert = require('node:assert/strict')
-const fs = require('node:fs')
-const path = require('node:path')
-const vm = require('node:vm')
-
+const assert = require('node:assert/strict'), fs = require('node:fs'), path = require('node:path'), vm = require('node:vm')
+const ID = '00000000-0000-0000-0000-000000000001', REF = '00000000-0000-0000-0000-000000000002'
 function fixture() {
-  const calls = []
-  let publicationError = null
-  let history = async () => ({ data: { revision: 3, customerId: 'A', rows: [], availableReferences: [{ type: 'registration', id: '00000000-0000-0000-0000-000000000001' }] } })
-  const warnings = []
-  const request = (kind) => async (...args) => {
-    calls.push({ kind, args })
-    if (kind === 'display' && publicationError) throw publicationError
-  }
-  const script = fs.readFileSync(path.join(__dirname, '../apps/admin/src/views/life/campReflection/index.vue'), 'utf8').match(/<script>([\s\S]*?)<\/script>/)[1]
-  const sandbox = {
-    CustomerDossier: {},
-    reviewReflection: request('review'), displayReflection: request('display'), deferReflection: request('defer'),
-    reflectionReviewHistory: async (id) => { calls.push({ kind: 'history', id }); return history(id) },
-    approveAndPublishReflection() { throw new Error('Content review must not publish') },
-    checkPermi() { throw new Error('Publish permission must not silently change the action') },
-    listReflections: async () => { calls.push({ kind: 'read' }); return { data: { rows: [], total: 0 } } }
-  }
-  vm.runInNewContext(script.replace(/^import .*$/gm, '').replace('export default', 'component ='), sandbox)
-  const p = Object.assign(sandbox.component.data.call({ $route: { query: {} } }), sandbox.component.methods)
-  p.current = { id: 'f', revision: 3, note: 'User original' }
-  p.displayNote = 'Approved display text'
-  p.$message = { warning(message) { warnings.push(message) } }
-  return { p, calls, warnings, setHistory: fn => { history = fn }, denyPublication: () => { publicationError = new Error('Necessary authorization evidence missing') } }
+  const calls = [], warnings = [], successes = [], permissions = new Set(['life:reflection:review','life:reflection:publish'])
+  let error = null, history = async row => ({data:{revision:3,customerId:row,rows:[],availableReferences:[{type:'registration',id:REF}]}})
+  const request = kind => async (...args) => { calls.push({kind,args}); if (kind === 'batch' && error) throw error }
+  const script = fs.readFileSync(path.join(__dirname,'../apps/admin/src/views/life/campReflection/index.vue'),'utf8').match(/<script>([\s\S]*?)<\/script>/)[1]
+  const sandbox = {CustomerDossier:{}, reviewReflection:request('review'),displayReflection:request('display'),deferReflection:request('defer'),publishReflections:request('batch'), reflectionReviewHistory:async id=>{calls.push({kind:'history',id});return history(id)},checkPermi:names=>names.some(name=>permissions.has(name)),listReflections:async()=>{calls.push({kind:'read'});return{data:{rows:[],total:0}}}}
+  vm.runInNewContext(script.replace(/^import .*$/gm,'').replace('export default','component ='),sandbox)
+  const p=Object.assign(sandbox.component.data.call({$route:{query:{}}}),sandbox.component.methods)
+  p.$set=(target,key,value)=>{target[key]=value};p.$refs={table:{clearSelection(){},toggleRowExpansion(){}}};p.$message={warning:x=>warnings.push(x),success:x=>successes.push(x)}
+  p.current={id:ID,revision:3,note:'User original',displayNote:'Approved display',status:'submitted',consentVersion:'v1',consentAt:'2026-10-20 10:00:00'};p.displayNote='Approved display';p.rows=[p.current]
+  return {p,calls,warnings,successes,permissions,setHistory:fn=>{history=fn},deny:()=>{error=Error('Evidence changed; entire selection unpublished')}}
 }
-test('content review always approves for later checks, even when the operator can publish', async () => {
-  const { p, calls } = fixture()
-  await p.submitReview()
-  assert.equal(calls[0].kind, 'review')
-  assert.equal(calls[0].args[1], 'approve')
-  assert.equal(calls[0].args[2].revision, 3)
-  assert.equal(calls[0].args[2].displayNote, 'Approved display text')
-  assert.equal(p.current.note, 'User original')
-  assert.equal(p.acting, false)
-  assert.equal(calls.filter(c => c.kind === 'display').length, 0)
-})
-test('editing keeps the existing edit operation without publishing', async () => {
-  const { p, calls } = fixture()
-  p.editing = true
-  await p.submitReview()
-  assert.equal(calls[0].args[1], 'edit')
-  assert.equal(calls.filter(c => c.kind === 'display').length, 0)
-})
-test('operational rejection keeps the separate review route and concurrency guard', async () => {
-  const { p, calls } = fixture()
-  p.acting = true
-  await p.act(p.current, 'reject')
-  assert.equal(calls.length, 0)
-  p.acting = false
-  await p.act(p.current, 'reject')
-  assert.equal(calls[0].kind, 'review')
-  assert.equal(calls[0].args[1], 'reject')
-})
-test('final publication prerequisites failing never become a successful review or refresh', async () => {
-  const { p, calls, denyPublication } = fixture()
-  denyPublication()
-  await assert.rejects(p.act(p.current, 'publish'), /authorization evidence/)
-  assert.equal(calls.length, 1)
-  assert.equal(calls[0].kind, 'display')
-  assert.equal(p.acting, false)
-})
+function fill(p,row=p.current){Object.assign(p.drafts[row.id],{contentSafetyConclusion:'Checked actual content and privacy',identityConclusion:'Checked actual participant identity',authorizationConclusion:'not_applicable',basisSummary:'Recorded actual applicable reasons and references',referenceKeys:['registration:'+REF]})}
+async function selected(f){await f.p.selectionChanged([f.p.current]);fill(f.p);return f}
+test('review-only roles keep the original approval action and cannot publish',async()=>{const f=fixture();f.permissions.delete('life:reflection:publish');await f.p.submitReview();assert.equal(f.calls[0].kind,'review');assert.equal(f.calls[0].args[1],'approve');assert.equal(f.p.canPublish(),false);assert.equal(f.calls.filter(c=>c.kind==='batch').length,0)})
+test('edit-only operation keeps the existing review route without publication',async()=>{const f=fixture();f.p.editing=true;await f.p.submitReview();assert.equal(f.calls[0].args[1],'edit');assert.equal(f.calls[0].args[2].revision,3)})
+test('rejection and hiding retain their separate logged operations and busy guard',async()=>{const f=fixture();f.p.acting=true;await f.p.act(f.p.current,'reject');assert.equal(f.calls.length,0);f.p.acting=false;await f.p.act(f.p.current,'reject');assert.equal(f.calls[0].kind,'review');await f.p.act(f.p.current,'hide');assert.equal(f.calls.find(c=>c.kind==='display').args[1],'hide')})
+test('selection reads existing consent and evidence without preauthorizing or publishing',async()=>{const f=fixture();await f.p.selectionChanged([f.p.current]);assert.equal(f.p.drafts[ID].authorizationConclusion,'insufficient');assert.equal(f.p.batchReady(),false);assert.equal(f.calls.filter(c=>c.kind==='batch').length,0);assert.equal(f.p.current.consentVersion,'v1')})
+test('one publication click sends exactly the selected rows and their revisions without an extra confirmation',async()=>{const f=await selected(fixture());assert.equal(f.p.batchReady(),true);await f.p.publishSelection();const requests=f.calls.filter(c=>c.kind==='batch');assert.equal(requests.length,1);const items=requests[0].args[0].items;assert.equal(items.length,1);assert.equal(items[0].id,ID);assert.equal(items[0].revision,3);assert.equal(items[0].publicationReview.decision,'ready');assert.equal(items[0].displayNote,'Approved display');assert.equal(f.successes.length,1);assert.equal(f.calls.filter(c=>c.kind==='display'||c.kind==='review').length,0)})
+test('incomplete conclusions and unavailable cross-subject reference IDs never submit',async()=>{const f=await selected(fixture());for(const patch of [{identityConclusion:'yes'},{contentSafetyConclusion:''},{basisSummary:''},{authorizationConclusion:'insufficient'},{referenceKeys:['registration:another-owner']}]){fill(f.p);Object.assign(f.p.drafts[ID],patch);await f.p.publishSelection()}assert.equal(f.calls.filter(c=>c.kind==='batch').length,0)})
+test('publication denial preserves draft selection and never refreshes or reports success',async()=>{const f=await selected(fixture());f.deny();await assert.rejects(f.p.publishSelection(),/entire selection/);assert.equal(f.p.drafts[ID].identityConclusion,'Checked actual participant identity');assert.equal(f.p.selected.length,1);assert.equal(f.successes.length,0);assert.equal(f.calls.filter(c=>c.kind==='read').length,0);assert.equal(f.p.acting,false);assert(f.p.batchError)})
+test('both role permissions are required, while published or unconsented rows cannot be selected',async()=>{const f=await selected(fixture());for(const permission of ['life:reflection:review','life:reflection:publish']){f.permissions.delete(permission);assert.equal(f.p.batchReady(),false);f.permissions.add(permission)}for(const patch of [{status:'published'},{consentAt:null},{consentVersion:''}]){const row={...f.p.current,...patch};assert.equal(f.p.selectable(row),false)}assert.equal(f.p.selectable({...f.p.current,status:'hidden'}),true)})
+test('stale revisions, empty selections, overlarge selections and duplicate clicks are blocked',async()=>{const f=await selected(fixture());f.p.current.revision=4;assert.equal(f.p.batchReady(),false);f.p.current.revision=3;f.p.selected=[];assert.equal(f.p.batchReady(),false);f.p.selected=Array(51).fill(f.p.current);assert.equal(f.p.batchReady(),false);f.p.selected=[f.p.current];f.p.acting=true;await f.p.publishSelection();assert.equal(f.calls.filter(c=>c.kind==='batch').length,0)})
+test('valid history is reused without another consent checkbox, but binds each original evidence hash',async()=>{const f=fixture();f.setHistory(async()=>({data:{revision:3,customerId:'A',availableReferences:[{type:'registration',id:REF}],reusableReview:{contentSafetyConclusion:'Checked content and privacy facts',identityConclusion:'Checked author against source records',authorizationConclusion:'not_applicable',basisSummary:'Existing reviewed facts and applicability',references:[{type:'registration',id:REF,sourceHash:'a'.repeat(64)}]}}}));await f.p.selectionChanged([f.p.current]);assert.equal(f.p.drafts[ID].reusing,true);assert.equal(f.p.batchReady(),true);assert.equal(f.p.reviewFor(f.p.current).references[0].sourceHash,'a'.repeat(64));f.p.drafts[ID].displayNote='Edited current display';f.p.displayChanged(f.p.current);assert.equal(f.p.drafts[ID].displayNote,'Edited current display');assert.equal(f.p.drafts[ID].authorizationConclusion,'insufficient');assert.equal(f.p.batchReady(),false)})
+test('late context responses cannot overwrite another row or a refreshed page',async()=>{const f=fixture();let resolve;f.setHistory(id=>id===ID?new Promise(r=>{resolve=r}):Promise.resolve({data:{revision:3,customerId:'B',availableReferences:[]}}));const pending=f.p.prepare(f.p.current);await f.p.prepare({...f.p.current,id:'B'});assert.equal(f.p.contexts.B.customerId,'B');await f.p.load();resolve({data:{revision:3,customerId:'A',availableReferences:[]}});await pending;assert.equal(f.p.drafts[ID],undefined);assert.equal(f.p.contexts.B.customerId,'B')})
+test('stale context never becomes a ready draft',async()=>{const f=fixture();f.setHistory(async()=>({data:{revision:4}}));await f.p.prepare(f.p.current);assert.equal(f.p.drafts[ID],undefined);assert(f.p.preparationErrors[ID])})
+test('defer retains the existing audit endpoint without publication',async()=>{const f=await selected(fixture());f.p.current.status='approved';await f.p.defer(f.p.current);const call=f.calls.find(c=>c.kind==='defer');assert.equal(call.args[1].publicationReview.decision,'deferred');assert.equal(f.calls.filter(c=>c.kind==='batch').length,0)})
+test('published history remains a read-only record, with no independent publication dialog',()=>{const source=fs.readFileSync(path.join(__dirname,'../apps/admin/src/views/life/campReflection/index.vue'),'utf8');assert(!source.includes('publicationOpen')&&!source.includes('正式发布前核对'));assert(source.includes('确认选用并发布（'));assert(source.includes('scope.row.consentAt'));assert(source.includes('scope.row.status === \'published\''))})
 
-function fillPublication(p) {
-  p.publication.contentSafetyConclusion = 'Checked the actual display and content safety'
-  p.publication.identityConclusion = 'Confirmed the author against existing business evidence'
-  p.publication.authorizationConclusion = 'not_applicable'
-  p.publication.basisSummary = 'Reviewed the linked material and recorded applicable reasons'
-  p.publication.referenceKeys = ['registration:00000000-0000-0000-0000-000000000001']
-}
-test('opening publication reads evidence but neither preauthorizes nor publishes', async () => {
-  const { p, calls } = fixture()
-  await p.openPublication(p.current)
-  assert.equal(p.publicationOpen, true)
-  assert.equal(p.publication.identityConclusion, '')
-  assert.equal(p.publication.authorizationConclusion, 'insufficient')
-  assert.equal(calls.length, 1)
-  assert.equal(calls[0].kind, 'history')
-})
-test('missing actual conclusions never becomes ready publication', async () => {
-  const { p, calls, warnings } = fixture()
-  await p.openPublication(p.current)
-  p.publication.basisSummary = 'Offline evidence remains missing'
-  await p.submitPublication('ready')
-  assert.equal(warnings.length, 1)
-  assert.equal(calls.filter(c => c.kind === 'display').length, 0)
-})
-test('defer retains an auditable missing-evidence conclusion without publication', async () => {
-  const { p, calls } = fixture()
-  await p.openPublication(p.current)
-  p.publication.basisSummary = 'Necessary offline authorization source remains missing'
-  await p.submitPublication('deferred')
-  const write = calls.find(c => c.kind === 'defer')
-  assert.equal(write.args[1].revision, 3)
-  assert.equal(write.args[1].publicationReview.decision, 'deferred')
-  assert.equal(calls.filter(c => c.kind === 'display').length, 0)
-})
-test('explicit ready publication sends only controlled references and current revision', async () => {
-  const { p, calls } = fixture()
-  await p.openPublication(p.current)
-  fillPublication(p)
-  await p.submitPublication('ready')
-  const write = calls.find(c => c.kind === 'display')
-  assert.equal(write.args[1], 'publish')
-  assert.equal(write.args[2].revision, 3)
-  assert.equal(write.args[2].publicationReview.decision, 'ready')
-  assert.deepEqual(JSON.parse(JSON.stringify(write.args[2].publicationReview.references)), [{ type: 'registration', id: '00000000-0000-0000-0000-000000000001' }])
-  assert.equal('operatorId' in write.args[2], false)
-  assert.equal(p.publicationOpen, false)
-})
-test('publication denial preserves the entered conclusions and never refreshes as success', async () => {
-  const { p, calls, denyPublication } = fixture()
-  await p.openPublication(p.current)
-  fillPublication(p)
-  denyPublication()
-  await assert.rejects(p.submitPublication('ready'), /authorization evidence/)
-  assert.equal(p.publicationOpen, true)
-  assert.equal(p.acting, false)
-  assert.equal(p.publication.identityConclusion, 'Confirmed the author against existing business evidence')
-  assert.equal(calls.filter(c => c.kind === 'read').length, 0)
-})
-test('unavailable or cross-subject reference keys are not silently sent', async () => {
-  const { p, calls } = fixture()
-  await p.openPublication(p.current)
-  fillPublication(p)
-  p.publication.referenceKeys = ['registration:another-owner']
-  await p.submitPublication('ready')
-  assert.equal(calls.filter(c => c.kind === 'display').length, 0)
-})
-test('late A review context cannot overwrite the newly selected B context', async () => {
-  const { p, setHistory } = fixture()
-  let resolveA
-  setHistory(id => id === 'A' ? new Promise(resolve => { resolveA = resolve }) : Promise.resolve({ data: { revision: 3, customerId: 'B', rows: [], availableReferences: [] } }))
-  const a = p.openPublication({ id: 'A', revision: 3 })
-  const b = p.openPublication({ id: 'B', revision: 3 })
-  await b
-  resolveA({ data: { revision: 3, customerId: 'A', rows: [], availableReferences: [] } })
-  await a
-  assert.equal(p.reviewContext.customerId, 'B')
-  assert.equal(p.current.id, 'B')
-})
-test('stale review revision does not open a publication form', async () => {
-  const { p, calls, setHistory } = fixture()
-  setHistory(async () => ({ data: { revision: 4, customerId: 'A' } }))
-  await p.openPublication(p.current)
-  assert.equal(p.publicationOpen, false)
-  assert.equal(calls.filter(c => c.kind === 'display').length, 0)
-})
+test('a publish-only role retains its approved single-row route without edit or review privilege',async()=>{const f=fixture();f.permissions.delete('life:reflection:review');f.p.current.status='approved';await f.p.prepare(f.p.current);fill(f.p);assert.equal(f.p.canPublish(),false);assert.equal(f.p.canInspect(),true);assert.equal(f.p.canReview(),false);await f.p.publishApproved(f.p.current);const call=f.calls.find(c=>c.kind==='display');assert.equal(call.args[1],'publish');assert.equal(call.args[2].revision,3);assert.equal('displayNote' in call.args[2],false);assert.equal(f.calls.filter(c=>c.kind==='review'||c.kind==='batch').length,0)})

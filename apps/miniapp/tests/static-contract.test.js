@@ -22,7 +22,7 @@ const nativeTags = [
   'view'
 ]
 
-assert.deepStrictEqual(app.tabBar.list.map((item) => item.text), ['首页', '清体营', '轻读', '我的'])
+assert.deepStrictEqual(app.tabBar.list.map((item) => item.text), ['首页', '了解轻生活', '轻读', '我的'])
 assert.strictEqual(new Set(app.pages).size, app.pages.length, '页面不能重复注册')
 
 const contentPage = fs.readFileSync(path.join(root, 'pages/content/index.wxml'), 'utf8')
@@ -46,7 +46,7 @@ assert.deepStrictEqual(demoData.participations.map((item) => item.sessionNumber)
 assert.ok(mineFlowPage.includes('experience-accordion') && mineFlowPage.includes('toggleExperienceDetail'), '二级经历页需折叠展示当天节点')
 assert.ok(homePage.includes('home-camp-entry') && homePage.includes('featuredReadings') && homePage.includes('home-voice-grid') && homePage.includes('bindtap="chooseCamp"') && homePage.includes('bindtap="nextVoices"') && homePage.includes('bindtap="openStories"') && !homePage.includes('<swiper'), '首页保留真实营期、原位切换、四卡心声及文章/故事入口')
 assert.ok(campFlowPage.includes('主要联系人') && campFlowPage.includes('手机号（选填）'), '报名需区分可靠联系人和可缺失手机号的参与人')
-assert.ok(campFlowPage.includes('serviceStatus.registration') && campFlowPage.includes('serviceStatus.payment') && !campFlowPage.slice(campFlowPage.indexOf("view === 'journey'"), campFlowPage.indexOf("view === 'feeling'")).includes('bindtap="checkDay"'), '服务页聚焦报名、付款和心声，不提供签到动作')
+assert.ok(campFlowPage.includes('serviceStatus.registration') && campFlowPage.includes('serviceStatus.payment') && !campFlowPage.slice(campFlowPage.indexOf("view === 'journey'"), campFlowPage.indexOf("view === 'invite'")).includes('bindtap="checkDay"'), '服务页聚焦报名、付款和心声，不提供签到动作')
 assert.ok(minePage.includes('当前剩余') && minePage.includes('卡次消耗记录'), '轻友端需展示当前卡次余额和消耗记录')
 assert.ok(minePage.includes('联系轻生活') && minePage.includes('复制微信号'), '我的页面需提供稳定客服入口')
 assert.ok(staffWorkspacePage.includes("view==='settlement'") && staffWorkspacePage.includes('确认结算结果'), '工作人员端需支持人工确认最终结算')

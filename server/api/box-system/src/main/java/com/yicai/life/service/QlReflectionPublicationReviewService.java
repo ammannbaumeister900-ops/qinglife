@@ -56,7 +56,9 @@ public class QlReflectionPublicationReviewService {
             Map<String,Object> saved=new LinkedHashMap<>();
             saved.put("type",type);saved.put("id",id);
             // Hash only the bounded verification metadata, never copy health/identity originals.
-            saved.put("sourceHash",DigestUtil.sha256Hex(JSONUtil.toJsonStr(new TreeMap<>(source))));
+            String sourceHash=DigestUtil.sha256Hex(JSONUtil.toJsonStr(new TreeMap<>(source)));
+            if(ref.getSourceHash()!=null&&!sourceHash.equals(ref.getSourceHash()))throw new CustomException("已核对的业务依据发生变化，请重新审核",409);
+            saved.put("sourceHash",sourceHash);
             if(source.get("revision")!=null)saved.put("sourceRevision",source.get("revision"));
             for(String time:Arrays.asList("updatedAt","submittedAt","occurredAt","grantedAt"))
                 if(source.get(time)!=null){saved.put("sourceRecordedAt",source.get(time));break;}
@@ -86,6 +88,10 @@ public class QlReflectionPublicationReviewService {
     }
 
     private Map<String,Object> reference(String type,String id,String customer) {
+        return reference(type,id,customer,true);
+    }
+
+    private Map<String,Object> reference(String type,String id,String customer,boolean lock) {
         String sql;
         switch(type) {
             case "registration":sql="SELECT id,registration_status AS status,session_id AS sessionId,updated_at AS updatedAt FROM ql_registration WHERE id=? AND customer_id=? AND registration_status='confirmed' FOR UPDATE";break;
@@ -94,7 +100,7 @@ public class QlReflectionPublicationReviewService {
             case "consent":sql="SELECT c.id,c.policy_version AS policyVersion,c.source,c.recorded_by AS recordedBy,c.evidence_attachment_id AS evidenceAttachmentId,c.granted_at AS grantedAt FROM ql_consent_record c JOIN ql_attachment a ON a.id=c.evidence_attachment_id AND a.customer_id=c.customer_id WHERE c.id=? AND c.customer_id=? AND c.consent_type='brand_reuse' AND c.status='granted' AND c.granted_at IS NOT NULL AND c.withdrawn_at IS NULL AND a.scan_status='clean' AND a.visibility_scope='internal' AND (a.retention_until IS NULL OR a.retention_until>=CURRENT_DATE()) FOR UPDATE";break;
             default:throw new CustomException("不支持的业务依据类型",400);
         }
-        List<Map<String,Object>> rows=db.queryForList(sql,id,customer);
+        List<Map<String,Object>> rows=db.queryForList(lock?sql:sql.replace(" FOR UPDATE",""),id,customer);
         if(rows.size()!=1)throw new CustomException("业务依据不存在、不属于本人或已失效，请暂缓发布",409);
         Map<String,Object> source=rows.get(0);
         if("consent".equals(type)&&(source.get("recordedBy")==null||source.get("evidenceAttachmentId")==null))
@@ -130,14 +136,14 @@ public class QlReflectionPublicationReviewService {
     }
 
     public Map<String,Object> history(String id,Set<String> readableTypes) {
-        List<Map<String,Object>> owners=db.queryForList("SELECT customer_id AS customerId,registration_id AS registrationId,revision,status FROM ql_camp_reflection WHERE id=?",id);
+        List<Map<String,Object>> owners=db.queryForList("SELECT customer_id AS customerId,registration_id AS registrationId,session_id AS sessionId,revision,status,consent_version AS consentVersion,consent_at AS consentAt,share_consent AS consent,COALESCE(display_note,shared_note) AS displayNote FROM ql_camp_reflection WHERE id=?",id);
         if(owners.isEmpty())throw new CustomException("心声不存在",404);
         Map<String,Object> result=new LinkedHashMap<>();
         result.put("customerId",owners.get(0).get("customerId"));
         result.put("revision",owners.get(0).get("revision"));result.put("status",owners.get(0).get("status"));
         result.put("availableReferences",availableReferences(String.valueOf(owners.get(0).get("customerId")),readableTypes));
         if(readableTypes.contains("registration"))result.put("registrationId",owners.get(0).get("registrationId"));
-        List<Map<String,Object>> rows=db.queryForList("SELECT l.action,l.revision,l.operator_id AS operatorId,u.nick_name AS operatorName,DATE_FORMAT(l.created_at,'%Y-%m-%d %H:%i:%s') AS createdAt,l.publication_review AS publicationReview FROM ql_camp_reflection_log l LEFT JOIN sys_user u ON u.user_id=l.operator_id WHERE l.reflection_id=? ORDER BY l.created_at DESC,l.id DESC LIMIT 100",id);
+        List<Map<String,Object>> rows=db.queryForList("SELECT l.action,l.revision,l.operator_id AS operatorId,u.nick_name AS operatorName,DATE_FORMAT(l.created_at,'%Y-%m-%d %H:%i:%s') AS createdAt,l.publication_review AS publicationReview FROM ql_camp_reflection_log l LEFT JOIN sys_user u ON u.user_id=l.operator_id WHERE l.reflection_id=? ORDER BY l.revision DESC,l.created_at DESC,l.id DESC LIMIT 100",id);
         List<Map<String,Object>> output=new ArrayList<>();
         for(Map<String,Object> row:rows) {
             Map<String,Object> copy=new LinkedHashMap<>(row);
@@ -156,6 +162,36 @@ public class QlReflectionPublicationReviewService {
             }
             output.add(copy);
         }
+        for(Map<String,Object> item:output) {
+            if(item.get("publicationReview")==null&&!Boolean.TRUE.equals(item.get("basisRestricted")))continue;
+            if(item.get("publicationReview")!=null) {
+                cn.hutool.json.JSONObject review=JSONUtil.parseObj(item.get("publicationReview"));
+                if(reusable(owners.get(0),review))result.put("reusableReview",review);
+            }
+            break;
+        }
         result.put("rows",output);return result;
+    }
+
+    private boolean reusable(Map<String,Object> owner,cn.hutool.json.JSONObject review) {
+        if(!Integer.valueOf(1).equals(owner.get("consent"))||!"ready".equals(review.getStr("decision"))
+            ||!Objects.equals(owner.get("customerId"),review.getStr("customerId"))
+            ||!Objects.equals(owner.get("registrationId"),review.getStr("registrationId"))
+            ||!Objects.equals(owner.get("sessionId"),review.getStr("sessionId"))
+            ||!Objects.equals(owner.get("consentVersion"),review.getStr("consentVersion"))
+            ||owner.get("consentAt")==null
+            ||!DigestUtil.sha256Hex(Objects.toString(owner.get("displayNote"),"")).equals(review.getStr("displayHash")))return false;
+        try {
+            Object at=owner.get("consentAt");
+            if(at instanceof Date ? review.getDate("consentAt")==null||((Date)at).getTime()!=review.getDate("consentAt").getTime() : !at.toString().equals(review.getStr("consentAt")))return false;
+            cn.hutool.json.JSONArray refs=review.getJSONArray("references");
+            if(refs==null||refs.isEmpty())return false;
+            for(Object raw:refs) {
+                cn.hutool.json.JSONObject ref=JSONUtil.parseObj(raw);
+                Map<String,Object> source=reference(ref.getStr("type"),ref.getStr("id"),String.valueOf(owner.get("customerId")),false);
+                if(!DigestUtil.sha256Hex(JSONUtil.toJsonStr(new TreeMap<>(source))).equals(ref.getStr("sourceHash")))return false;
+            }
+            return true;
+        } catch(CustomException error) {return false;}
     }
 }

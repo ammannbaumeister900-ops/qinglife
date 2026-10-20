@@ -1,5 +1,5 @@
 <launch-splash />
-<ql-nav-space title="清体营" />
+<ql-nav-space title="清体营" back />
 <view class="page camp-page">
   <view wx:if="{{refreshing}}" class="refresh-note">正在更新…</view>
   <view wx:if="{{loading}}" class="empty-state">正在读取…</view>
@@ -24,6 +24,7 @@
       </view>
     </view>
 
+    <image wx:if="{{campHeader.releaseReady && campHeader.url && !headerHidden}}" class="camp-header-image" src="{{campHeader.url}}" mode="aspectFill" binderror="headerFailed" aria-label="{{campHeader.alt}}" />
     <view class="public-camp-heading"><view class="public-camp-title">近期活动</view><text class="public-camp-count">{{openActivities.length}} 期</text></view>
     <scroll-view wx:if="{{openActivities.length > 1 || activeFilter !== 'all'}}" class="camp-filters" scroll-x show-scrollbar="{{false}}">
       <view class="camp-filters-inner"><button wx:for="{{campFilters}}" wx:key="key" class="camp-filter {{activeFilter === item.key ? 'selected' : ''}}" aria-label="{{item.label + '，' + item.count + '期'}}" aria-pressed="{{activeFilter === item.key}}" data-filter="{{item.key}}" bindtap="chooseFilter">{{item.label}}<text wx:if="{{item.key !== 'all'}}"> {{item.count}}</text></button></view>
@@ -31,11 +32,8 @@
     <view wx:if="{{activeFilter !== 'all'}}" class="camp-filter-summary"><text>{{activeFilterLabel}} · {{visibleActivities.length}} 期</text><button class="camp-reset" data-filter="all" bindtap="chooseFilter">查看全部</button></view>
     <block wx:for="{{visibleActivities}}" wx:key="id">
       <view class="activity-card {{item.list.featured ? 'featured' : ''}} {{index === visibleActivities.length - 1 ? 'last' : ''}}">
-        <view class="activity-meta"><text wx:if="{{item.list.hasPeriod}}">第 {{item.list.period}} 期</text><text wx:else>期次待公布</text><text class="activity-status {{item.list.tone}}">{{item.status}}</text></view>
-        <view class="activity-heading">
-          <view class="activity-heading-copy"><view class="activity-name">{{item.name}}</view><view wx:if="{{item.list.theme}}" class="activity-theme">{{item.list.theme}}</view></view>
-          <view class="camp-template-cover {{item.list.periodSize}}" aria-hidden="true"><text class="camp-cover-brand">轻生活 · 生机清体营</text><text class="camp-cover-number">{{item.list.hasPeriod ? item.list.period : '待公布'}}</text><text wx:if="{{item.list.hasPeriod}}" class="camp-cover-unit">期</text></view>
-        </view>
+        <view class="activity-meta"><view class="activity-number {{item.list.periodSize}}"><block wx:if="{{item.list.hasPeriod}}"><text class="activity-number-value">{{item.list.period}}</text><text class="activity-number-unit">期</text></block><text wx:else class="activity-number-pending">期次待公布</text></view><text class="activity-status {{item.list.tone}}">{{item.status}}</text></view>
+        <view class="activity-heading"><view class="activity-name">{{item.name}}</view><view wx:if="{{item.list.theme}}" class="activity-theme">{{item.list.theme}}</view></view>
         <view class="activity-details"><view class="activity-date">{{item.list.date}}</view><view class="activity-place">{{item.list.place}}</view></view>
         <view class="activity-prices">
           <view class="price-tier"><text class="price-label">新轻友</text><block wx:if="{{item.list.hasFee}}"><text class="price-currency">¥</text><text class="price-value">{{item.fee}}</text><text class="price-unit">/人</text></block><text wx:else class="price-pending">公开价待公布</text></view>
@@ -54,7 +52,7 @@
             </view>
           </view>
         </block>
-        <view wx:if="{{item.showReflectionEntry}}" class="camp-reflection-entry"><button class="reflection-link" data-id="{{item.id}}" disabled="{{!item.reflectionAccess.allowed || reflectionOpening}}" catchtap="openReflection">写心声</button><view wx:if="{{!item.reflectionAccess.allowed}}" class="settlement-note">{{item.reflectionAccess.reason}}</view><button wx:if="{{item.reflectionAccess.retry}}" class="camp-reset" bindtap="onShow">重试</button></view>
+        <view wx:if="{{item.showReflectionEntry}}" class="camp-reflection-entry"><button class="reflection-link" data-id="{{item.id}}" disabled="{{!item.reflectionAccess.allowed || reflectionOpening}}" catchtap="openReflection">写轻友心声</button><view wx:if="{{!item.reflectionAccess.allowed}}" class="settlement-note">{{item.reflectionAccess.reason}}</view><button wx:if="{{item.reflectionAccess.retry}}" class="camp-reset" bindtap="onShow">重试</button></view>
       </view>
     </block>
     <view wx:if="{{!openActivities.length}}" class="empty-state"><view class="empty-title">暂无公开活动</view><view class="empty-copy">新的期次公布后会显示在这里。</view></view>

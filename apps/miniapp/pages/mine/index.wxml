@@ -2,48 +2,77 @@
 <ql-nav-space title="我的" />
 <view class="page mine-page editorial-page">
   <view wx:if="{{refreshing}}" class="refresh-note">正在更新…</view>
-  <view wx:if="{{loading}}" class="empty-state">正在读取…</view>
-  <view wx:if="{{loadError}}" class="empty-state">{{loadError}}<button class="text-button" bindtap="onShow">重试</button></view>
-  <block wx:if="{{!loading && !loadError}}">
-    <view class="profile-head">
-      <view class="profile-avatar">{{avatarText}}</view>
-      <view class="list-main">
-        <button wx:if="{{state.loggedIn && !state.profile.nickname}}" class="profile-title profile-nickname-entry" bindtap="openFriendRegistration">点击登记你的小名</button>
-        <view wx:else class="profile-title">{{state.loggedIn ? state.profile.nickname : '登录后，查看自己的参与和记录'}}</view>
-        <button wx:if="{{!state.loggedIn}}" class="primary profile-login" loading="{{loginLoading}}" disabled="{{loginLoading}}" bindtap="login">微信登录</button>
+
+  <view class="identity" aria-live="polite">
+    <view class="identity-row">
+      <view class="profile-avatar {{state.loggedIn ? 'is-member' : ''}}" aria-hidden="true">{{avatarText}}</view>
+      <view class="identity-main">
+        <block wx:if="{{state.loggedIn}}">
+          <view class="profile-title">{{state.profile.nickname || '还没有登记小名'}}</view>
+          <view class="identity-meta">{{state.backend ? '已用微信登录' : '已登录'}}</view>
+        </block>
+        <block wx:elif="{{signedIn}}">
+          <view class="profile-title">已登录</view>
+          <view class="identity-meta">{{loading ? '正在读取个人信息…' : '个人信息未显示'}}</view>
+        </block>
+        <block wx:else>
+          <view class="profile-title">未登录</view>
+          <view class="identity-meta">登录后可查看参与经历、私人记录和卡次</view>
+        </block>
       </view>
     </view>
 
+    <view wx:if="{{pendingEntry && !signedIn}}" class="identity-notice notice-info">使用「{{pendingEntry.label}}」需要先登录，登录后会直接打开。</view>
+    <view wx:if="{{notice}}" class="identity-notice notice-{{notice.kind}}">{{notice.text}}</view>
+    <view wx:if="{{profileError}}" class="identity-notice notice-warning">{{profileError}}</view>
+
+    <view wx:if="{{profileError}}" class="identity-actions"><button class="secondary identity-action" bindtap="onShow">重试</button></view>
+    <view wx:elif="{{state.loggedIn && !state.profile.nickname}}" class="identity-actions"><button class="secondary identity-action profile-nickname-entry" bindtap="openFriendRegistration">登记小名</button></view>
+    <view wx:elif="{{!state.loggedIn && !signedIn}}" class="identity-actions">
+      <button class="primary identity-action profile-login" loading="{{loginLoading}}" disabled="{{loginLoading || logoutLoading}}" bindtap="login">{{loginLoading ? '正在登录…' : pendingEntry ? '微信登录并继续' : notice && notice.kind === 'error' ? '重新登录' : '微信登录'}}</button>
+      <button wx:if="{{pendingEntry && !loginLoading}}" class="text-button identity-dismiss" bindtap="dismissPending">暂不登录</button>
+    </view>
+  </view>
+
+  <view class="mine-section">
+    <view class="section-label">我的参与</view>
     <view class="asset-list">
       <button class="asset" bindtap="openFriendRegistration"><view class="asset-main"><view class="asset-name">轻友登记</view></view><text class="asset-chevron">›</text></button>
       <button class="asset" data-view="experiences" bindtap="openFlow"><view class="asset-main"><view class="asset-name">全部参与经历</view></view><text class="asset-chevron">›</text></button>
       <button class="asset" data-view="records" bindtap="openFlow"><view class="asset-main"><view class="asset-name">私人记录</view><view class="asset-description">仅自己可见</view></view><text class="asset-chevron">›</text></button>
-      <button class="asset" data-view="collections" bindtap="openFlow"><view class="asset-main"><view class="asset-name">内容收藏</view></view><text class="asset-chevron">›</text></button>
-      <button wx:if="{{state.backend && state.loggedIn}}" class="asset invite-entry" bindtap="openReferrals"><view class="asset-main"><view class="asset-name">邀请轻友</view></view><text class="asset-chevron">›</text></button>
     </view>
+  </view>
 
-    <view wx:if="{{state.loggedIn && state.passAccounts && state.passAccounts.length}}" class="pass-ledger">
-      <view class="pass-balance-row"><view class="pass-label">我的卡次</view><view class="pass-summary"><text class="pass-caption">当前剩余</text><text class="pass-balance">{{state.currentPassBalance}}</text><text class="pass-unit">次</text></view></view>
-      <view class="pass-record-label">最近卡次消耗记录</view>
-      <view wx:for="{{passConsumptions}}" wx:key="id" class="pass-record"><view class="pass-record-main"><view>{{item.sessionNumber ? '第 ' + item.sessionNumber + ' 期' : '卡次使用'}}</view><view class="pass-record-date">{{item.occurredAt}}</view></view><view class="pass-record-amount">−{{0-item.quantityDelta}} 次<view class="pass-record-date">余 {{item.balanceAfter}} 次</view></view></view>
-      <view wx:if="{{!passConsumptions.length}}" class="pass-caption">暂无卡次消耗记录</view>
+  <view wx:if="{{state.loggedIn && state.passAccounts && state.passAccounts.length}}" class="pass-ledger">
+    <view class="pass-balance-row"><view class="pass-label">我的卡次</view><view class="pass-summary"><text class="pass-caption">当前剩余</text><text class="pass-balance">{{state.currentPassBalance}}</text><text class="pass-unit">次</text></view></view>
+    <view wx:if="{{passConsumptions.length}}" class="pass-record-label">最近卡次消耗记录</view>
+    <view wx:for="{{passConsumptions}}" wx:key="id" class="pass-record"><view class="pass-record-main"><view>{{item.sessionNumber ? '第 ' + item.sessionNumber + ' 期' : '卡次使用'}}</view><view class="pass-record-date">{{item.occurredAt}}</view></view><view class="pass-record-amount">−{{0-item.quantityDelta}} 次<view class="pass-record-date">余 {{item.balanceAfter}} 次</view></view></view>
+    <view wx:if="{{!passConsumptions.length}}" class="pass-caption">暂无卡次消耗记录</view>
+  </view>
+
+  <view class="mine-section service-section">
+    <view class="section-label">更多服务</view>
+    <view class="service-list">
+      <button class="service-entry" data-view="collections" bindtap="openFlow"><text class="service-name">内容收藏</text><text class="asset-chevron">›</text></button>
+      <button wx:if="{{state.backend && state.loggedIn}}" class="service-entry invite-entry" bindtap="openReferrals"><text class="service-name">邀请轻友</text><text class="asset-chevron">›</text></button>
+      <button class="service-entry history-entry" data-view="archive" bindtap="openFlow"><text class="service-name">历史打卡</text><text class="asset-chevron">›</text></button>
+      <button class="service-entry" data-view="privacy" bindtap="openFlow"><text class="service-name">设置与隐私</text><text class="asset-chevron">›</text></button>
     </view>
+  </view>
 
-    <view class="utility-list">
-      <button class="utility-entry" data-view="privacy" bindtap="openFlow"><text class="utility-name">设置与隐私</text><text class="asset-chevron">›</text></button>
-      <button class="utility-entry history-entry" data-view="archive" bindtap="openFlow"><text class="utility-name">历史打卡</text><text class="asset-chevron">›</text></button>
+  <view class="contact-section">
+    <view class="contact-label">联系轻生活</view>
+    <view class="contact-top">
+      <view class="contact-main"><view class="contact-title">{{contact.name}}</view><text wx:if="{{contact.wechat}}" class="contact-wechat" user-select="true" selectable="true">{{contact.wechat}}</text></view>
+      <button wx:if="{{contact.wechat}}" class="secondary contact-copy" bindtap="copyContact">复制微信号</button>
     </view>
+    <view wx:if="{{contact.wechat}}" class="contact-hint">复制后，在微信中搜索添加好友</view>
+    <view wx:else class="contact-hint contact-unavailable">暂时没有可用微信号</view>
+  </view>
 
-    <view class="contact-section">
-      <view class="contact-label">联系轻生活</view>
-      <view class="contact-top">
-        <view class="contact-main"><view class="contact-title">{{contact.name}}</view><text wx:if="{{contact.wechat}}" class="contact-wechat" user-select="true" selectable="true">{{contact.wechat}}</text></view>
-        <button wx:if="{{contact.wechat}}" class="secondary contact-copy" bindtap="copyContact">复制微信号</button>
-      </view>
-      <view wx:if="{{contact.wechat}}" class="contact-hint">复制后，在微信中搜索添加好友</view>
-      <view wx:else class="contact-hint contact-unavailable">暂时没有可用微信号</view>
-    </view>
+  <button wx:if="{{staffAccess}}" class="service-entry staff-entry" bindtap="openStaff"><view class="asset-main"><view class="service-name">工作人员工作台</view><view class="asset-description">工作人员专属</view></view><text class="asset-chevron">›</text></button>
 
-    <button wx:if="{{staffAccess}}" class="utility-entry staff-entry" bindtap="openStaff"><view class="asset-main"><view>工作人员工作台</view><view class="asset-description">工作人员专属</view></view><text class="asset-chevron">›</text></button>
-  </block>
+  <view wx:if="{{signedIn}}" class="logout-area">
+    <button class="logout-entry" bindtap="logout" loading="{{logoutLoading}}" disabled="{{loginLoading || logoutLoading}}">{{logoutLoading ? '正在退出…' : '退出登录'}}</button>
+  </view>
 </view>

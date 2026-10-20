@@ -4,7 +4,7 @@
   <view wx:elif="{{error}}" class="empty-state">{{error}}<button class="text-button" bindtap="load">重试</button></view>
   <block wx:else>
     <view class="reflection-period">第 {{context.sessionNumber}} 期</view><view class="reflection-session-name">{{context.name}}</view>
-    <view class="reflection-title">{{phase === 'before' ? '开营心声' : '活动后感受'}}</view>
+    <view class="reflection-title">轻友心声 · {{phase === 'before' ? '活动前' : '活动后'}}</view>
     <view wx:if="{{sources.length > 1}}" class="past-shares source-choices">
       <view class="past-shares-title">两份原稿分别保留，请选择本次使用的来源</view>
       <view wx:for="{{sources}}" wx:key="source" class="past-share"><view class="reflection-copy">{{item.label}}</view><view class="past-share-note">{{item.note}}</view><button class="text-button" data-source="{{item.source}}" disabled="{{saving}}" bindtap="chooseSource">{{source === item.source ? '已选择' : '使用这份原稿'}}</button></view>
@@ -31,13 +31,11 @@
     <view wx:else class="reflection-readonly"><view class="reflection-copy">当前阶段暂不可填写心声</view><view wx:if="{{note}}" class="past-share-note">{{note}}</view><button class="text-button" bindtap="back">返回</button></view>
     <block wx:if="{{phase === 'before' ? context.canBefore : context.canAfter}}">
       <view class="reflection-options"><text class="reflection-author">{{context.authorName || '请先完善轻生活小名'}}</text></view>
-      <view class="reflection-disclosure">公开发表将保留私人原稿；经运营审核及必要授权核对后，以你的小名展示。可随时收回。</view>
+      <view class="reflection-disclosure">提交后经运营审核及必要授权核对，通过后以你的小名在本期公开展示；私人原稿保留，可随时收回。</view>
       <button class="primary reflection-submit" loading="{{saving}}" disabled="{{saving || sourceConflict || length < 1 || length > 150 || !context.authorName}}" bindtap="save">公开发表</button>
-      <button class="text-button" disabled="{{saving || sourceConflict || length > 150 || (length < 1 && !(phase === 'after' && context.unifiedAfter))}}" bindtap="savePrivate">仅自己保存</button>
     </block>
     <button wx:else class="text-button" bindtap="load">重新读取填写资格</button>
-    <view wx:if="{{shared}}" class="reflection-copy">私人修改不会改变已投稿的公开版本。</view>
-    <view wx:if="{{revision || context.experienceRecord}}" class="reflection-status">{{status === 'submitted' ? '待审核' : status === 'published' ? '正在本期展示' : status === 'approved' ? '内容已审核，待发布核对' : status === 'hidden' ? '已下架' : status === 'rejected' ? '本次未选用' : status === 'withdrawn' ? '已收回' : '已保存 · 仅自己可见'}}</view>
+    <view wx:if="{{revision || context.experienceRecord}}" class="reflection-status">{{statusText}}</view>
     <button wx:if="{{shared}}" class="text-button" disabled="{{saving}}" bindtap="withdraw">收回公开分享</button>
     <view wx:if="{{pastShares.length}}" class="past-shares"><view class="past-shares-title">此前留下的心声</view><view wx:for="{{pastShares}}" wx:key="phase" class="past-share"><view class="past-share-note">{{item.note}}</view><view wx:if="{{!item.shared}}" class="reflection-copy">仅自己可见</view><button wx:if="{{item.shared}}" class="text-button" data-phase="{{item.phase}}" disabled="{{saving}}" bindtap="withdraw">收回这份分享</button></view></view>
   </block>

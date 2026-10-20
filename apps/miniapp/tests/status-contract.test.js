@@ -52,7 +52,8 @@ function fixture(name) {
     run: () => page[name === 'mine' ? 'refresh' : 'onShow']() }
 }
 
-for (const name of ['home','camp','mine']) {
+// Mine is a directory whose public entries survive private read failures; see the mine-specific contract below.
+for (const name of ['home','camp']) {
   test(name + ': first loading, failure, retry and successful empty response do not overlap normal content', async () => {
     const f = fixture(name), first = deferred()
     f.business.context = () => first.promise
@@ -97,8 +98,45 @@ for (const name of ['home','camp','mine']) {
   })
 }
 
+test('mine: private read failures stay local, keep the directory and recover by retry', async () => {
+  const f = fixture('mine'), first = deferred()
+  f.business.context = () => first.promise
+  const pending = f.run()
+  assert.equal(f.page.data.loading, true)
+  assert.equal(f.page.data.signedIn, true)
+  first.reject(new Error('offline')); await pending
+  assert.equal(f.page.data.loading, false)
+  assert.equal(f.page.data.profileError, '网络不太稳定，个人信息暂时没能读取。')
+  assert.ok(!f.page.data.ready, 'failed first read must not mark the page ready')
+  assert.equal(f.condition('profileError'), true)
+  f.business.context = async () => f.context
+  await f.run()
+  assert.equal(f.page.data.profileError, '')
+  assert.equal(f.page.data.ready, true)
+  const oldState = plain(f.page.data.state), refresh = deferred()
+  f.business.context = () => refresh.promise
+  const refreshing = f.run()
+  assert.equal(f.page.data.refreshing, true)
+  assert.deepEqual(plain(f.page.data.state), oldState)
+  refresh.reject(new Error('')); await refreshing
+  assert.equal(f.page.data.profileError, '个人信息暂时没能读取。')
+  assert.deepEqual(plain(f.page.data.state), oldState)
+})
+
+test('mine: an expired credential becomes the guest directory with an expiry notice, never an error page', async () => {
+  const f = fixture('mine'); await f.run()
+  let token = 'synthetic'
+  f.business.identityScope = () => ({ token })
+  f.business.context = async () => { token = ''; const error = new Error(''); error.code=401; throw error }
+  await f.run()
+  assert.deepEqual(plain(f.page.data.state), { backend: true, loggedIn: false })
+  assert.equal(f.page.data.signedIn, false)
+  assert.equal(f.page.data.profileError, '')
+  assert.equal(f.page.data.notice.text, '登录已过期，请重新登录后查看个人信息。')
+})
+
 test('expired identity invalidates ready state; even an empty error message cannot expose fake normal content', async () => {
-  for (const name of ['home','camp','mine']) {
+  for (const name of ['home','camp']) {
     const f = fixture(name); await f.run()
     f.business.context = async () => { const error = new Error(''); error.code=401; throw error }
     await f.run()
@@ -244,12 +282,10 @@ test('empty list retries show loading without a simultaneous empty message', asy
   }
 })
 
-test('before private drafts require actual save success; formal after uses the unified editor', async () => {
- const f=fixture('camp-flow');f.business.campReflection=async()=>({canAfter:true});f.page.setData({reflectionAccess:{allowed:true},registration:{status:'confirmed',participants:[{id:'person-self'}]},canRecordFeeling:true,canReview:true,canWriteReview:true,feelingPhase:'after',feelingSaved:true,reviewSaved:true,feelingNote:'已保存正文'});
- f.page.onFeelingInput({detail:{value:'新的感受'}});assert.equal(f.page.data.feelingSaved,false);assert.equal(f.page.data.reviewSaved,false);
- f.business.saveExperience=()=>{throw Error('after must not write through the old API')};await f.page.saveFeeling();assert.match(f.links.at(-1),/camp-reflection/);assert.equal(f.page.data.feelingSaved,false);
- f.page.setData({feelingPhase:'before'});f.business.saveExperience=async()=>{throw Error('save offline')};await f.page.saveFeeling();assert.equal(f.page.data.feelingSaved,false);assert.equal(f.page.data.feelingNote,'新的感受');f.business.saveExperience=async()=>{};await f.page.saveFeeling();assert.equal(f.page.data.feelingSaved,true);
- f.page.onReviewInput({detail:{value:'新的回顾'}});assert.equal(f.page.data.reviewSaved,false);await f.page.saveReview();assert.match(f.links.at(-1),/camp-reflection/);assert.equal(f.page.data.reviewSaved,false,'navigation must not pretend to save');
+test('the review never writes through the old private API; its one entry opens the 轻友心声 editor', async () => {
+ const f=fixture('camp-flow');f.business.campReflection=async()=>({canAfter:true});f.page.setData({reflectionAccess:{allowed:true},registration:{status:'confirmed',participants:[{id:'person-self'}]},canReview:true,canWriteReview:true});
+ for(const h of ['onFeelingInput','saveFeeling','onReviewInput','saveReview'])assert.equal(f.page[h],undefined,h);
+ f.business.saveExperience=()=>{throw Error('the review must not write through the old API')};await f.page.openReflection();assert.match(f.links.at(-1),/camp-reflection/);
 })
 
 test('daily edited drafts survive a failed preflight/write and do not claim to be saved', async () => {
@@ -286,14 +322,6 @@ test('error templates retain actionable retries and avoid unsupported update/con
   for(const name of ['home','camp','mine'])assert.ok(fs.readFileSync(path.join(root,'pages',name,'index.wxml'),'utf8').includes('bindtap="onShow">重试'))
 })
 
-
-test('before edits during an in-flight save remain unsaved after the earlier payload succeeds', async () => {
- const f=fixture('camp-flow'),write=deferred(),payloads=[];
- f.page.setData({view:'feeling',canRecordFeeling:true,feelingPhase:'before',feelingNote:'提交时的感受'});
- f.business.saveExperience=value=>{payloads.push(plain(value));return write.promise};const pending=f.page.saveFeeling();
- f.page.onFeelingInput({detail:{value:'请求期间的新草稿'}});write.resolve();await pending;
- assert.equal(payloads[0].note,'提交时的感受');assert.equal(f.page.data.feelingNote,'请求期间的新草稿');assert.equal(f.page.data.feelingSaved,false);assert.match(f.toasts.at(-1),/新修改未保存/);
-})
 
 test('daily edits across preflight, write and background refresh remain editable without duplicate saves', async () => {
   const f=fixture('friend-flow'),state=f.context.state,preflight=deferred(),write=deferred();let checks=0

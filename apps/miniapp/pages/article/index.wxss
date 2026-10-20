@@ -1,153 +1,53 @@
-.article-page {
-  padding-bottom: calc(180rpx + env(safe-area-inset-bottom));
-  background: var(--ql-bg);
-}
+/* 文章详情 · 「林下午后」P8（docs/design/redesign-2026q4/p8-reading-rhythm.md）。只引用 --q-* 令牌。
+ * 故事文章是已确认样板：版式冻结，本次只换令牌并把小字提到 14px 底线；方法文章收敛到同一套阅读语法。 */
+page { background: var(--q-linen); }
+.article-page { min-height: calc(100vh - 88px); padding-bottom: calc(180rpx + env(safe-area-inset-bottom)); background: var(--q-linen); color: var(--q-ink); }
 
-.article-empty {
-  margin: 120rpx 48rpx 0;
-  border: none;
-  border-radius: 0;
-  background: transparent;
-}
+.article-empty { margin: 60px 24px 0; padding: 0; border: 0; border-radius: 0; background: transparent; }
+.article-page .empty-title { color: var(--q-ink); font-size: 18px; }
+.article-page .empty-copy { color: var(--q-ink-2); font-size: 15px; }
+.article-page .empty-action { min-height: 44px; border: 0; border-radius: 0; background: transparent; color: var(--q-moss); font-size: 15px; line-height: 44px; }
 
-.article-sheet { padding: 40rpx 48rpx 24rpx; }
-.article-heading { margin-bottom: 44rpx; }
-
-.article-title {
-  font-family: var(--ql-serif);
-  font-size: 48rpx;
-  font-weight: 400;
-  line-height: 1.5;
-  overflow-wrap: break-word;
-}
-
-.article-meta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 8rpx 24rpx;
-  margin-top: 24rpx;
-  color: var(--ql-ink-light);
-  font-size: 24rpx;
-  line-height: 1.65;
-  overflow-wrap: break-word;
-}
-
+.article-title { font-family: var(--ql-serif); font-weight: 400; overflow-wrap: break-word; }
+.article-meta { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 16px; color: var(--q-ink-2); font-size: 14px; line-height: 1.75; overflow-wrap: break-word; }
 .article-meta text { min-width: 0; max-width: 100%; }
-.article-category { color: var(--ql-clay-deep); }
+.article-category { color: var(--q-moss); }
+.demo-note { margin-top: 12px; color: var(--q-ink-2); font-size: 14px; line-height: 1.7; }
+.article-body { color: var(--q-ink); overflow-wrap: break-word; }
+.content-warning { margin: 24px 0; color: var(--q-ink-2); font-size: 14px; line-height: 1.8; }
 
-.demo-note {
-  margin-top: 16rpx;
-  color: var(--ql-ink-light);
-  font-size: 24rpx;
-  line-height: 1.65;
-}
-
-.article-body {
-  color: var(--ql-ink);
-  font-size: 32rpx;
-  line-height: 1.9;
-  overflow-wrap: break-word;
-}
-
-.health-note {
-  margin-top: 48rpx;
-  padding-top: 24rpx;
-  border-top: 1rpx solid var(--ql-border);
-  color: var(--ql-ink-light);
-  font-size: 24rpx;
-  line-height: 1.75;
-}
-
-.article-actionbar {
-  position: fixed;
-  z-index: 70;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 24rpx;
-  padding: 16rpx 48rpx calc(24rpx + env(safe-area-inset-bottom));
-  border-top: 1rpx solid var(--ql-border);
-  background: var(--ql-bg);
-}
-
-.collect-button,
-.share-button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: auto;
-  height: 88rpx;
-  min-height: 44px;
-  margin: 0;
-  font-size: 26rpx;
-  line-height: 1.5;
-}
-
-.collect-button {
-  padding: 0 12rpx;
-  border: none;
-  background: transparent;
-  color: var(--ql-ink-light);
-}
-
-.collect-button.collected { color: var(--ql-clay-deep); }
-.bookmark-icon { width: 36rpx; height: 36rpx; margin-right: 12rpx; }
-
-.share-button {
-  padding: 0 32rpx;
-  border: 1rpx solid var(--ql-border);
-  border-radius: 20rpx;
-  background: transparent;
-  color: var(--ql-ink);
-}
-
-/* Story expression is local; other reading types keep their existing page hierarchy. */
-page { background: #f7f6ef; }
-.article-page { min-height: calc(100vh - 88px); }
-.article-story {
-  --ql-bg: #f7f6ef;
-  --ql-ink: #252b21;
-  --ql-ink-light: #6a715f;
-  --ql-border: #d2d7c9;
-  --ql-clay-deep: #435e3c;
-  min-height: calc(100vh - 88px);
-}
+/* 故事文章（冻结样板）：标题、封面与正文位置不变 */
 .article-story .article-sheet { padding: 0 0 24px; }
 .article-story .article-heading { margin: 0; padding: 27px 28px 36px; }
-.story-category { color: #435e3c; font-size: 12px; letter-spacing: 2px; line-height: 1.6; }
-.article-story .article-title { margin-top: 19px; font-size: 39px; font-weight: 400; line-height: 1.4; letter-spacing: .025em; white-space: normal; word-break: break-word; text-wrap: balance; }
-.article-story .article-meta { margin-top: 20px; gap: 6px 16px; font-size: 12px; line-height: 1.8; }
+.story-category { color: var(--q-moss); font-size: 14px; letter-spacing: 2px; line-height: 1.6; }
+.article-story .article-title { margin-top: 19px; font-size: 39px; line-height: 1.4; letter-spacing: .025em; white-space: normal; word-break: break-word; text-wrap: balance; }
+.article-story .article-meta { margin-top: 20px; }
 .story-photograph { display: block; width: 100%; height: auto; margin-bottom: 35px; }
 .article-story .article-body { padding: 0 28px; font-size: 17px; line-height: 1.95; letter-spacing: .015em; }
-.content-warning { margin: 24px 0; color: var(--ql-ink-light); font-size: 13px; line-height: 1.8; }
 .article-story .content-warning { margin-right: 28px; margin-left: 28px; }
-.article-story .article-actionbar { padding: 12px 26px calc(14px + env(safe-area-inset-bottom)); gap: 16px; }
-.article-story .collect-button, .article-story .share-button { height: 44px; min-height: 44px; font-size: 13px; }
-.article-story .collect-button { padding: 0 4px; color: #636e58; }
-.article-story .collect-button.collected { color: #435e3c; }
-.article-story .bookmark-icon { width: 17px; height: 20px; margin-right: 9px; }
-.article-story .share-button { padding: 0 21px; border: 1px solid #b8c1ad; border-radius: 5px; }
 @media (max-width: 360px) { .article-story .article-title { font-size: 34px; } }
 
-/* Method reading only; the approved story layout stays frozen. */
-.article-method .article-sheet { padding: 28rpx 40rpx 40rpx; }
-.article-method .article-heading { margin-bottom: 36rpx; padding-bottom: 28rpx; border-bottom: 1rpx solid var(--ql-border); }
-.article-method .article-title { font-size: 44rpx; line-height: 1.5; }
-.article-method .article-meta { margin-top: 20rpx; font-size: 26rpx; }
-.article-method .article-body { font-size: 32rpx; line-height: 1.95; }
-.article-method .health-note { font-size: 28rpx; line-height: 1.8; }
-.article-method .article-actionbar { padding-right: 40rpx; padding-left: 40rpx; }
-.article-method .share-button { border-radius: 8rpx; }
-@media (max-width: 350px) { .article-method .article-body { font-size: 16px; } .article-method .health-note { font-size: 14px; } }
+/* 方法文章：同一套阅读语法，更安静 */
+.article-method .article-sheet { padding: 20px var(--q-gutter) 32px; }
+.article-method .article-heading { margin-bottom: 26px; padding-bottom: 22px; border-bottom: 1px solid var(--q-line); }
+.article-method .article-meta { margin-top: 14px; }
+.article-method .article-title { font-size: 26px; line-height: 1.45; }
+.article-method .article-body { font-size: 16px; line-height: 1.95; }
+.health-note { margin-top: 36px; padding-top: 18px; border-top: 1px solid var(--q-line); color: var(--q-ink-2); font-size: 14px; line-height: 1.8; }
+@media (max-width: 350px) { .article-method .article-sheet { padding-right: 20px; padding-left: 20px; } .article-method .article-title { font-size: 23px; } }
 
-/* Native media is local to article reading; text-only layout remains unchanged. */
+/* 底栏：收藏是文字按钮，分享是次按钮。选择器带 button 与父级，压过微信 button 默认的 184px 宽度。 */
+.article-actionbar { position: fixed; z-index: 70; right: 0; bottom: 0; left: 0; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px var(--q-gutter) calc(14px + env(safe-area-inset-bottom)); border-top: 1px solid var(--q-line); background: var(--q-linen); }
+.article-actionbar button.collect-button, .article-actionbar button.share-button { display: flex; flex-shrink: 0; align-items: center; justify-content: center; width: auto; height: 44px; min-height: 44px; margin: 0; font-size: 14px; font-weight: 500; line-height: 1.5; }
+.article-actionbar button.collect-button { padding: 0 4px; border: 0; background: transparent; color: var(--q-ink-2); }
+.article-actionbar button.collect-button.collected { color: var(--q-moss); }
+.bookmark-icon { width: 17px; height: 20px; margin-right: 9px; }
+.article-actionbar button.share-button { padding: 0 20px; border: 1px solid var(--q-ink); border-radius: 0; background: transparent; color: var(--q-ink); }
+.collect-button:active, .share-button:active { opacity: .72; }
+
+/* 原生视频：只在文章阅读内使用 */
 .article-video-block { margin: 25px 0; }
-.article-video { display: block; width: 100%; height: 184px; background: #20251e; }
-.article-video-error { padding: 24px 16px; background: #ecefe5; color: #59634f; font-size: 15px; line-height: 1.8; }
-.article-video-retry { min-height: 44px; width: auto; margin: 16px 0 0; padding: 8px 14px; border: 1px solid #b8c1ad; border-radius: 5px; background: transparent; color: #435e3c; font-size: 15px; line-height: 1.8; }
+.article-video { display: block; width: 100%; height: 184px; background: var(--q-forest); }
+.article-video-error { padding: 24px 16px; background: var(--q-field); color: var(--q-ink-2); font-size: 15px; line-height: 1.8; }
+.article-video-retry { width: auto; min-height: 44px; margin: 16px 0 0; padding: 8px 14px; border: 1px solid var(--q-line); border-radius: 0; background: transparent; color: var(--q-moss); font-size: 15px; line-height: 1.8; }
 @media (max-width: 350px) { .article-video { height: 158px; } }

@@ -1,5 +1,5 @@
 <launch-splash />
-<ql-nav-space back style="{{presentation.isStory ? '--ql-nav-bg:#f7f6ef;' : ''}}" />
+<ql-nav-space back />
 <view class="article-page {{presentation.isStory ? 'article-story' : 'article-method'}}">
   <soft-loading wx:if="{{loading}}" text="正在读取文章…" />
   <view wx:elif="{{error}}" class="article-empty empty-state"><view class="empty-title">文章读取失败</view><view class="empty-copy">{{error}}</view><button class="empty-action" bindtap="loadArticle">重试</button></view>

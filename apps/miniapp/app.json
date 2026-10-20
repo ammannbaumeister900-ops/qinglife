@@ -16,10 +16,10 @@
     "pages/about/index"
   ],
   "window": {
-    "navigationBarBackgroundColor": "#F6F1E8",
+    "navigationBarBackgroundColor": "#F3F2EC",
     "navigationBarTextStyle": "black",
     "navigationBarTitleText": "轻生活",
-    "backgroundColor": "#F6F1E8",
+    "backgroundColor": "#F3F2EC",
     "backgroundTextStyle": "dark"
   },
   "tabBar": {
@@ -34,8 +34,8 @@
         "text": "首页"
       },
       {
-        "pagePath": "pages/camp/index",
-        "text": "清体营"
+        "pagePath": "pages/about/index",
+        "text": "了解轻生活"
       },
       {
         "pagePath": "pages/content/index",

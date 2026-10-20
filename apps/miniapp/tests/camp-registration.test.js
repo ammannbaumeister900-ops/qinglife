@@ -54,6 +54,6 @@ test('service status distinguishes pending settlement, unpaid, paid, no payment 
   assert.equal(domain.campServiceStatus({...money,status:'cancelled',settlementStatus:'pending'}).registration,'已取消')
 })
 test('mine handles missing nickname and opens existing friend dossier entry', async () => {
-  const nav=[],p=page('mine',{enabled:()=>true,context:async()=>context('')},nav)
+  const nav=[],p=page('mine',{enabled:()=>true,identityScope:()=>({token:'synthetic'}),context:async()=>context('')},nav)
   await p.refresh(); assert.equal(p.data.state.profile.nickname,''); assert.equal(p.data.avatarText,'轻'); p.openFriendRegistration(); assert.equal(nav[0],'/pages/friend-registration/index')
 })

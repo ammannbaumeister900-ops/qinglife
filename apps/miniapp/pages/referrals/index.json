@@ -1,4 +1,5 @@
 {
-  "navigationBarTitleText": "邀请轻友",
-  "enablePullDownRefresh": false
+  "navigationStyle": "custom",
+  "enablePullDownRefresh": false,
+  "usingComponents": { "ql-nav-space": "/components/ql-nav-space/index" }
 }

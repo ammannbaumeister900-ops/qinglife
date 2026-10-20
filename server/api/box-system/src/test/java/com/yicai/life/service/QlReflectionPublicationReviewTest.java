@@ -159,4 +159,64 @@ class QlReflectionPublicationReviewTest {
         assertTrue((Boolean)((Map<?,?>)rows.get(1)).get("basisRestricted"));assertFalse(result.containsKey("registrationId"));
         assertNull(((Map<?,?>)rows.get(1)).get("publicationReview"));
     }
+
+    QlReflectionPublishBatchBo batch(String... ids){
+        QlReflectionPublishBatchBo body=new QlReflectionPublishBatchBo();List<QlReflectionPublishBatchBo.Item> items=new ArrayList<>();
+        for(String id:ids){QlReflectionPublishBatchBo.Item item=new QlReflectionPublishBatchBo.Item();item.setId(id);item.setRevision(3);item.setDisplayNote("Approved display");item.setPublicationReview(ready());items.add(item);}
+        body.setItems(items);return body;
+    }
+    Map<String,Object> locked(String id,String state){Map<String,Object> r=reflection();r.put("id",id);r.put("status",state);when(db.queryForList(startsWith("SELECT id,status,revision"),eq(id))).thenReturn(Collections.singletonList(r));return r;}
+    @Test void batchLocksEverySelectedRowInOrderAndDelegatesToTheExistingActions(){
+        locked(REG,"submitted");locked(FACT,"hidden");QlCampReflectionService s=spy(service());
+        doNothing().when(s).moderate(anyString(),anyString(),any(QlReflectionModerationBo.class),anyLong(),anySet());
+        assertEquals(2,s.publishBatch(batch(FACT,REG),42L,readable));
+        org.mockito.InOrder order=inOrder(db,s);
+        order.verify(db).queryForList(startsWith("SELECT id,status,revision"),eq(REG));
+        order.verify(db).queryForList(startsWith("SELECT id,status,revision"),eq(FACT));
+        order.verify(s).moderate(eq(REG),eq("approvePublish"),any(QlReflectionModerationBo.class),eq(42L),eq(readable));
+        order.verify(s).moderate(eq(FACT),eq("publish"),any(QlReflectionModerationBo.class),eq(42L),eq(readable));
+    }
+    @Test void revokedConsentStaleRevisionAndPublishedRowsRejectTheWholeSelectionBeforeAnyAction(){
+        for(int kind=0;kind<5;kind++){
+            locked(REG,"submitted");Map<String,Object> r=locked(FACT,"approved");
+            if(kind==0)r.put("consent",0);if(kind==1)r.put("revision",4);if(kind==2)r.put("status","published");if(kind==3)r.put("consentVersion",null);if(kind==4)r.put("consentAt",null);
+            QlCampReflectionService s=spy(service());
+            assertThrows(CustomException.class,()->s.publishBatch(batch(REG,FACT),42L,readable));
+            verify(s,never()).moderate(anyString(),anyString(),any(QlReflectionModerationBo.class),anyLong(),anySet());noWrites();
+        }
+    }
+    @Test void malformedEmptyDuplicateAndUnboundedSelectionsNeverReadStorage(){
+        for(QlReflectionPublishBatchBo b:Arrays.asList(batch(),batch(REG,REG),batch("bad"),batch(Collections.nCopies(51,REG).toArray(new String[0]))))assertThrows(CustomException.class,()->service().publishBatch(b,42L,readable));
+        QlReflectionPublishBatchBo b=batch(REG);b.getItems().get(0).setRevision(null);assertThrows(CustomException.class,()->service().publishBatch(b,42L,readable));
+        assertThrows(CustomException.class,()->service().publishBatch(batch(REG),null,readable));verifyNoInteractions(db);
+    }
+    @Test void editingAnApprovedSelectionUsesTheExistingEditBeforePublishWithoutMutatingTheRequest(){
+        locked(REG,"approved");QlCampReflectionService s=spy(service());doNothing().when(s).moderate(anyString(),anyString(),any(QlReflectionModerationBo.class),anyLong(),anySet());
+        QlReflectionPublishBatchBo b=batch(REG);b.getItems().get(0).setDisplayNote("Changed display");s.publishBatch(b,42L,readable);
+        org.mockito.ArgumentCaptor<QlReflectionModerationBo> bodies=org.mockito.ArgumentCaptor.forClass(QlReflectionModerationBo.class);
+        org.mockito.InOrder order=inOrder(s);order.verify(s).moderate(eq(REG),eq("edit"),bodies.capture(),eq(42L),eq(readable));order.verify(s).moderate(eq(REG),eq("publish"),bodies.capture(),eq(42L),eq(readable));
+        assertEquals(3,bodies.getAllValues().get(0).getRevision());assertEquals(4,bodies.getAllValues().get(1).getRevision());assertEquals(3,b.getItems().get(0).getRevision());
+    }
+    @Test void laterBatchFailureRollsBackTheOuterSpringTransaction(){
+        locked(REG,"submitted");locked(FACT,"submitted");QlCampReflectionService target=spy(service());
+        doNothing().when(target).moderate(eq(REG),anyString(),any(QlReflectionModerationBo.class),anyLong(),anySet());
+        doThrow(new CustomException("Evidence changed",409)).when(target).moderate(eq(FACT),anyString(),any(QlReflectionModerationBo.class),anyLong(),anySet());
+        PlatformTransactionManager manager=mock(PlatformTransactionManager.class);TransactionStatus status=mock(TransactionStatus.class);when(manager.getTransaction(any(TransactionDefinition.class))).thenReturn(status);
+        ProxyFactory proxy=new ProxyFactory(target);proxy.setProxyTargetClass(true);proxy.addAdvice(new TransactionInterceptor(manager,new AnnotationTransactionAttributeSource()));
+        assertThrows(CustomException.class,()->((QlCampReflectionService)proxy.getProxy()).publishBatch(batch(REG,FACT),42L,readable));verify(manager).rollback(status);verify(manager,never()).commit(any());
+    }
+    @Test void reusedEvidenceMustStillMatchItsOriginalSourceHash(){
+        validReferences();QlPublicationReviewBo b=ready();b.getReferences().get(0).setSourceHash(String.join("",Collections.nCopies(64,"0")));
+        assertEquals(409,assertThrows(CustomException.class,()->reviews.prepare(reflection(),b,42L,readable,"Approved display")).getCode());noWrites();
+    }
+    @Test void historyReusesOnlyTheSameDisplayConsentAndUnchangedReadableEvidence(){
+        validReferences();Map<String,Object> owner=reflection();String audit=reviews.prepare(owner,ready(),42L,readable,"Approved display");
+        when(db.queryForList(startsWith("SELECT customer_id AS customerId,registration_id"),eq("voice"))).thenReturn(Collections.singletonList(owner));
+        when(db.queryForList(startsWith("SELECT l.action"),eq("voice"))).thenReturn(Collections.singletonList(row("action","publish","publicationReview",audit)));
+        assertNotNull(reviews.history("voice",readable).get("reusableReview"));
+        owner.put("displayNote","Changed display");assertNull(reviews.history("voice",readable).get("reusableReview"));owner.put("displayNote","Approved display");
+        owner.put("consent",0);assertNull(reviews.history("voice",readable).get("reusableReview"));owner.put("consent",1);
+        when(db.queryForList(startsWith("SELECT id,registration_status"),eq(REG),eq("A"))).thenReturn(Collections.emptyList());
+        assertNull(reviews.history("voice",readable).get("reusableReview"));noWrites();
+    }
 }

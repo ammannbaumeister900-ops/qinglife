@@ -73,7 +73,7 @@ async function fixture(view = 'detail', status = 'confirmed') {
     campReflection: async () => reflectionContext,
     register: async data => writes.push(plain(data)), saveExperience: async data => writes.push(plain(data)),
     createInvitation: async id => ({ path: '/pages/camp-flow/index?id=' + id }) }
-  const mocks = { '../../services/business-api': business, '../../utils/navigation': { navigateTo: data => links.push(data.url), switchTab: data => links.push(data.url) } }
+  const mocks = { '../../services/business-api': business, '../../utils/navigation': { navigateTo: data => links.push(data.url), switchTab: data => links.push(data.url), returnTo: data => links.push(data.url) } }
   vm.runInNewContext(fs.readFileSync(path.join(root, 'pages/camp-flow/index.js'), 'utf8'), {
     Page: data => { page = data }, wx: { previewImage: data => previews.push(data), getImageInfo: data => data.success({path:data.src}), showToast: data => notices.push(data.title), pageScrollTo: data => scrolls.push(plain(data)) },
     require: id => mocks[id] || require(path.resolve(root, 'pages/camp-flow', id))
@@ -113,17 +113,23 @@ test('detail follows the approved hierarchy with real content, both fees and exi
   assert(!source.includes('内部视觉样稿'));assert(!source.includes('一起吃饭、活动'))
 })
 
-test('detail schedule preserves all rows, media failures and existing service/registration entries',async()=>{
+test('detail removes date-only expansion, retains course content, media handling and registration entries',async()=>{
   const f=await fixture('detail','none'),a=f.context.activity
   a.startDate='2099-01-01';a.endDate='2099-01-17'
   a.days=Array.from({length:17},(_,i)=>({id:'d'+i,dayNo:i+1,activityDate:'2099-01-'+String(i+1).padStart(2,'0')}))
   a.cover='https://example.test/scene.jpg';await f.page.refresh()
   assert.equal(f.page.data.detail.duration,17)
   assert.equal(f.nodes().filter(n=>has(n,'detail-day-row')).length,0)
-  f.page.toggleDetailSchedule()
-  assert.equal(f.nodes().filter(n=>has(n,'detail-day-row')).length,17)
-  assert.equal(f.nodes().find(n=>has(n,'detail-full-schedule')).attrs.style,'height: 312px;')
-  f.page.toggleDetailSchedule();assert.equal(f.nodes().filter(n=>has(n,'detail-day-row')).length,0)
+  assert.equal(control(f.nodes(),'toggleDetailSchedule'),undefined)
+  assert(!f.nodes().some(n=>has(n,'detail-full-schedule')||has(n,'detail-theme')))
+  assert.equal(f.page.toggleDetailSchedule,undefined)
+  assert(!('detailExpanded' in f.page.data))
+  assert.equal(f.page.data.activity.theme,a.theme,'the source field is retained')
+  a.days.forEach((day,index)=>{if(index%4===0)day.theme='实际课程 '+index})
+  await f.page.refresh()
+  const rows=f.nodes().filter(n=>has(n,'detail-day-row'))
+  assert.equal(rows.length,5,'all meaningful course rows stay visible, including those after the third')
+  assert(content(rows.at(-1)).includes('实际课程 16'))
   f.page.previewDetailImage({currentTarget:{dataset:{url:a.cover}}})
   assert.deepEqual(plain(f.previews[0].urls),[a.cover])
   f.page.detailImageFailed({currentTarget:{dataset:{url:a.cover}}})
@@ -132,7 +138,26 @@ test('detail schedule preserves all rows, media failures and existing service/re
   await f.page.startRegistration();assert.equal(f.page.data.view,'register');assert.equal(f.writes.length,0)
   f.page.setData({view:'detail'});f.page.openJourney();assert.equal(f.page.data.view,'journey')
   f.page.setData({view:'detail'});a.id='different-session';await f.page.refresh()
-  assert.equal(f.page.data.detailExpanded,false);assert.equal(f.page.data.detail.showCover,true)
+  assert.equal(f.page.data.detail.showCover,true)
+})
+
+test('simplified detail keeps dates, place and the existing action for every activity status', async () => {
+  const f = await fixture('detail', 'none'), a = f.context.activity
+  for (const [status, canRegister, label] of [
+    ['开放报名', true, '报名这一期'], ['即将满员', true, '报名这一期'],
+    ['候补中', true, '申请候补'], ['已满', false, '已满'],
+    ['已取消', false, '已取消'], ['已结束', false, '已结束']
+  ]) {
+    Object.assign(a, { status, seatsLeft: canRegister && status !== '候补中' ? 2 : 0 })
+    await f.page.refresh()
+    const nodes = f.nodes(), action = control(nodes, 'startRegistration')
+    assert.equal(action.attrs.disabled, !canRegister, status)
+    assert.equal(content(action), label, status)
+    assert(content(nodes.find(n => has(n, 'detail-activity-state'))).includes(status))
+    const facts = content(nodes.find(n => has(n, 'detail-core-facts')))
+    assert(facts.includes('2099') && facts.includes('3天') && facts.includes(a.city), status)
+    assert(!nodes.some(n => has(n, 'detail-theme') || has(n, 'detail-full-schedule')))
+  }
 })
 
 test('registration renders inline participant feedback and preserves fields and draft through both steps', async () => {
@@ -200,31 +225,25 @@ test('service keeps independent registration and settlement states with the orig
   assert(!control(f.nodes(), 'toggleDay'))
 })
 
-test('feeling and experience keep private drafts, saved feedback and save-in-flight controls', async () => {
-  const f = await fixture('feeling')
-  f.reflectionContext.canAfter = true
+test('retired feeling links open the read-only review, which shows this period\'s 轻友心声 and writes only through one entry', async () => {
+  const f = await fixture('feeling', 'completed')
+  Object.assign(f.reflectionContext, { canAfter: true, records: [
+    { phase: 'before', note: '开营时写下的话', status: 'private', shareConsent: 0 },
+    { phase: 'after', note: '', sharedNote: '公开的心声', status: 'submitted', shareConsent: 1 }] })
   await f.page.refresh()
-  f.page.setData({ canRecordFeeling: true, feelingPhase: 'after', feelingNote: '提交前的感受', feelingSaved: true })
-  assert.equal(control(f.nodes(), 'onFeelingInput'), undefined, 'formal after uses only the unified editor')
-  assert.ok(control(f.nodes(), 'openReflection'))
-  await f.page.saveFeeling()
+  assert.equal(f.page.data.view, 'experience')
+  for (const handler of ['onFeelingInput', 'saveFeeling', 'onReviewInput', 'saveReview', 'editReview', 'chooseScale']) {
+    assert.equal(control(f.nodes(), handler), undefined); assert.equal(f.page[handler], undefined)
+  }
+  const entries = f.nodes().filter(node => node.attrs?.bindtap === 'openReflection')
+  assert.equal(entries.length, 1); assert(content(entries[0]).includes('写轻友心声'))
+  const voices = content(f.nodes().find(node => has(node, 'experience-voices')))
+  for (const text of ['开营时写下的话', '已保存 · 仅自己可见', '公开的心声', '待审核']) assert(voices.includes(text), text)
+  await f.page.openReflection()
   assert.equal(f.links.at(-1), '/pages/camp-reflection/index?id=session-live')
-  assert.equal(f.writes.length, 0, 'after must never call the obsolete private writer')
-  f.page.setData({ feelingPhase: 'before' })
-  assert.equal(control(f.nodes(), 'onFeelingInput').attrs.value, '提交前的感受')
-  assert(content(f.nodes().find(node => has(node, 'feeling-editor'))).includes('默认仅自己可见'))
-  f.page.onFeelingInput(event('', '新感受'))
-  assert(!f.nodes().some(node => has(node, 'saved-note')))
-  f.page.setData({ feelingSaving: true })
-  assert.equal(control(f.nodes(), 'saveFeeling').attrs.disabled, true)
-  f.page.setData({ feelingSaving: false })
-  await f.page.saveFeeling()
-  assert.equal(f.writes[0].note, '新感受')
-  assert(f.nodes().some(node => has(node, 'saved-note')))
-  f.page.setData({ view: 'experience', canReview: true, canWriteReview: false, experienceTimeline: [{ id: 'r', label: '活动期间', note: '此前记录' }] })
-  assert(!control(f.nodes(), 'saveReview'))
-  assert(!control(f.nodes(), 'onReviewInput'))
-  assert(content(f.nodes().find(node => has(node, 'experience-records'))).includes('此前记录'))
+  assert.equal(f.writes.length, 0, 'the review never writes')
+  f.page.setData({ view: 'journey' })
+  assert(!content(f.nodes().find(node => has(node, 'journey-reflection'))).includes('仅自己保存'))
 })
 
 test('invitation lists actual session name and date, retains exact IDs and shares only prepared paths', async () => {
@@ -241,7 +260,7 @@ test('invitation lists actual session name and date, retains exact IDs and share
 })
 
 test('every branch excludes normal task controls during loading or failure and exposes the existing retry', async () => {
-  for (const view of ['detail', 'register', 'success', 'journey', 'feeling', 'invite', 'experience']) {
+  for (const view of ['detail', 'register', 'success', 'journey', 'invite', 'experience']) {
     const f = await fixture(view)
     f.page.setData({ loading: true })
     assert(!f.nodes().some(node => ['startRegistration', 'nextStep', 'submitRegistration', 'saveFeeling', 'saveReview', 'prepareInvitation'].includes(node.attrs?.bindtap)))
@@ -257,7 +276,7 @@ test('outcome preserves notification truth and all views retain the shared persi
   const f = await fixture('success', 'pending')
   assert(content(f.nodes().find(node => has(node, 'registration-result'))).includes('报名已提交'))
   assert(f.nodes().some(node => node.text?.includes('当前不会自动发送确认通知')))
-  for (const view of ['detail', 'register', 'success', 'journey', 'feeling', 'invite', 'experience']) {
+  for (const view of ['detail', 'register', 'success', 'journey', 'invite', 'experience']) {
     f.page.setData({ view })
     const nav = f.nodes().find(node => node.tag === 'ql-nav-space')
     assert.equal(nav.attrs.back, true)
@@ -277,8 +296,8 @@ test('every reflection entry uses server windows, not the private feeling window
   for (const permission of ['canBefore', 'canAfter']) {
     Object.assign(f.reflectionContext, { canBefore: false, canAfter: false, [permission]: true })
     await f.page.refresh()
-    for (const view of ['journey', 'experience', 'feeling']) {
-      f.page.setData({ view, feelingPhase: 'after' })
+    for (const view of ['journey', 'experience']) {
+      f.page.setData({ view })
       const button = control(f.nodes(), 'openReflection')
       assert(button); assert.equal(button.attrs.disabled, false)
       await f.page.openReflection()
@@ -287,8 +306,8 @@ test('every reflection entry uses server windows, not the private feeling window
   }
   Object.assign(f.reflectionContext, { canBefore: false, canAfter: false })
   await f.page.refresh()
-  for (const view of ['journey', 'experience', 'feeling']) {
-    f.page.setData({ view, feelingPhase: 'after' })
+  for (const view of ['journey', 'experience']) {
+    f.page.setData({ view })
     assert.equal(control(f.nodes(), 'openReflection').attrs.disabled, true)
   }
 })

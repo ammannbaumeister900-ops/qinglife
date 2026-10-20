@@ -1,27 +1,26 @@
-/* Approved detail prototype only. Other camp-flow views keep index.wxss rules. */
-.camp-flow-page.detail-page { --detail-paper: #f7f6ef; --detail-ink: #252b21; --detail-green: #435e3c; --detail-muted: #5f685a; --detail-line: #c6cabb; min-height: calc(100vh - 88px); padding: 0 0 calc(145px + env(safe-area-inset-bottom)); background: var(--detail-paper); color: var(--detail-ink); font-size: 15px; line-height: 1.75; }
+/* Approved detail prototype only. Other camp-flow views keep index.wxss rules.
+ * 2026Q4：--detail-* 改为「林下午后」令牌别名；只改头部（期号、标题、日期）与底部报名栏的字体，其余版式不动。 */
+.camp-flow-page.detail-page { --detail-paper: var(--q-linen); --detail-ink: var(--q-ink); --detail-green: var(--q-moss); --detail-muted: var(--q-ink-2); --detail-line: var(--q-line); min-height: calc(100vh - 88px); padding: 0 0 calc(145px + env(safe-area-inset-bottom)); background: var(--detail-paper); color: var(--detail-ink); font-size: 15px; line-height: 1.75; }
 .detail-page .detail-entry { padding: 25px 24px 23px; }
-.detail-page .detail-period-state { display: flex; justify-content: space-between; align-items: baseline; gap: 14px; margin-bottom: 14px; color: var(--detail-muted); font-size: 14px; }
-.detail-page .detail-activity-state { flex-shrink: 0; color: var(--detail-green); }
-.detail-page .detail-activity-state::before { content: ''; display: inline-block; width: 5px; height: 5px; margin-right: 6px; border-radius: 50%; background: currentColor; vertical-align: middle; }
+.detail-page .detail-period-state { display: flex; justify-content: space-between; align-items: center; gap: 14px; margin-bottom: 14px; color: var(--detail-muted); font-size: 14px; }
+.detail-page .detail-period { display: flex; align-items: baseline; gap: 4px; min-width: 0; }
+.detail-page .detail-period-number { color: var(--detail-ink); font-family: var(--q-num); font-size: 48px; font-weight: 600; line-height: 1; letter-spacing: -1px; overflow-wrap: anywhere; }
+.detail-page .detail-activity-state { flex-shrink: 0; padding: 0 8px; border: 1px solid currentColor; color: var(--detail-green); line-height: 24px; }
 .detail-page .detail-activity-state.disabled { color: var(--detail-muted); }
-.detail-page .detail-activity-state.warning { color: #8b602b; }
-.detail-page .detail-title { margin: 0; max-width: 10em; font-family: var(--ql-serif); font-size: 34px; font-weight: 400; line-height: 1.38; overflow-wrap: break-word; }
-.detail-page .detail-theme { margin-top: 10px; color: var(--detail-muted); font-size: 15px; line-height: 1.75; }
+.detail-page .detail-activity-state.warning { color: var(--q-amber); }
+.detail-page .detail-title { margin: 0; max-width: 10em; font-family: var(--q-serif); font-size: 32px; font-weight: 600; line-height: 1.38; overflow-wrap: break-word; }
 .detail-page .detail-core-facts { margin-top: 17px; font-size: 14px; line-height: 1.7; }
 .detail-page .detail-core-date { font-size: 16px; font-weight: 500; }
 .detail-page .detail-year { margin-right: 6px; font-family: inherit; font-size: inherit; font-weight: inherit; }
 .detail-page .detail-core-place { margin-top: 5px; overflow-wrap: break-word; }
 .detail-page .detail-registration-notice { margin: 0 24px; padding: 18px 0 16px; border-bottom: 1px solid var(--detail-line); }
-.detail-page .detail-registration-title { color: #8b602b; font-size: 16px; font-weight: 600; }
+.detail-page .detail-registration-title { color: var(--q-amber); font-size: 16px; font-weight: 600; }
 .detail-page .detail-registration-title.confirmed { color: var(--detail-green); }
 .detail-page .detail-registration-note { margin-top: 6px; color: var(--detail-muted); font-size: 14px; }
 .detail-page .camp-cover { margin: 0 24px 0 0; }
-.detail-page .camp-cover.detail-poster { margin-left: 24px; }
 .detail-page .detail-image-button { display: block; width: 100%; min-height: 0; margin: 0; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; color: inherit; line-height: normal; overflow: visible; }
 .detail-page .camp-cover-image { display: block; width: 100%; height: auto; border-radius: 0; }
 .detail-page .detail-photo-caption { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 9px 0 0 24px; color: var(--detail-muted); font-size: 12px; line-height: 1.7; }
-.detail-page .detail-poster .detail-photo-caption { margin-left: 0; }
 .detail-page .detail-photo-caption button { min-height: 32px; margin: 0; padding: 0; border: 0; background: transparent; color: var(--detail-green); font-size: 12px; line-height: 1.7; }
 .detail-page .detail-intro { margin: 23px 24px 0; color: var(--detail-ink); font-size: 15px; line-height: 1.9; white-space: pre-wrap; overflow-wrap: break-word; }
 .detail-page .detail-section { margin: 34px 24px 0; }
@@ -35,7 +34,7 @@
 .detail-page .detail-guide-names { font-size: 16px; font-weight: 500; line-height: 1.8; overflow-wrap: break-word; }
 .detail-page .detail-guide-photo { flex: none; width: 144px; }
 .detail-page .detail-guide-photo image { display: block; width: 100%; height: auto; }
-.detail-page .detail-section-title { margin: 0 0 18px; font-family: var(--ql-serif); font-size: 23px; font-weight: 400; line-height: 1.5; }
+.detail-page .detail-section-title { margin: 0 0 18px; font-family: var(--q-serif); font-size: 23px; font-weight: 600; line-height: 1.5; }
 .detail-page .detail-fees { margin-top: 29px; }
 .detail-page .detail-fees .detail-section-title { margin-bottom: 12px; }
 .detail-page .detail-fee-row { display: flex; justify-content: space-between; align-items: baseline; gap: 20px; padding: 16px 0; border-top: 1px solid var(--detail-line); }
@@ -52,13 +51,6 @@
 .detail-page .detail-day-copy { flex: 1; min-width: 0; }
 .detail-page .detail-day-title { font-size: 16px; font-weight: 500; line-height: 1.6; overflow-wrap: break-word; }
 .detail-page .detail-day-time { margin-top: 5px; color: var(--detail-muted); font-size: 14px; line-height: 1.7; }
-.detail-page .detail-full-schedule .detail-day-row { padding-top: 12px; padding-bottom: 12px; }
-.detail-page .detail-full-schedule .detail-date-only { display: block; padding-top: 9px; padding-bottom: 9px; }
-.detail-page .detail-date-only .detail-day-date { width: auto; }
-.detail-page .detail-date-only .detail-day-label { display: inline; margin-left: 12px; }
-.detail-page .detail-schedule-toggle { display: flex; justify-content: space-between; align-items: center; width: 100%; min-height: 48px; margin: 0; padding: 12px 0; border-top: 1px solid var(--detail-line); border-radius: 0; background: transparent; color: var(--detail-green); font-size: 14px; line-height: 1.7; text-align: left; }
-.detail-page .detail-chevron { flex: none; width: 7px; height: 7px; margin-right: 4px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(45deg); }
-.detail-page .detail-chevron.expanded { transform: rotate(225deg); }
 .detail-page .detail-arrangement-note { margin-top: -6px; margin-bottom: 15px; color: var(--detail-muted); font-size: 14px; line-height: 1.85; }
 .detail-page .detail-rules { margin-top: 30px; padding-top: 20px; border-top: 1px solid var(--detail-line); }
 .detail-page .detail-rule + .detail-rule { margin-top: 20px; }
@@ -69,21 +61,19 @@
 .detail-page .action-price { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px; line-height: 1.5; }
 .detail-page .price-caption, .detail-page .price-unit { color: var(--detail-muted); font-size: 14px; font-weight: 400; }
 .detail-page .price-currency { font-size: 16px; font-weight: 400; }
-.detail-page .price-number { font-size: 23px; font-weight: 500; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.detail-page .price-number { font-family: var(--q-num); font-size: 26px; font-weight: 600; overflow-wrap: anywhere; }
 .detail-page .action-status { margin-top: 3px; color: var(--detail-muted); font-size: 14px; line-height: 1.55; }
 .detail-page .detail-action-registration { font-size: 16px; font-weight: 500; }
-.detail-page .detail-actionbar .action-primary { flex: none; width: auto; max-width: 49%; min-height: 48px; margin: 0; padding: 12px 17px; border-radius: 4px; background: var(--detail-green); color: #fff; font-size: 15px; line-height: 1.6; }
+.detail-page .detail-actionbar .action-primary { flex: none; width: auto; max-width: 49%; min-height: 48px; margin: 0; padding: 12px 17px; border-radius: 0; background: var(--q-forest); color: var(--q-on-dark); font-size: 16px; font-weight: 500; line-height: 1.6; }
 .detail-page .detail-booked .action-primary { max-width: 53%; font-size: 14px; }
-.detail-page .detail-actionbar .action-primary[disabled] { background: #e4e6dc; color: #596150; }
+.detail-page .detail-actionbar .action-primary[disabled] { background: var(--q-field); color: var(--q-ink-2); }
 .detail-page button:active { opacity: .76; transform: none; }
 @media (max-width: 350px) {
   .detail-page .detail-entry { padding-right: 20px; padding-left: 20px; }
-  .detail-page .detail-title { font-size: 30px; }
+  .detail-page .detail-title { font-size: 28px; }
   .detail-page .detail-section, .detail-page .detail-intro, .detail-page .detail-registration-notice { margin-right: 20px; margin-left: 20px; }
   .detail-page .camp-cover { margin-right: 20px; }
-  .detail-page .camp-cover.detail-poster { margin-left: 20px; }
   .detail-page .detail-photo-caption { margin-left: 20px; }
-  .detail-page .detail-poster .detail-photo-caption { margin-left: 0; }
   .detail-page .detail-guide-row { gap: 16px; }
   .detail-page .detail-guide-photo { width: 122px; }
   .detail-page .detail-guide-names { font-size: 15px; }
@@ -91,7 +81,6 @@
   .detail-page .detail-copy { font-size: 14px; }
   .detail-page .detail-day-row { gap: 14px; }
   .detail-page .detail-day-date { width: 66px; }
-  .detail-page .detail-date-only .detail-day-date { width: auto; }
   .detail-page .detail-actionbar { gap: 10px; padding-right: 20px; padding-left: 20px; }
   .detail-page .detail-actionbar .action-primary { padding-right: 13px; padding-left: 13px; font-size: 14px; }
   .detail-page .price-number { font-size: 21px; }

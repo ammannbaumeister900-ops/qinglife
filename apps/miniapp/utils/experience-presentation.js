@@ -13,21 +13,9 @@ function present(rows) {
       updatedText: validDate ? '更新 ' + date[1] + '.' + date[2] : '', scoreText: values.join(' · ') }
   })
 }
+// The review is read-only; writing happens in the single 轻友心声 editor.
 function refresh(previous, scope, rows, eligible) {
   const same = previous.reviewScope === scope && eligible
-  const after = rows.find(isAfter), savedNote = after && typeof after.note === 'string' ? after.note : ''
-  const keepDraft = same && previous.reviewDirty
-  return { reviewScope: scope, experienceTimeline: present(rows), reviewHasAfter: !!after, reviewSavedNote: savedNote,
-    reviewNote: keepDraft ? previous.reviewNote : savedNote, reviewDirty: !!keepDraft, reviewSaved: !!after && !keepDraft,
-    reviewEditing: !!(same && previous.reviewEditing), reviewError: same ? previous.reviewError : '',
-    reviewExpanded: same ? previous.reviewExpanded : {} }
+  return { reviewScope: scope, experienceTimeline: present(rows), reviewExpanded: same ? previous.reviewExpanded : {} }
 }
-function saved(rows, payload) {
-  // A successful PUT confirms the payload, but supplies no ID or server timestamp.
-  // Keep existing IDs; omit update time until the next actual API read.
-  const previous = (rows || []).find(isAfter)
-  const row = { ...previous, registrationId: payload.registrationId, phase: 'after', nodeKey: '', label: '活动后',
-    note: payload.note, energy: payload.energy, relaxation: payload.relaxation, updatedAt: '', visibility: 'private' }
-  return present(previous ? rows.map(item => isAfter(item) ? row : item) : (rows || []).concat(row))
-}
-module.exports = { present, refresh, saved, score, isAfter }
+module.exports = { present, refresh, score, isAfter }
