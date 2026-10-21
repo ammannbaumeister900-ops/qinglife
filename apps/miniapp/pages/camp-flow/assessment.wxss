@@ -1,0 +1,15 @@
+/* 报名后的轻友登记提醒 ·「林下午后」。本页唯一深林色场，满幅出血到页面两侧；只引用 --q-* 令牌。 */
+.camp-flow-page .assessment-prompt { margin: 36rpx -40rpx 8rpx; padding: 30px 40rpx 28px; background: var(--q-forest); color: var(--q-on-dark); }
+.assessment-kicker { color: var(--q-juice); font-size: var(--q-fs-aux); font-weight: 500; letter-spacing: 2px; }
+.assessment-title { margin-top: 10px; font-family: var(--q-serif); font-size: var(--q-fs-h2); font-weight: 600; line-height: 1.35; letter-spacing: 1px; }
+.assessment-copy { margin-top: 10px; color: var(--q-on-dark-2); font-size: var(--q-fs-body); line-height: 1.8; }
+.camp-flow-page .assessment-action { display: flex; align-items: center; justify-content: center; width: 100%; min-height: var(--q-btn-h); margin: 22px 0 0; padding: 0 16px; border: 0; border-radius: 0; background: var(--q-juice); color: var(--q-forest); font-size: var(--q-fs-body); font-weight: 600; }
+.camp-flow-page .assessment-action::after, .camp-flow-page .assessment-done::after { border: 0; }
+.camp-flow-page .assessment-done { display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 56px; margin: 28rpx 0 8rpx; padding: 10px 14px; border: 0; border-left: 3px solid var(--q-moss); border-radius: 0; background: var(--q-field); color: var(--q-ink); font-size: var(--q-fs-body); font-weight: 400; text-align: left; }
+.assessment-done-action { flex: none; color: var(--q-moss); font-size: 15px; font-weight: 500; }
+/* 提醒出现时，"查看安排"让位为次按钮，保证每屏只有一个主按钮。 */
+.camp-flow-page .result-journey { margin-top: 24rpx; border: 1px solid var(--q-ink); border-radius: 0; color: var(--q-ink); }
+@media (max-width: 350px) {
+  .camp-flow-page .assessment-prompt { padding-top: 24px; padding-bottom: 22px; }
+  .assessment-title { font-size: 24px; }
+}

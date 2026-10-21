@@ -13,7 +13,7 @@ const emptyForm = () => ({
 Page({
   data: {
     step: 1, formError: null, loading: true, loadError: '', submitting: false, submitted: false, assessmentCount: 0,
-    sessionContext: null, invitationCode: '', mode: 'form', history: [], historyLoading: false, historyError: '', record: {}, editingId: '', editDeadline: '', wasEditing: false,
+    sessionContext: null, invitationCode: '', sessionId: '', fromCamp: false, phoneRequired: false, mode: 'form', history: [], historyLoading: false, historyError: '', record: {}, editingId: '', editDeadline: '', wasEditing: false,
     form: emptyForm(), today: '', cleanBodyGoalSelected: {}, emotionSelected: {}, healthSelected: {},
     goals: ['排毒','减重','减压','调理'],
     diets: ['全素','以素为主','以荤为主','荤素各半'],
@@ -33,22 +33,28 @@ Page({
 
   async onLoad(options = {}) {
     formFeedback.cancel(this)
-    if (typeof options.invite === 'string' || typeof options.scene === 'string' || options.history === '1') this.routeOptions = options
+    if (typeof options.invite === 'string' || typeof options.scene === 'string' || typeof options.sessionId === 'string' || options.history === '1') this.routeOptions = options
     options = this.routeOptions || {}
     let invitationCode = options.invite || ''
     if (!invitationCode && options.scene) { try { invitationCode = decodeURIComponent(options.scene) } catch (_) { invitationCode = 'invalid' } }
+    // A period is joined either by a staff invitation or by the friend's own registration, never both.
+    const sessionId = invitationCode ? '' : String(options.sessionId || '')
     this.initialized = false
-    this.setData({ loading: true, loadError: '', formError: null, sessionContext: null, invitationCode, submitted: false, editingId: '', form: emptyForm(), mode: 'form' })
+    this.setData({ loading: true, loadError: '', phoneRequired: false, formError: null, sessionContext: null, invitationCode, sessionId, fromCamp: options.from === 'camp', submitted: false, editingId: '', form: emptyForm(), mode: 'form' })
     const today = new Date()
     const date = [today.getFullYear(), String(today.getMonth()+1).padStart(2,'0'), String(today.getDate()).padStart(2,'0')].join('-')
     try {
       const profile = await business.friendProfile()
-      const sessionContext = invitationCode ? await business.assessmentInvitation(invitationCode) : null
       this.customerId = profile.id
-      this.draftKey = profile.id ? DRAFT_KEY + ':' + profile.id + (invitationCode ? ':' + invitationCode : '') : ''
+      // The contact number is the WeChat-verified one; without it there is no form to fill.
+      this.authorizedPhone = profile.authorizedPhone || ''
+      if (!this.authorizedPhone) { this.initialized = true; return this.setData({ loading: false, phoneRequired: true }) }
+      const sessionContext = invitationCode ? await business.assessmentInvitation(invitationCode) : sessionId ? await business.assessmentSession(sessionId) : null
+      this.draftKey = profile.id ? DRAFT_KEY + ':' + profile.id + (invitationCode ? ':' + invitationCode : sessionId ? ':session:' + sessionId : '') : ''
       // Unscoped legacy drafts have no provable owner, so never display them after a login change.
       const draft = this.draftKey && wx.getStorageSync(this.draftKey)
       const form = draft && draft.clientRequestId ? { ...emptyForm(), ...draft } : { ...emptyForm(), ...basicProfile(profile), weightKg: profile.weightKg || '' }
+      form.phone = this.authorizedPhone
       this.setData({ form, sessionContext, assessmentCount: Number(profile.assessmentCount || 0), today: date, loading: false, ...selectionMaps(form) })
       this.initialized = true
       if (options.history === '1') await this.openHistory()
@@ -60,7 +66,7 @@ Page({
     if (!this.initialized || this.data.loading) return
     try {
       const profile = await business.friendProfile()
-      if (profile.id !== this.customerId) return this.onLoad(this.routeOptions || {})
+      if (profile.id !== this.customerId || this.data.phoneRequired && profile.authorizedPhone) return this.onLoad(this.routeOptions || {})
       if (this.data.mode !== 'form') return this.refreshHistory()
     } catch (e) { this.initialized = false; this.setData({form:emptyForm(),history:[],record:{},loadError:e.message||'请重新登录',sessionContext:null}) }
   },
@@ -92,6 +98,7 @@ Page({
     const form = emptyForm()
     Object.keys(form).forEach(key => { if (record[key] != null && key !== 'clientRequestId' && key !== 'sensitiveConsent') form[key] = record[key] })
     form.birthDate = formatDate(record.birthDate)
+    form.phone = this.authorizedPhone
     form.revision = record.revision
     formFeedback.changeStep(this, wx, { mode: 'form', submitted: false, editingId: record.id, editDeadline: record.editableUntil, step: 1, form, ...selectionMaps(form) })
   },
@@ -182,6 +189,7 @@ Page({
       const payload = { ...f, heightCm:Number(f.heightCm), weightKg:Number(f.weightKg), waterIntakeMl:Number(f.waterIntakeMl) }
       const editing = !!this.data.editingId
       if (!editing && this.data.invitationCode) payload.invitationCode = this.data.invitationCode
+      else if (!editing && this.data.sessionId) payload.sessionId = this.data.sessionId
       const result = editing ? await business.amendFriendAssessment(this.data.editingId, payload) : await business.submitFriendAssessment(payload)
       if (!editing && this.draftKey) wx.removeStorageSync(this.draftKey)
       this.setData({ submitted:true, editingId:'', wasEditing:editing, savedDeadline:result.editableUntil || '', assessmentCount:Number(result.assessmentCount || this.data.assessmentCount + (editing ? 0 : 1)) })
@@ -189,7 +197,9 @@ Page({
     finally { this.setData({submitting:false}) }
   },
   backMine() { wx.switchTab({url:'/pages/mine/index'}) },
-  registerAgain() { const form = { ...emptyForm(), ...basicProfile(this.data.form) }; formFeedback.changeStep(this, wx, { mode:'form', submitted:false, editingId:'', wasEditing:false, step:1, form, ...selectionMaps(form) }); this.saveDraft() }
+  backCamp() { wx.navigateBack({ fail: () => this.backMine() }) },
+  authorizePhone() { wx.navigateTo({ url: '/pages/phone-auth/index' }) },
+  registerAgain() { const form = { ...emptyForm(), ...basicProfile(this.data.form), phone: this.authorizedPhone }; formFeedback.changeStep(this, wx, { mode:'form', submitted:false, editingId:'', wasEditing:false, step:1, form, ...selectionMaps(form) }); this.saveDraft() }
 })
 
 function formatDate(value) { return value ? String(value).slice(0,10) : '' }

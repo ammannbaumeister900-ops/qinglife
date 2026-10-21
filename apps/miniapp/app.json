@@ -9,6 +9,7 @@
     "pages/article/index",
     "pages/friend-flow/index",
     "pages/mine-flow/index",
+    "pages/phone-auth/index",
     "pages/personal/index",
     "pages/friend-registration/index",
     "pages/camp-reflection/index",

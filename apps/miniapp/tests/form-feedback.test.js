@@ -7,7 +7,7 @@ const root = path.resolve(__dirname, '..')
 const plain = value => JSON.parse(JSON.stringify(value))
 const feedback = require('../utils/form-feedback')
 const event = (field, value) => ({ currentTarget: { dataset: { field, value } }, detail: { value } })
-const validForm = { name: '测试轻友', birthDate: '1990-01-01', phone: '服务联系电话', heightCm: '170', weightKg: '60', province: '上海市', city: '上海',
+const validForm = { name: '测试轻友', birthDate: '1990-01-01', phone: '13800000000', heightCm: '170', weightKg: '60', province: '上海市', city: '上海',
   cleanBodyGoals: ['调理'], dietPreference: '荤素各半', waterIntakeMl: '0', wakeTime: '07:00', sleepTime: '22:00',
   bowelStatus: '1次/天', energyStatus: '一般', exerciseStatus: '偶尔运动', emotionalStatus: ['平静'], healthConditions: ['无'],
   referralSource: '朋友小雨', sensitiveConsent: true }
@@ -23,7 +23,7 @@ function fixture(name, apiEnabled = true) {
     navigateBack() {}
   }
   const business = {
-    enabled: () => apiEnabled, friendProfile: async () => ({ id: 'test-owner' }),
+    enabled: () => apiEnabled, friendProfile: async () => ({ id: 'test-owner', authorizedPhone: '13800000000' }),
     register: async value => { submissions.push(plain(value)); return {} },
     submitFriendAssessment: async value => { submissions.push(plain(value)); return { assessmentCount: 2 } }
   }

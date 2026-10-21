@@ -27,7 +27,7 @@ class QlFriendAssessmentValidatorTest {
         assertThrows(CustomException.class,()->QlFriendAssessmentValidator.validate(b));
     }
 
-    private QlFriendAssessmentBo valid() {
+    static QlFriendAssessmentBo valid() {
         QlFriendAssessmentBo b=new QlFriendAssessmentBo();
         b.setClientRequestId(UUID.randomUUID().toString()); b.setName("测试轻友"); b.setNickname("");
         b.setBirthDate(new Date(946684800000L)); b.setPhone("+86 138-0000-0000");

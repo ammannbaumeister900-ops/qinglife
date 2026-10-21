@@ -96,6 +96,8 @@ class SessionRulesIT {
     void bind(String token,String owner,long app) {
         when(context.getBean(RedisCache.class).getCacheObject("appToken:"+token)).thenReturn(app);
         when(context.getBean(QlCustomerIdentityService.class).resolve(app)).thenReturn(owner);
+        // A bound mini-program friend has passed WeChat phone authorization.
+        db.update("INSERT IGNORE INTO ql_customer_identifier(id,customer_id,identifier_type,identifier_value,normalized_hash,display_hint,app_scope,is_primary,verification_status,valid_from) VALUES(?,?,'phone','13900000000',SHA2('13900000000',256),'139****0000','wechat-phone',0,'verified',NOW(3))",UUID.randomUUID().toString(),owner);
     }
     QlMiniAppRegistrationBo signup(String session, QlMiniAppRegistrationBo.Participant... people) {
         QlMiniAppRegistrationBo bo=new QlMiniAppRegistrationBo();bo.setSessionId(session);bo.setClientRequestId(UUID.randomUUID().toString());bo.setServiceConsent(true);bo.setContactName("Synthetic contact");bo.setContactPhone("13800000000");bo.setParticipants(Arrays.asList(people));return bo;

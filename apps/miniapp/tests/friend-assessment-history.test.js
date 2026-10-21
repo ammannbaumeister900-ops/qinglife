@@ -10,7 +10,7 @@ function page(api, storage = new Map()) {
   result.setData = patch => { for (const [key, value] of Object.entries(patch)) { const parts = key.split('.'); if (parts.length === 2) result.data[parts[0]][parts[1]] = value; else result.data[key] = value } }
   return { result, toasts, storage }
 }
-const profile = { id: 'owner-a', name: '测试轻友', phone: '13800001234', birthDate: '1990-01-01', heightCm: 165, weightKg: 55.5, city: '上海', assessmentCount: 1 }
+const profile = { id: 'owner-a', name: '测试轻友', phone: '13800001234', authorizedPhone: '13800001234', birthDate: '1990-01-01', heightCm: 165, weightKg: 55.5, city: '上海', assessmentCount: 1 }
 const record = { ...profile, id: 'record-a', province: '上海市', city: '上海市', revision: 1, canEdit: true, profileSnapshotAvailable: true, submittedAt: '2026-10-02 10:00:00', editableUntil: '2099-01-01 10:00:00', cleanBodyGoals: '["调理"]', dietPreference: '荤素各半', waterIntakeMl: 1500, wakeTime: '07:00', sleepTime: '23:00', bowelStatus: '1次/天', energyStatus: '一般', exerciseStatus: '偶尔运动', emotionalStatus: '["平静"]', healthConditions: '["无"]', referralSource: '虚构测试' }
 test('province/city picker replaces free text and keeps the two structured values', async () => {
   const { result: p } = page({ friendProfile: async () => profile })

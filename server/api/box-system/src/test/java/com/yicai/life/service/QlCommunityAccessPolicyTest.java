@@ -17,6 +17,7 @@ class QlCommunityAccessPolicyTest {
  QlCampReflectionBo post(String phase,String action){QlCampReflectionBo b=new QlCampReflectionBo();b.setRegistrationId("reg");b.setPhase(phase);b.setRevision(0);b.setNote("原文");b.setAction(action);b.setAnonymous(false);b.setShareConsent("submit".equals(action));b.setOriginalVersion("absent");b.setSource("new");return b;}
  RedisCache redis(){RedisCache r=mock(RedisCache.class);when(r.getCacheObject("appToken:isolated")).thenReturn(42L);return r;}
  QlCustomerIdentityService identities(){QlCustomerIdentityService i=mock(QlCustomerIdentityService.class);when(i.resolve(42L)).thenReturn("A");return i;}
+ QlCustomerPhoneService phones(){QlCustomerPhoneService p=mock(QlCustomerPhoneService.class);when(p.requireWechatPhone(anyString())).thenReturn("19900000001");return p;}
  @Test void immediateInvitationsStayPausedWithoutTreatingProfileValuesAsAuthorization(){
   for(String id:Arrays.asList(null,"","unknown","under14","age17","self-edited-adult","verified-label")){
    assertFalse(policy.canInvite(id));
@@ -96,6 +97,7 @@ class QlCommunityAccessPolicyTest {
  @Test void historicCustomerInvitationCodesCannotBypassVerificationAtResolveOrRegistration(){
   QlMiniAppMapper mapper=mock(QlMiniAppMapper.class);QlMiniAppServiceImpl s=new QlMiniAppServiceImpl(redis(),identities(),mapper,mock(QlSessionPricing.class),mock(QlHabitPlanService.class),mock(QlSessionAdmissionPolicy.class),policy);
   org.springframework.test.util.ReflectionTestUtils.setField(s,"policy",mock(QlRegistrationPolicy.class));
+  org.springframework.test.util.ReflectionTestUtils.setField(s,"phones",phones());
   String code="0123456789abcdef0123456789abcdef";
   when(mapper.selectInvitation(code)).thenReturn(row("purpose","registration","sessionId","s","ownerId","old-minor-or-unknown"));
   assertEquals(403,assertThrows(CustomException.class,()->s.resolveInvitation(code)).getCode());
@@ -109,6 +111,7 @@ class QlCommunityAccessPolicyTest {
  @Test void customerInvitationAndOverviewShareTheGateWithoutTrustingSelfEditedBirthday(){
   QlMiniAppMapper mapper=mock(QlMiniAppMapper.class);when(mapper.selectCustomerProfile("A")).thenReturn(row("minor",false,"birthDate","1990-01-01","dataConfidence","verified"));
   QlMiniAppServiceImpl s=new QlMiniAppServiceImpl(redis(),identities(),mapper,mock(QlSessionPricing.class),mock(QlHabitPlanService.class),mock(QlSessionAdmissionPolicy.class),policy);
+  org.springframework.test.util.ReflectionTestUtils.setField(s,"phones",phones());
   assertEquals(false,s.overview("isolated").get("invitationEligible"));
   assertEquals(403,assertThrows(CustomException.class,()->s.createInvitation("isolated","s",false)).getCode());
   assertEquals(401,assertThrows(CustomException.class,()->s.createInvitation(null,"s",false)).getCode());

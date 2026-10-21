@@ -1,0 +1,31 @@
+const business = require('../../services/business-api')
+const navigation = require('../../utils/navigation')
+
+// Login is complete only after WeChat verifies the friend's own number; there is no hand-typed fallback.
+Page({
+  data: { busy: false, notice: '' },
+
+  async onPhoneNumber(event) {
+    if (this.data.busy) return
+    const code = event && event.detail && event.detail.code
+    if (!code) return this.setData({ notice: '需要授权手机号才能报名和登记；不授权也可以继续浏览。' })
+    this.setData({ busy: true, notice: '' })
+    try {
+      await business.bindPhone(code)
+      wx.showToast({ title: '登录成功', icon: 'success' })
+      setTimeout(() => this.leave(), 600)
+    } catch (error) {
+      if (error && error.code === 'IDENTITY_CHANGED') return
+      this.setData({ notice: /request:fail|timeout|网络/i.test(String(error && (error.errMsg || error.message))) ? '网络不太稳定，登录没有完成，请稍后重试。' : '手机号授权没有完成，请重试。' })
+    } finally { this.setData({ busy: false }) }
+  },
+
+  openPrivacy() {
+    if (wx.openPrivacyContract) wx.openPrivacyContract({ fail: () => wx.showToast({ title: '隐私保护指引暂时无法打开', icon: 'none' }) })
+  },
+
+  leave() {
+    if (getCurrentPages().length > 1) return wx.navigateBack({ fail: () => navigation.switchTab({ url: '/pages/mine/index' }) })
+    navigation.switchTab({ url: '/pages/mine/index' })
+  }
+})

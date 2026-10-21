@@ -22,6 +22,8 @@ public class QlFriendAssessmentBo {
     private String province;
     private Integer revision;
     @javax.validation.constraints.Size(max=32) private String invitationCode;
+    /** Period joined by the friend's own active registration; an alternative to a staff invitation. */
+    @javax.validation.constraints.Size(max=36) private String sessionId;
     @NotNull private List<String> cleanBodyGoals;
     @NotBlank private String dietPreference;
     @NotNull private Integer waterIntakeMl;

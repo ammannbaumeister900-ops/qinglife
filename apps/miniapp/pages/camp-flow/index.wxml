@@ -129,9 +129,16 @@
       <view class="result-title">{{submittedServiceStatus ? '报名已提交，' + submittedServiceStatus.registration : registration.status === 'pending' ? '报名已提交，' + serviceStatus.registration : '报名状态：' + serviceStatus.registration}}</view>
       <view class="card-copy">共 {{submittedParticipantCount || selectedCount}} 位参与者。{{submittedServiceStatus ? submittedServiceStatus.registrationNote : serviceStatus.registrationNote}}</view>
     </view>
+    <view wx:if="{{assessmentStatus && !assessmentStatus.assessed}}" class="assessment-prompt" aria-label="下一步：填写轻友登记">
+      <view class="assessment-kicker">下一步</view>
+      <view class="assessment-title">填写轻友登记</view>
+      <view class="assessment-copy">帮助老师在开营前了解你的作息与身体状况，约 5 分钟。</view>
+      <button class="assessment-action" bindtap="openAssessment">去登记</button>
+    </view>
+    <button wx:elif="{{assessmentStatus && assessmentStatus.assessed}}" class="assessment-done" bindtap="openAssessment"><text>本期轻友登记已填写</text><text class="assessment-done-action">查看 ›</text></button>
     <view wx:if="{{state.registration.status === 'pending'}}" class="privacy-note">请返回清体营查看本期报名状态，或联系工作人员确认。当前不会自动发送确认通知。</view>
     <view wx:if="{{serviceStatus.operationalRisk}}" class="operational-risk">历史报名已确认，缴费和名额需运营核查。</view>
-    <button class="primary" bindtap="openJourney">查看安排</button>
+    <button class="{{assessmentStatus && !assessmentStatus.assessed ? 'secondary result-journey' : 'primary'}}" bindtap="openJourney">查看安排</button>
     <button wx:if="{{state.backend && hasSelfActiveRegistration}}" class="secondary result-reflection" disabled="{{!reflectionAccess.allowed || reflectionOpening}}" bindtap="openReflection">写轻友心声</button>
     <view wx:if="{{state.backend && hasSelfActiveRegistration && !reflectionAccess.allowed}}" class="service-status-note">{{reflectionAccess.reason}}</view>
     <button class="text-button" bindtap="backToCamp">返回清体营</button>
@@ -145,6 +152,13 @@
     </view>
     <view wx:if="{{registration.status === 'pending'}}" class="privacy-note">请返回清体营查看本期报名状态，或联系工作人员确认。当前不会自动发送确认通知。</view>
     <view wx:if="{{serviceStatus.operationalRisk}}" class="operational-risk">历史报名已确认，缴费和名额需运营核查。</view>
+    <view wx:if="{{assessmentStatus && !assessmentStatus.assessed}}" class="assessment-prompt" aria-label="下一步：填写轻友登记">
+      <view class="assessment-kicker">下一步</view>
+      <view class="assessment-title">填写轻友登记</view>
+      <view class="assessment-copy">帮助老师在开营前了解你的作息与身体状况，约 5 分钟。</view>
+      <button class="assessment-action" bindtap="openAssessment">去登记</button>
+    </view>
+    <button wx:elif="{{assessmentStatus && assessmentStatus.assessed}}" class="assessment-done" bindtap="openAssessment"><text>本期轻友登记已填写</text><text class="assessment-done-action">查看 ›</text></button>
     <button wx:if="{{canReapply && availability.canRegister}}" class="secondary" bindtap="startRegistration">重新报名</button>
     <view wx:if="{{hasSelfActiveRegistration}}" class="journey-reflection service-reflection">
       <view class="journey-reflection-title">轻友心声</view>

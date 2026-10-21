@@ -28,7 +28,7 @@ function fixture(name) {
     recordDaily: value => { serverDailyRecords = [{ ...value, id: 'test-daily', choiceValue: value.choiceValue, updatedAt: '2026-10-06' }] },
     enabled: () => true, context: async () => context, featuredReadings: async () => [], homeReadings: async () => ({ stories: [], featured: await business.featuredReadings() }), campVoices: async () => [],
     readings: async filters => { const result = await legacy.getArticles(filters.pageNum); if(result.error) throw Error(result.error); return result }, readingTopics: async () => [],
-    contact: async () => ({ name: '服务人员', wechat: 'test-wechat', configured: true }), login: async () => {},
+    contact: async () => ({ name: '服务人员', wechat: 'test-wechat', configured: true }), login: async () => {}, bindPhone: async code => { if (!code) throw Error('missing phone code') },
     reading: async id => ({ id, title: '真实文章', content: '正文' }), refreshHabit: async () => state.habit,
     saveExperience: async () => {}, saveDailyRecord: async value => { writes.push(plain(value)) }
   }
@@ -221,12 +221,13 @@ test('latest public contact fallback remains usable after API failure', async ()
 
 test('failed identity overview after login never announces login success', async () => {
   const f=fixture('mine')
+  const phone={detail:{code:'synthetic-phone-code'}}
   f.business.context=async()=>{const error=new Error('身份已失效');error.code=401;throw error}
-  await f.page.login()
+  await f.page.login(phone)
   assert.ok(!f.toasts.includes('登录成功'))
   assert.equal(f.page.data.loginLoading,false)
   f.business.context=async()=>f.context
-  await f.page.login()
+  await f.page.login(phone)
   assert.equal(f.toasts.at(-1),'登录成功')
 })
 

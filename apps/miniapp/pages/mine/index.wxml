@@ -9,7 +9,7 @@
       <view class="identity-main">
         <block wx:if="{{state.loggedIn}}">
           <view class="profile-title">{{state.profile.nickname || '还没有登记小名'}}</view>
-          <view class="identity-meta">{{state.backend ? '已用微信登录' : '已登录'}}</view>
+          <view class="identity-meta">{{state.backend && !state.phoneLinked ? '还差一步：授权微信手机号后完成登录' : state.backend ? '已用微信登录' : '已登录'}}</view>
         </block>
         <block wx:elif="{{signedIn}}">
           <view class="profile-title">已登录</view>
@@ -29,9 +29,11 @@
     <view wx:if="{{profileError}}" class="identity-notice notice-warning">{{profileError}}</view>
 
     <view wx:if="{{profileError}}" class="identity-actions"><button class="secondary identity-action" bindtap="onShow">重试</button></view>
+    <view wx:elif="{{state.backend && state.loggedIn && !state.phoneLinked}}" class="identity-actions"><button class="primary identity-action profile-login" open-type="getPhoneNumber|agreePrivacyAuthorization" bindgetphonenumber="login" loading="{{loginLoading}}" disabled="{{loginLoading || logoutLoading}}">{{loginLoading ? '正在登录…' : '授权手机号完成登录'}}</button></view>
     <view wx:elif="{{state.loggedIn && !state.profile.nickname}}" class="identity-actions"><button class="secondary identity-action profile-nickname-entry" bindtap="openFriendRegistration">登记小名</button></view>
     <view wx:elif="{{!state.loggedIn && !signedIn}}" class="identity-actions">
-      <button class="primary identity-action profile-login" loading="{{loginLoading}}" disabled="{{loginLoading || logoutLoading}}" bindtap="login">{{loginLoading ? '正在登录…' : pendingEntry ? '微信登录并继续' : notice && notice.kind === 'error' ? '重新登录' : '微信登录'}}</button>
+      <button wx:if="{{state.backend}}" class="primary identity-action profile-login" open-type="getPhoneNumber|agreePrivacyAuthorization" bindgetphonenumber="login" loading="{{loginLoading}}" disabled="{{loginLoading || logoutLoading}}">{{loginLoading ? '正在登录…' : pendingEntry ? '手机号一键登录并继续' : notice && notice.kind === 'error' ? '重新登录' : '微信手机号一键登录'}}</button>
+      <button wx:else class="primary identity-action profile-login" disabled="{{loginLoading || logoutLoading}}" bindtap="login">登录</button>
       <button wx:if="{{pendingEntry && !loginLoading}}" class="text-button identity-dismiss" bindtap="dismissPending">暂不登录</button>
     </view>
   </view>

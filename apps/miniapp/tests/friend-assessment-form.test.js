@@ -3,7 +3,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
 async function main(){
   let page,submitted=false;const storage=new Map(),toasts=[]
   const wx={getStorageSync:k=>storage.get(k),setStorageSync:(k,v)=>storage.set(k,v),removeStorageSync:k=>storage.delete(k),showToast:v=>toasts.push(v.title),navigateBack(){}}
-  const business={friendProfile:async()=>({}),submitFriendAssessment:async()=>{submitted=true;return{assessmentCount:1}}}
+  const business={friendProfile:async()=>({authorizedPhone:'13800001234'}),submitFriendAssessment:async()=>{submitted=true;return{assessmentCount:1}}}
   const file=path.resolve(__dirname,'../pages/friend-registration/index.js')
   const context={wx,console,Date,Math,Promise,Page:value=>{page=value}}
   vm.runInNewContext('(function(require){'+fs.readFileSync(file,'utf8')+'\n})',context)(target=>target.includes('business-api')?business:require(path.resolve(path.dirname(file),target)))

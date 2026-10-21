@@ -1,7 +1,7 @@
 const { test } = require('node:test'), assert = require('node:assert/strict')
 const { fixture, tick } = require('./helpers/identity-fixture')
 for (const environment of ['staging', 'production']) {
-  test(environment + ': settings, direct auth and auth.next cannot run local fake association', async () => {
+  test(environment + ': settings, direct auth and auth.next cannot run local fake association and forward to WeChat phone authorization', async () => {
     for (const next of ['', 'register', 'daily', 'records', 'experiences', 'experience', 'archive', 'https://invalid.example']) {
       const f = fixture({ runtime: { environment } }), p = f.page('mine-flow', 'auth', { next, id: 'exact-session' })
       assert.equal(p.data.view, 'account'); assert.equal(p.data.demoMode, false)
@@ -9,7 +9,7 @@ for (const environment of ['staging', 'production']) {
       await p.sendCode(); await p.login(); await tick()
       assert.equal(p.data.codeSent, false); assert.equal(JSON.stringify([...f.storage]), before)
       assert.equal(f.modals.length, 0); assert.equal(f.toasts.some(t => /关联成功/.test(t)), false)
-      assert.equal(f.nav.length, 0); assert.equal(p.data.account.nickname, 'A')
+      assert.deepEqual(f.nav, ['/pages/phone-auth/index']); assert.equal(p.data.account.nickname, 'A')
       const privacy = f.page('mine-flow', 'privacy'); privacy.refresh(); await privacy.openAccount()
       assert.equal(privacy.data.view, 'account'); assert.equal(privacy.data.account.nickname, 'A')
     }

@@ -1,6 +1,7 @@
 <view class="registration-page {{mode === 'form' && !submitted ? 'registration-form' : 'registration-record'}}">
   <view wx:if="{{loading}}" class="loading">正在登录并读取轻友档案…</view>
   <view wx:elif="{{loadError}}" class="loading"><view>{{loadError}}</view><button class="text-button" bindtap="onLoad">重新读取</button></view>
+  <view wx:elif="{{phoneRequired}}" class="loading phone-required"><view>轻友登记使用微信授权的手机号联系你，请先完成手机号授权。</view><button class="primary" bindtap="authorizePhone">授权手机号</button></view>
   <view wx:elif="{{mode==='history'}}" class="history-page">
     <view class="history-head"><view class="title">过往登记</view><view class="subtitle">每份记录按提交时间保留。提交后 48 小时内可修改，之后仅可查看。</view></view>
     <view wx:if="{{historyLoading}}" class="history-state">正在读取…</view>
@@ -25,7 +26,7 @@
     <view class="success-mark">✓</view><view class="success-title">{{wasEditing?'修改已保存':'登记已保存'}}</view>
     <view class="success-copy">{{wasEditing?'本次修改已保存，提交时间与修改期限保持不变。':'这是你的第 '+assessmentCount+' 次登记，过往记录已保留。'}}</view><view wx:if="{{savedDeadline}}" class="success-deadline">可修改至 {{savedDeadline}}</view>
     <view wx:if="{{sessionContext && !wasEditing}}" class="success-copy">已归入第 {{sessionContext.sessionNumber}} 期登记记录</view>
-    <button class="primary" bindtap="backMine">返回我的</button><button class="text-button" bindtap="registerAgain">再登记一次</button><button class="history-entry" bindtap="openHistory">查看过往登记 ›</button>
+    <button wx:if="{{fromCamp}}" class="primary" bindtap="backCamp">返回本期安排</button><button wx:else class="primary" bindtap="backMine">返回我的</button><button class="text-button" bindtap="registerAgain">再登记一次</button><button class="history-entry" bindtap="openHistory">查看过往登记 ›</button>
   </view>
   <block wx:else>
     <view wx:if="{{sessionContext && !editingId}}" class="session-context"><view class="session-context-label">第 {{sessionContext.sessionNumber}} 期 · 轻友登记</view><view class="session-context-name">{{sessionContext.sessionName}}</view><view class="subtitle">本次填写本人状态，保存至历次档案</view></view>
@@ -34,7 +35,7 @@
       <view class="field" id="friend-name"><text>姓名 *</text><view wx:if="{{formError.target === 'friend-name'}}" class="form-error">{{formError.message}}</view><input placeholder-class="form-placeholder" value="{{form.name}}" data-field="name" bindinput="field" maxlength="30" placeholder="请输入真实姓名" /></view>
       <view class="field" id="friend-nickname"><text>轻生活小名（老轻友选填）</text><view wx:if="{{formError.target === 'friend-nickname'}}" class="form-error">{{formError.message}}</view><input placeholder-class="form-placeholder" value="{{form.nickname}}" data-field="nickname" bindinput="field" maxlength="50" placeholder="选填" /></view>
       <view class="field" id="friend-birthDate"><text>出生年月日 *</text><view wx:if="{{formError.target === 'friend-birthDate'}}" class="form-error">{{formError.message}}</view><picker mode="date" end="{{today}}" value="{{form.birthDate}}" bindchange="pickDate"><view class="picker {{form.birthDate ? '' : 'is-empty'}}">{{form.birthDate || '请选择日期'}}</view></picker></view>
-      <view class="field" id="friend-phone"><text>联系电话 *</text><view wx:if="{{formError.target === 'friend-phone'}}" class="form-error">{{formError.message}}</view><input placeholder-class="form-placeholder" value="{{form.phone}}" data-field="phone" bindinput="field" maxlength="24" placeholder="用于服务联系" /></view>
+      <view class="field" id="friend-phone"><text>联系电话 *</text><view wx:if="{{formError.target === 'friend-phone'}}" class="form-error">{{formError.message}}</view><view class="picker phone-locked">{{form.phone}}</view><view class="phone-locked-note">已使用微信授权手机号，如需更换请联系工作人员</view></view>
       <view class="two"><view class="field" id="friend-heightCm"><text>身高（cm）*</text><view wx:if="{{formError.target === 'friend-heightCm'}}" class="form-error">{{formError.message}}</view><input placeholder-class="form-placeholder" type="digit" value="{{form.heightCm}}" data-field="heightCm" bindinput="field" placeholder="80–250" /></view><view class="field" id="friend-weightKg"><text>体重（kg）*</text><view wx:if="{{formError.target === 'friend-weightKg'}}" class="form-error">{{formError.message}}</view><input placeholder-class="form-placeholder" type="digit" value="{{form.weightKg}}" data-field="weightKg" bindinput="field" placeholder="如 55.5" /></view></view>
       <view class="field" id="friend-region"><text>省 / 市 *</text><view wx:if="{{formError.target === 'friend-region'}}" class="form-error">{{formError.message}}</view><picker class="city-picker" mode="region" level="city" value="{{form.province?[form.province,form.city]:[]}}" bindchange="pickRegion"><view class="picker region-value {{form.province?'has-value':''}}"><text>{{form.province?form.province+' / '+form.city:'请选择省 / 市'}}</text><text class="picker-arrow">⌄</text></view></picker><view wx:if="{{!form.province && form.city}}" class="legacy-city">上次填写：{{form.city}}，请从选项中重新选择。</view></view>
     </view>

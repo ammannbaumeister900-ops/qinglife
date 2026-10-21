@@ -356,3 +356,29 @@ test('first authoritative owner adoption does not discard the loaded activity', 
   assert.equal(f.page.data.loadError, '')
   assert.equal(f.page.data.loading, false)
 })
+
+test('after signing up, the waiting page asks for this period\'s 轻友登记 once and quiets down when it is filled', async () => {
+  for (const view of ['success', 'journey']) {
+    const f = await fixture(view, 'pending'), asked = []
+    f.business.friendAssessmentStatus = async id => { asked.push(id); return { sessionId: id, assessed: false } }
+    await f.page.refresh()
+    assert.deepEqual(asked, ['session-live'])
+    const prompt = f.nodes().find(node => has(node, 'assessment-prompt'))
+    assert.ok(prompt, view); assert.match(content(prompt), /填写轻友登记/)
+    assert.equal(f.nodes().filter(node => has(node, 'primary')).length, 0, 'the reminder holds the only strong action')
+    assert.ok(control(f.nodes(), 'openAssessment')); f.page.openAssessment()
+    assert.deepEqual(f.links, ['/pages/friend-registration/index?from=camp&sessionId=session-live'])
+    f.business.friendAssessmentStatus = async id => ({ sessionId: id, assessed: true, assessmentId: 'a1' })
+    await f.page.refresh()
+    assert.ok(!f.nodes().some(node => has(node, 'assessment-prompt')))
+    assert.match(content(f.nodes().find(node => has(node, 'assessment-done'))), /本期轻友登记已填写/)
+    f.page.openAssessment(); assert.equal(f.links.at(-1), '/pages/friend-registration/index?history=1')
+  }
+  const failed = await fixture('success', 'pending')
+  failed.business.friendAssessmentStatus = async () => { throw Error('offline') }
+  await failed.page.refresh()
+  assert.equal(failed.page.data.loadError, ''); assert.ok(!failed.nodes().some(node => has(node, 'assessment-prompt') || has(node, 'assessment-done')))
+  const phoneless = await fixture('success', 'pending'), unasked = []
+  phoneless.context.state.phoneLinked = false; phoneless.business.friendAssessmentStatus = async id => { unasked.push(id); return { assessed: false } }
+  await phoneless.page.refresh(); assert.deepEqual(unasked, [])
+})

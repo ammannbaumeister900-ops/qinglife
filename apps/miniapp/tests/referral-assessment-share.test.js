@@ -8,7 +8,7 @@ function page(file,api,storage=new Map()) {
   return {p,storage,toasts}
 }
 const code='0123456789abcdef0123456789abcdef',otherCode='abcdef0123456789abcdef0123456789'
-const profile={id:'owner-a',name:'虚构轻友',nickname:'小雨',phone:'13800001234',birthDate:'1990-01-01',heightCm:165,weightKg:55.5,province:'上海市',city:'上海市'}
+const profile={id:'owner-a',name:'虚构轻友',nickname:'小雨',phone:'13800001234',authorizedPhone:'13800001234',birthDate:'1990-01-01',heightCm:165,weightKg:55.5,province:'上海市',city:'上海市'}
 const fields={cleanBodyGoals:['调理'],dietPreference:'荤素各半',waterIntakeMl:1500,wakeTime:'07:00',sleepTime:'23:00',bowelStatus:'1次/天',energyStatus:'一般',exerciseStatus:'偶尔运动',emotionalStatus:['平静'],healthConditions:['无'],referralSource:'虚构测试',sensitiveConsent:true}
 test('group form logs in before resolving the period; draft and submission preserve that link',async()=>{
   let saved,calls=[];const storage=new Map()
@@ -44,4 +44,20 @@ test('referral entry uses server eligibility, displays only returned records, an
   const api={context:async()=>{if(fail)throw Error('登录失效');return {state:{loggedIn:true,invitationEligible:true},activities:[{id:'a',sessionNumber:103,canRegister:true},{id:'closed',canRegister:false}]}},myReferrals:async()=>[{registrationId:'r',nickname:'小雨',registrationStatus:'pending',sessionNumber:103}],createInvitation:async id=>{assert.equal(id,'a');return {path:'/pages/camp-flow/index?invite='+code}}}
   const {p}=page('pages/referrals/index.js',api);await p.onShow();assert.equal(p.data.sessions.length,1);assert.equal(p.data.records[0].statusText,'待确认');await p.prepare({currentTarget:{dataset:{id:'a'}}});assert.ok(p.onShareAppMessage().path.includes(code))
   fail=true;await p.refresh();assert.equal(p.data.records.length,0);assert.equal(p.data.sharePath,'');assert.equal(p.onShareAppMessage().path,'/pages/home/index')
+})
+test('a period joined by the friend\'s own registration links the form without a staff invitation; the phone is the authorized one',async()=>{
+  let saved;const storage=new Map(),looked=[]
+  const api={friendProfile:async()=>({...profile,phone:'13900000000'}),assessmentSession:async id=>{looked.push(id);return {sessionId:id,sessionNumber:102,sessionName:'第二期'}},submitFriendAssessment:async data=>{saved=data;return {assessmentCount:1}}}
+  const {p}=page('pages/friend-registration/index.js',api,storage);await p.onLoad({sessionId:'period-b',from:'camp'})
+  assert.deepEqual(looked,['period-b']);assert.equal(p.data.sessionContext.sessionNumber,102);assert.equal(p.data.fromCamp,true)
+  assert.equal(p.data.form.phone,'13800001234')
+  p.data.form={...p.data.form,...fields,phone:'13800001234'};await p.submit()
+  assert.equal(saved.sessionId,'period-b');assert.equal(saved.invitationCode,undefined);assert.equal(saved.phone,'13800001234')
+  const {p:mixed}=page('pages/friend-registration/index.js',{...api,assessmentInvitation:async()=>({sessionId:'period-a',sessionNumber:101})});looked.length=0
+  await mixed.onLoad({invite:code,sessionId:'period-b'});assert.deepEqual(looked,[]);assert.equal(mixed.data.sessionId,'')
+})
+test('without a WeChat-authorized phone the form is not shown and asks for authorization instead',async()=>{
+  const {p}=page('pages/friend-registration/index.js',{friendProfile:async()=>({...profile,authorizedPhone:null})})
+  await p.onLoad({})
+  assert.equal(p.data.phoneRequired,true);assert.equal(p.data.loading,false);assert.equal(p.data.form.name,'')
 })

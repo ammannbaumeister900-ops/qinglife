@@ -85,7 +85,7 @@ module.exports = function journeyRoutes({ customers, sessions, registrations, at
       const me = actor(req)
       if (pathname === '/app/qinglife/me/overview') {
         const mine = registrations.filter(r => r.customerId === me.id || r.buyerCustomerId === me.id)
-        return reply({ invitationEligible: me.syntheticAdultVerified === true && !me.minor, customerId: me.id, profile: { name: me.nickname, nickname: me.nickname, minor: me.minor }, registrations: mine.map(r => registrationView(r, me)), attendance: attendance.filter(a => a.customerId === me.id), experienceRecords: records.filter(r => r.customerId === me.id), dailyRecords: [], habit: null })
+        return reply({ invitationEligible: me.syntheticAdultVerified === true && !me.minor, customerId: me.id, profile: { name: me.nickname, nickname: me.nickname, minor: me.minor, phoneAuthorized: me.phoneAuthorized !== false }, registrations: mine.map(r => registrationView(r, me)), attendance: attendance.filter(a => a.customerId === me.id), experienceRecords: records.filter(r => r.customerId === me.id), dailyRecords: [], habit: null })
       }
       const appInvite = pathname.match(/^\/app\/qinglife\/sessions\/([^/]+)\/invitations$/)
       if (appInvite && req.method === 'POST') {

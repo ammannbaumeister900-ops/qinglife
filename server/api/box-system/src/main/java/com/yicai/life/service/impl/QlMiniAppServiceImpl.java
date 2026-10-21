@@ -34,6 +34,7 @@ public class QlMiniAppServiceImpl implements IQlMiniAppService {
 
     @Autowired private com.yicai.life.service.QlRegistrationPolicy policy;
     @Autowired private com.yicai.life.service.QlParticipantModePolicy modes;
+    @Autowired private com.yicai.life.service.QlCustomerPhoneService phones;
     private final RedisCache redisCache;
     private final QlCustomerIdentityService identityService;
     private final QlMiniAppMapper miniAppMapper;
@@ -130,7 +131,9 @@ public class QlMiniAppServiceImpl implements IQlMiniAppService {
         String customerId = requireCustomerId(token);
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("customerId", customerId);
-        result.put("profile", miniAppMapper.selectCustomerProfile(customerId));
+        Map<String, Object> profile = new LinkedHashMap<>(Optional.ofNullable(miniAppMapper.selectCustomerProfile(customerId)).orElse(Collections.emptyMap()));
+        profile.put("phoneAuthorized", phones.wechatPhone(customerId) != null);
+        result.put("profile", profile);
         result.put("registrations", miniAppMapper.selectCustomerRegistrations(customerId));
         result.put("passAccounts", miniAppMapper.selectCustomerPassAccounts(customerId));
         result.put("passLedger", miniAppMapper.selectCustomerPassLedger(customerId));
@@ -152,6 +155,7 @@ public class QlMiniAppServiceImpl implements IQlMiniAppService {
     @Transactional(isolation = Isolation.READ_COMMITTED)
     public Map<String, Object> register(String token, QlMiniAppRegistrationBo bo) {
         String buyerId = requireCustomerId(token);
+        phones.requireWechatPhone(buyerId);
         if (bo == null || StrUtil.isBlank(bo.getSessionId()) || StrUtil.isBlank(bo.getClientRequestId())) {
             throw new CustomException("报名参数不完整");
         }

@@ -30,6 +30,7 @@ public class QlFriendAssessmentService {
     private final RedisCache redis;
     private final QlCustomerIdentityService identities;
     private final JdbcTemplate db;
+    private final QlCustomerPhoneService phones;
 
     public Map<String,Object> myProfile(String token) {
         String id=customerId(token);
@@ -37,6 +38,8 @@ public class QlFriendAssessmentService {
                 "(SELECT identifier_value FROM ql_customer_identifier i WHERE i.customer_id=c.id AND i.identifier_type='phone' AND i.valid_to IS NULL ORDER BY i.is_primary DESC,i.created_at DESC LIMIT 1) AS phone,"+
                 "(SELECT weight_kg FROM ql_friend_assessment a WHERE a.customer_id=c.id ORDER BY a.submitted_at DESC,a.id DESC LIMIT 1) AS weightKg,"+
                 "(SELECT COUNT(*) FROM ql_friend_assessment a WHERE a.customer_id=c.id) AS assessmentCount FROM ql_customer c WHERE c.id=? AND c.deleted_at IS NULL",id);
+        // The form's phone is the WeChat-verified number, not a hand-typed one.
+        row.put("authorizedPhone",phones.wechatPhone(id));
         return row;
     }
 
@@ -46,10 +49,15 @@ public class QlFriendAssessmentService {
     public Map<String,Object> submit(String token,QlFriendAssessmentBo bo) {
         QlFriendAssessmentValidator.validate(bo);
         String customerId=customerId(token);
+        requireAuthorizedPhone(customerId,bo);
+        if (StrUtil.isNotBlank(bo.getInvitationCode()) && StrUtil.isNotBlank(bo.getSessionId())) throw new CustomException("登记所属期次无效",400);
         Map<String,Object> assessmentContext=null;
         // A successful retry remains valid after the period ends; new submissions lock period before owner.
-        if (StrUtil.isNotBlank(bo.getInvitationCode()) && db.queryForList("SELECT id FROM ql_friend_assessment WHERE customer_id=? AND client_request_id=?",customerId,bo.getClientRequestId()).isEmpty()) {
+        boolean fresh=db.queryForList("SELECT id FROM ql_friend_assessment WHERE customer_id=? AND client_request_id=?",customerId,bo.getClientRequestId()).isEmpty();
+        if (fresh && StrUtil.isNotBlank(bo.getInvitationCode())) {
             assessmentContext=assessmentContext(bo.getInvitationCode(),true);
+        } else if (fresh && StrUtil.isNotBlank(bo.getSessionId())) {
+            assessmentContext=registeredSessionContext(customerId,bo.getSessionId(),true);
         }
         if(db.queryForList("SELECT id FROM ql_customer WHERE id=? AND deleted_at IS NULL FOR UPDATE",customerId).isEmpty()) throw new CustomException("轻友档案不存在",404);
         String fingerprint=fingerprint(bo);
@@ -62,7 +70,6 @@ public class QlFriendAssessmentService {
         String nickname=StrUtil.blankToDefault(StrUtil.trim(bo.getNickname()),StrUtil.trim(bo.getName()));
         db.update("UPDATE ql_customer SET real_name=?,nickname=?,birth_date=?,height_cm=?,city=?,province=?,data_confidence='verified',revision=revision+1,updated_at=? WHERE id=?",
                 StrUtil.trim(bo.getName()),nickname,bo.getBirthDate(),bo.getHeightCm(),StrUtil.trim(bo.getCity()),blank(bo.getProvince()),now,customerId);
-        updatePhone(customerId,bo.getPhone(),now);
         String id=UUID.randomUUID().toString();
         try {
             db.update("INSERT INTO ql_friend_assessment(id,customer_id,form_version,weight_kg,clean_body_goals,diet_preference,water_intake_ml,wake_time,sleep_time,bowel_status,energy_status,exercise_status,emotional_status,health_conditions,other_health_condition,medications,pregnancy_status,referral_source,retraining_reason,source,client_request_id,request_fingerprint,submitted_at,created_at,updated_at,profile_snapshot) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
@@ -86,11 +93,13 @@ public class QlFriendAssessmentService {
     public Map<String,Object> amend(String token,String id,QlFriendAssessmentBo bo) {
         QlFriendAssessmentValidator.validate(bo);
         String customer=customerId(token);
+        requireAuthorizedPhone(customer,bo);
         if(db.queryForList("SELECT id FROM ql_customer WHERE id=? AND deleted_at IS NULL FOR UPDATE",customer).isEmpty()) throw new CustomException("轻友档案不存在",404);
         List<Map<String,Object>> found=db.queryForList("SELECT a.*, (a.submitted_at<="+BUSINESS_NOW_SQL+" AND "+BUSINESS_NOW_SQL+"<DATE_ADD(a.submitted_at,INTERVAL 48 HOUR)) AS withinWindow FROM ql_friend_assessment a WHERE a.id=? AND a.customer_id=? FOR UPDATE",id,customer);
         if(found.isEmpty()) throw new CustomException("登记记录不存在",404);
         Map<String,Object> row=found.get(0);
         if (StrUtil.isNotBlank(bo.getInvitationCode()) && !bo.getInvitationCode().equals(row.get("invitation_code"))) throw new CustomException("不能更换登记所属期次",400);
+        if (StrUtil.isNotBlank(bo.getSessionId()) && !bo.getSessionId().equals(row.get("session_id"))) throw new CustomException("不能更换登记所属期次",400);
         String fingerprint=fingerprint(bo);
         List<Map<String,Object>> prior=db.queryForList("SELECT request_fingerprint AS fingerprint FROM ql_friend_assessment_edit_log WHERE assessment_id=? AND client_request_id=?",id,bo.getClientRequestId());
         if(!prior.isEmpty()) {
@@ -113,7 +122,6 @@ public class QlFriendAssessmentService {
         if(id.equals(latest)) {
             db.update("UPDATE ql_customer SET real_name=?,nickname=?,birth_date=?,height_cm=?,city=?,province=?,data_confidence='verified',revision=revision+1,updated_at=? WHERE id=?",
                     StrUtil.trim(bo.getName()),StrUtil.blankToDefault(StrUtil.trim(bo.getNickname()),StrUtil.trim(bo.getName())),bo.getBirthDate(),bo.getHeightCm(),StrUtil.trim(bo.getCity()),blank(bo.getProvince()),now,customer);
-            updatePhone(customer,bo.getPhone(),now);
         }
         db.update("INSERT INTO ql_consent_record(id,customer_id,consent_type,status,policy_version,granted_at,source,created_at) VALUES(?,?,'sensitive_profile','granted',?,?,'mini_program',?)",UUID.randomUUID().toString(),customer,QlFriendAssessmentValidator.CONSENT_POLICY_VERSION,now,now);
         return result(customer,id,false);
@@ -169,6 +177,35 @@ public class QlFriendAssessmentService {
         return assessmentContext(code,false);
     }
 
+    /** Only whether this period has a record; the health content itself stays behind the history endpoint. */
+    public Map<String,Object> sessionStatus(String token,String sessionId) {
+        String customer=customerId(token);
+        if(StrUtil.isBlank(sessionId)) throw new CustomException("期次不存在",404);
+        List<Map<String,Object>> sessions=db.queryForList("SELECT s.id,s.session_number,s.name FROM ql_session s JOIN ql_registration r ON r.session_id=s.id AND r.customer_id=? WHERE s.id=?",customer,sessionId);
+        if(sessions.isEmpty()) throw new CustomException("期次不存在",404);
+        List<String> found=db.queryForList("SELECT id FROM ql_friend_assessment WHERE customer_id=? AND session_id=? ORDER BY submitted_at DESC,id DESC LIMIT 1",String.class,customer,sessionId);
+        Map<String,Object> result=assessmentSessionSummary(sessions.get(0));
+        result.put("assessed",!found.isEmpty());
+        result.put("assessmentId",found.isEmpty()?null:found.get(0));
+        return result;
+    }
+
+    public Map<String,Object> registeredSession(String token,String sessionId) {
+        String customer=customerId(token);
+        return registeredSessionContext(customer,sessionId,false);
+    }
+
+    private Map<String,Object> registeredSessionContext(String customerId,String sessionId,boolean lock) {
+        Map<String,Object> session=requireAssessmentSession(sessionId,lock);
+        if(db.queryForList("SELECT id FROM ql_registration WHERE customer_id=? AND session_id=? AND registration_status IN ('pending','confirmed','waitlisted')",customerId,sessionId).isEmpty()) throw new CustomException("报名本期后才能关联本期登记",403);
+        return assessmentSessionSummary(session);
+    }
+
+    private void requireAuthorizedPhone(String customerId,QlFriendAssessmentBo bo) {
+        String phone=phones.requireWechatPhone(customerId);
+        if(!phone.equals(StrUtil.nullToEmpty(bo.getPhone()).replaceAll("\\D",""))) throw new CustomException("登记手机号需与微信授权手机号一致",400);
+    }
+
     private Map<String,Object> assessmentContext(String code,boolean lock) {
         if(code==null || !code.matches("[a-fA-F0-9]{32}")) throw new CustomException("登记邀请无效",404);
         List<String> sessions=db.queryForList("SELECT session_id FROM ql_invitation WHERE code=? AND purpose='assessment' AND source='staff' AND owner_customer_id IS NULL",String.class,code);
@@ -222,6 +259,7 @@ public class QlFriendAssessmentService {
         if(bo.getProvince()==null) payload.remove("province");
         if(bo.getRevision()==null) payload.remove("revision");
         if(bo.getInvitationCode()==null) payload.remove("invitationCode");
+        if(bo.getSessionId()==null) payload.remove("sessionId");
         return DigestUtil.sha256Hex(payload.toString());
     }
     private static String profileSnapshot(QlFriendAssessmentBo bo) {
@@ -232,12 +270,6 @@ public class QlFriendAssessmentService {
     private Map<String,Object> result(String customerId,String id,boolean duplicate){
         Map<String,Object> value=db.queryForMap("SELECT id AS assessmentId,revision,(source='mini_program' AND submitted_at<="+BUSINESS_NOW_SQL+" AND "+BUSINESS_NOW_SQL+"<DATE_ADD(submitted_at,INTERVAL 48 HOUR)) AS canEdit,DATE_FORMAT(submitted_at,'%Y-%m-%d %H:%i:%s') AS submittedAt,DATE_FORMAT(DATE_ADD(submitted_at,INTERVAL 48 HOUR),'%Y-%m-%d %H:%i:%s') AS editableUntil FROM ql_friend_assessment WHERE id=? AND customer_id=?",id,customerId);
         value.put("assessmentCount",db.queryForObject("SELECT COUNT(*) FROM ql_friend_assessment WHERE customer_id=?",Integer.class,customerId));value.put("duplicate",duplicate);return value;
-    }
-    private void updatePhone(String customerId,String raw,Date now){
-        String normalized=raw.replaceAll("\\D","");String hash=DigestUtil.sha256Hex(normalized);String hint=normalized.length()>=7?normalized.substring(0,3)+"****"+normalized.substring(normalized.length()-4):"***";
-        db.update("UPDATE ql_customer_identifier SET valid_to=?,updated_at=? WHERE customer_id=? AND identifier_type='phone' AND valid_to IS NULL AND normalized_hash<>?",now,now,customerId,hash);
-        int restored=db.update("UPDATE ql_customer_identifier SET identifier_value=?,display_hint=?,is_primary=1,verification_status='verified',valid_to=NULL,updated_at=? WHERE customer_id=? AND identifier_type='phone' AND normalized_hash=?",normalized,hint,now,customerId,hash);
-        if(restored==0)db.update("INSERT INTO ql_customer_identifier(id,customer_id,identifier_type,identifier_value,normalized_hash,display_hint,is_primary,verification_status,valid_from,created_at,updated_at) VALUES(?,?,'phone',?,?,?,1,'verified',?,?,?)",UUID.randomUUID().toString(),customerId,normalized,hash,hint,now,now,now);
     }
     private String customerId(String token){if(StrUtil.isBlank(token))throw new CustomException("请先登录",401);Object raw=redis.getCacheObject(APP_TOKEN_PREFIX+token);if(raw==null)throw new CustomException("登录已失效，请重新登录",401);try{return identities.resolve(Long.valueOf(String.valueOf(raw)));}catch(NumberFormatException e){throw new CustomException("登录信息无效",401);}}
     private Range range(String start,String end){LocalDate e=StrUtil.isBlank(end)?LocalDate.now(BUSINESS_ZONE):LocalDate.parse(end);LocalDate s=StrUtil.isBlank(start)?e.minusDays(29):LocalDate.parse(start);if(s.isAfter(e)||s.isBefore(e.minusYears(5)))throw new CustomException("统计时间范围无效",400);return new Range(Timestamp.valueOf(s.atStartOfDay()),Timestamp.valueOf(e.plusDays(1).atStartOfDay()));}

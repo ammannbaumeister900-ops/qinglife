@@ -33,6 +33,8 @@ Page({
     const allowed = ['auth', 'account', 'habit', 'collections', 'privacy', 'experiences', 'experience']
     this.setData({ demoMode, next: options.next || '', experienceId: options.id || '',
       view: !demoMode && (legacy || !allowed.includes(requested)) ? 'unavailable' : !demoMode && requested === 'auth' ? 'account' : requested })
+    // Formal login always goes through WeChat phone authorization; this old entry only forwards there.
+    if (!demoMode && requested === 'auth') return wx.redirectTo({ url: '/pages/phone-auth/index' })
     if (!demoMode && legacy) {
       try { if (!business.enabled()) return } catch (error) { return }
       const target = '/pages/personal/index?view=' + requested + (options.id ? '&id=' + encodeURIComponent(options.id) : '')

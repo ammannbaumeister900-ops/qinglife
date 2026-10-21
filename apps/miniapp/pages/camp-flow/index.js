@@ -25,7 +25,7 @@ Page({
     step: 1, formError: null, submittedServiceStatus: null, submittedParticipantCount: 0,
     relationOptions: registrationDraft.relations, contactOverrides: { name: false, phone: false },
     quote: { ready: false, rows: [], total: '', error: '' }, quoteLoading: false,
-    reflectionAccess: { allowed: false, reason: '正在读取心声资格', retry: false }, reflectionOpening: false,
+    reflectionAccess: { allowed: false, reason: '正在读取心声资格', retry: false }, reflectionOpening: false, assessmentStatus: null,
     experienceTimeline: [], reviewScope: '', reviewExpanded: {}, reviewVoices: [],
     detail: {}, detailActivityId: '', detailFailedImages: {},
     activity: demo.activities[0],
@@ -92,6 +92,11 @@ Page({
         // Keep this one read's records so the review can show the period's 轻友心声 without a second request.
         let reflectionContext = null
         const reflectionAccess = await reflection.readEntry(async () => (reflectionContext = await business.campReflection(activity.id, scope)), registration, activity)
+        // Only the friend's own active registration asks for this period's 轻友登记; a failed read simply hides the reminder.
+        let assessmentStatus = null
+        if (state.phoneLinked && reflection.activeSelf(registration)) {
+          try { assessmentStatus = await business.friendAssessmentStatus(activity.id) } catch (error) { assessmentStatus = null }
+        }
         if (business.assertIdentity) business.assertIdentity(scope)
         if (version !== this.invitationVersion) return
         const today = domain.localDate()
@@ -117,7 +122,7 @@ Page({
         const selfConfirmed = reflection.activeSelf(registration) && ['confirmed','completed'].includes(self.status || registration.status)
         const canReview = selfConfirmed && phase === 'after'
         const reviewPatch = this.data.view === 'experience' ? experiencePresentation.refresh(this.data, JSON.stringify([overview.customerId, activity.id, self ? self.registrationId : '']), experienceTimeline, canReview) : {}
-        this.setData({ activity, state, registration, draft, reflectionAccess, serviceStatus: domain.campServiceStatus(registration), overview, experienceTimeline, loading: false, routeActivityId: activity.id,
+        this.setData({ activity, state, registration, draft, reflectionAccess, assessmentStatus, serviceStatus: domain.campServiceStatus(registration), overview, experienceTimeline, loading: false, routeActivityId: activity.id,
           selectedCount: (this.data.view === 'register' ? draft : registration).participants.filter(person => person.selected).length,
           isRegistered: domain.hasActiveRegistration(registration), hasSelfActiveRegistration: reflection.activeSelf(registration), canReapply: registrationHistory.canReapply(registration),
           availability: domain.activityState(activity), todayDay,
@@ -298,7 +303,11 @@ Page({
             : { registration: '状态待核对', registrationNote: '请查看安排，核对本次申请状态' } })
         await this.refresh()
         wx.showToast({ title: '报名已收到', icon: 'none' })
-      } catch (error) { if (submissionVersion === this.invitationVersion) formFeedback.showError(this, wx, { target: 'camp-submit-error', message: error.message || '报名提交失败，请重试' }) }
+      } catch (error) {
+        if (submissionVersion !== this.invitationVersion) return
+        if (error.code === 403 && /手机号/.test(error.message || '')) return navigation.navigateTo({ url: '/pages/phone-auth/index' })
+        formFeedback.showError(this, wx, { target: 'camp-submit-error', message: error.message || '报名提交失败，请重试' })
+      }
       finally { this.setData({ submitting: false }) }
       return
     }
@@ -462,6 +471,13 @@ Page({
 
   openExperience() {
     this.setData({ view: 'experience' })
+  },
+
+  openAssessment() {
+    const status = this.data.assessmentStatus
+    if (!status) return
+    if (status.assessed) return navigation.navigateTo({ url: '/pages/friend-registration/index?history=1' })
+    navigation.navigateTo({ url: '/pages/friend-registration/index?from=camp&sessionId=' + encodeURIComponent(this.data.activity.id) })
   },
 
   backToCamp() {

@@ -42,22 +42,27 @@ function fixture(options={}){
   let page
   const guest=options.state?.loggedIn===false
   const state={...plain(require('../utils/store').defaultState()),backend:true,loggedIn:true,phoneLinked:true,profile:{nickname:'小禾'},passAccounts:[],passLedger:[],currentPassBalance:0,...options.state}
-  const context={state},links=[],copies=[],toasts=[],tabs=[],staffCalls=[],modals=[],scrolls=[],identity={scope:{token:guest?'':'synthetic'},watchers:[]}
+  const phoneCodes=[],context={state},links=[],copies=[],toasts=[],tabs=[],staffCalls=[],modals=[],scrolls=[],identity={scope:{token:guest?'':'synthetic'},watchers:[]}
   let contextCalls=0
   const signIn=()=>{identity.scope={token:'synthetic'}},signOut=()=>{identity.scope={token:''}}
   const business={enabled:()=>options.backend!==false,identityScope:()=>identity.scope,watchIdentity:fn=>{identity.watchers.push(fn);return()=>{}},
     context:async()=>{contextCalls++;return context},contact:async()=>({name:'桃子',wechat:'qinglife2014'}),login:async()=>signIn(),logout:async()=>signOut()}
+  // Phone authorization signs in first; tests that replace login() keep steering the whole flow.
+  business.bindPhone=async code=>{if(!code)throw Error('missing phone code');phoneCodes.push(code);return business.login()}
   const staff={request:async p=>{staffCalls.push(p);if(!options.staff)throw Error('forbidden');return {}}}
   const mocks={'../../services/business-api':business,'../../services/staff-api':staff,'../../utils/store':{getState:()=>plain(state)},'../../utils/navigation':{navigateTo:x=>links.push(x.url),switchTab:x=>links.push(x.url)}}
   vm.runInNewContext(fs.readFileSync(path.join(root,'pages/mine/index.js'),'utf8'),{Page:p=>page=p,wx:{navigateTo:x=>links.push(x.url),pageScrollTo:x=>scrolls.push(x),showToast:x=>toasts.push(x.title),showModal:x=>modals.push(x),setClipboardData:x=>{copies.push(x.data);x.success()}},require:id=>mocks[id]||require(path.resolve(root,'pages/mine',id))})
   page.data=plain(page.data);page.setData=p=>Object.assign(page.data,p);page.getTabBar=()=>({setData:p=>tabs.push(p)})
   const nodes=()=>flatten(render(parse().children,page.data))
-  return {page,context,business,staff,links,copies,toasts,tabs,staffCalls,modals,scrolls,nodes,signIn,signOut,identity,contextCalls:()=>contextCalls}
+  return {page,phoneCodes,context,business,staff,links,copies,toasts,tabs,staffCalls,modals,scrolls,nodes,signIn,signOut,identity,contextCalls:()=>contextCalls}
 }
 const event=view=>({currentTarget:{dataset:{view}}})
 const names=(nodes,row,label)=>nodes.filter(n=>has(n,row)).map(n=>text(flatten([n]).find(c=>has(c,label))))
 const pageText=f=>f.nodes().filter(n=>'text'in n).map(n=>n.text).join('')
-const tapCount=(f,handler)=>f.nodes().filter(n=>n.attrs?.bindtap===handler).length
+// The login control is a WeChat phone-number button (bindgetphonenumber), or a plain tap in Demo.
+const isLogin=n=>n.attrs?.bindgetphonenumber==='login'||n.attrs?.bindtap==='login'
+const phone={detail:{code:'synthetic-phone-code'}}
+const tapCount=(f,handler)=>handler==='login'?f.nodes().filter(isLogin).length:f.nodes().filter(n=>n.attrs?.bindtap===handler).length
 const directoryVisible=f=>names(f.nodes(),'asset','asset-name').length===3&&f.nodes().some(n=>has(n,'contact-section'))&&f.nodes().some(n=>n.attrs?.['data-view']==='privacy')
 const rejected=props=>Object.assign(new Error(props.message||''),props)
 
@@ -79,7 +84,7 @@ test('guest is an ordinary state: one login control, full directory, no private 
   assert.equal(f.page.data.avatarText,'轻')
   assert.equal(tapCount(f,'login'),1);assert(directoryVisible(f))
   assert(!f.nodes().some(n=>has(n,'identity-notice')||has(n,'logout-area')||has(n,'invite-entry')||has(n,'staff-entry')))
-  f.page.setData({loginLoading:true});const login=f.nodes().find(n=>n.attrs?.bindtap==='login')
+  f.page.setData({loginLoading:true});const login=f.nodes().find(isLogin)
   assert.equal(login.attrs.disabled,true);assert.equal(login.attrs.loading,true);assert.equal(text(login),'正在登录…')
 })
 
@@ -87,33 +92,33 @@ test('a private entry explains login in place and continues to the original dest
   const f=fixture({state:{loggedIn:false}});await f.page.onShow()
   f.page.openFlow(event('records'));assert.deepEqual(f.links,[])
   assert(pageText(f).includes('登录后打开「私人记录」'))
-  assert.equal(text(f.nodes().find(n=>n.attrs?.bindtap==='login')),'微信登录并继续')
+  assert.equal(text(f.nodes().find(isLogin)),'手机号一键登录并继续')
   f.page.dismissPending();assert(!f.nodes().some(n=>has(n,'identity-notice')));assert.equal(tapCount(f,'dismissPending'),0)
-  f.page.openFlow(event('records'));f.context.state.loggedIn=true;await f.page.login()
+  f.page.openFlow(event('records'));f.context.state.loggedIn=true;await f.page.login(phone)
   assert.deepEqual(f.links,['/pages/personal/index?view=records&id=']);assert.equal(f.toasts.at(-1),'登录成功')
   assert.equal(f.page.data.pendingEntry,null);assert.equal(text(f.nodes().find(n=>has(n,'profile-title'))),'小禾')
   const g=fixture({state:{loggedIn:false}});await g.page.onShow();g.page.openFriendRegistration();assert.deepEqual(g.links,[])
-  g.context.state.loggedIn=true;await g.page.login();assert.deepEqual(g.links,['/pages/friend-registration/index'])
+  g.context.state.loggedIn=true;await g.page.login(phone);assert.deepEqual(g.links,['/pages/friend-registration/index'])
   for(const view of ['experiences','collections']){const h=fixture({state:{loggedIn:false}});await h.page.onShow();h.page.openFlow(event(view));assert.deepEqual(h.links,[]);assert.equal(h.page.data.pendingEntry.key,view)}
   const open=fixture({state:{loggedIn:false}});await open.page.onShow();open.page.openFlow(event('archive'));open.page.openFlow(event('privacy'))
   assert.deepEqual(open.links,['/pages/friend-flow/index?view=archive','/pages/mine-flow/index?view=privacy'])
 })
 
 test('login cancellation, network failure and server failure are distinct and never show raw messages',async()=>{
-  const cases=[[{errMsg:'login:fail cancel'},'info','已取消登录','微信登录'],[{message:'request:fail timeout'},'error','网络不太稳定，登录没有完成','重新登录'],[{message:'Internal Server Error #42',code:500},'error','登录没有完成，请重试','重新登录']]
+  const cases=[[{errMsg:'login:fail cancel'},'info','已取消登录','微信手机号一键登录'],[{message:'request:fail timeout'},'error','网络不太稳定，登录没有完成','重新登录'],[{message:'Internal Server Error #42',code:500},'error','登录没有完成，请重试','重新登录']]
   for(const [error,kind,copy,action] of cases){
     const f=fixture({state:{loggedIn:false}});await f.page.onShow();f.page.openFlow(event('records'))
-    f.business.login=async()=>{throw rejected(error)};await f.page.login()
+    f.business.login=async()=>{throw rejected(error)};await f.page.login(phone)
     assert.equal(f.page.data.notice.kind,kind);assert(pageText(f).includes(copy));assert(!pageText(f).includes(error.errMsg||error.message))
     assert.equal(f.page.data.loginLoading,false);assert.deepEqual(f.toasts,[]);assert.deepEqual(f.links,[])
     assert.equal(f.page.data.pendingEntry.key,'records');assert(directoryVisible(f))
-    f.page.dismissPending();assert.equal(text(f.nodes().find(n=>n.attrs?.bindtap==='login')),action)
+    f.page.dismissPending();assert.equal(text(f.nodes().find(isLogin)),action)
   }
 })
 
 test('WeChat login without a readable profile is not announced as success and keeps a retry',async()=>{
   const f=fixture({state:{loggedIn:false}});await f.page.onShow();f.page.openFlow(event('records'))
-  f.business.context=async()=>{throw Error('request:fail timeout')};await f.page.login()
+  f.business.context=async()=>{throw Error('request:fail timeout')};await f.page.login(phone)
   assert(!f.toasts.includes('登录成功'));assert.deepEqual(f.links,[]);assert.equal(f.page.data.signedIn,true)
   assert.equal(text(f.nodes().find(n=>has(n,'profile-title'))),'已登录')
   assert(pageText(f).includes('网络不太稳定，个人信息暂时没能读取'));assert.equal(text(f.nodes().find(n=>n.attrs?.bindtap==='onShow')),'重试')
@@ -139,9 +144,9 @@ test('expired login returns to the full guest directory with an in-place message
   await f.page.onShow()
   assert.equal(f.page.data.signedIn,false);assert.equal(f.page.data.state.loggedIn,false);assert.equal(f.page.data.staffAccess,false)
   assert(pageText(f).includes('登录已过期，请重新登录'));assert(!pageText(f).includes('jwt'))
-  assert.equal(text(f.nodes().find(n=>n.attrs?.bindtap==='login')),'重新登录')
+  assert.equal(text(f.nodes().find(isLogin)),'重新登录')
   assert(!f.nodes().some(n=>has(n,'pass-ledger')||has(n,'logout-area')||has(n,'staff-entry')));assert(directoryVisible(f))
-  f.context.state.loggedIn=true;f.business.context=async()=>f.context;await f.page.login()
+  f.context.state.loggedIn=true;f.business.context=async()=>f.context;await f.page.login(phone)
   assert.equal(f.page.data.notice,null);assert.equal(f.toasts.at(-1),'登录成功')
 })
 
@@ -249,7 +254,7 @@ module.exports={parse,render,flatten,fixture,has,text}
 
 test('login cancellation shares one notice with its pending destination and preserves both actions',async()=>{
   const f=fixture({state:{loggedIn:false}});await f.page.onShow();f.page.openFlow(event('records'))
-  f.business.login=async()=>{throw rejected({errMsg:'login:fail cancel'})};await f.page.login()
+  f.business.login=async()=>{throw rejected({errMsg:'login:fail cancel'})};await f.page.login(phone)
   assert.equal(f.nodes().filter(n=>has(n,'identity-notice')).length,1)
   assert(pageText(f).includes('已取消登录'));assert(pageText(f).includes('登录后打开「私人记录」'))
   assert.equal(tapCount(f,'login'),1);assert.equal(tapCount(f,'dismissPending'),1);assert.equal(f.page.data.pendingEntry.key,'records')
@@ -265,4 +270,14 @@ test('footer logout brings success and both failure outcomes back to the identit
     if(outcome==='local-only')assert(pageText(f).includes('暂未确认服务端注销'))
     if(outcome==='failed')assert(pageText(f).includes('退出没有完成'))
   }
+})
+
+test('login needs a WeChat-verified phone: a refused authorization stays a guest, and a phoneless account is asked to finish',async()=>{
+  const f=fixture({state:{loggedIn:false}});await f.page.onShow()
+  const control=f.nodes().find(isLogin);assert.equal(control.attrs['open-type'],'getPhoneNumber|agreePrivacyAuthorization');assert.equal(control.attrs.bindtap,undefined)
+  await f.page.login({detail:{errMsg:'getPhoneNumber:fail user deny'}})
+  assert.deepEqual(f.phoneCodes,[]);assert.equal(f.page.data.signedIn,false);assert(pageText(f).includes('需要授权手机号才能完成登录'));assert(directoryVisible(f))
+  await f.page.login(phone);assert.deepEqual(f.phoneCodes,['synthetic-phone-code']);assert.equal(f.toasts.at(-1),'登录成功')
+  const g=fixture({state:{phoneLinked:false}});await g.page.onShow()
+  assert(pageText(g).includes('还差一步：授权微信手机号后完成登录'));assert.equal(text(g.nodes().find(isLogin)),'授权手机号完成登录')
 })

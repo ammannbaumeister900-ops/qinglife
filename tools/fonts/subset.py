@@ -35,6 +35,8 @@ TITLE_KEYS = {"title", "heading", "openingLine", "openingInvitation", "discoverT
 WXML_TITLES = {
     "pages/home/index.wxml": ["近期清体营", "亲友心声"],
     "pages/camp/index.wxml": ["近期活动", "我的安排"],
+    "pages/phone-auth/index.wxml": ["轻一点，先认识你"],
+    "pages/camp-flow/index.wxml": ["填写轻友登记"],
 }
 PUNCTUATION = "，。？、：；“”（）·—"
 NUM_CHARS = "0123456789.%+–—s "

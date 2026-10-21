@@ -42,7 +42,7 @@ class RegistrationReadinessIT {
     static String priorProfile,priorImagePath;
     static final Map<String,Object> access=new HashMap<>();
     @Configuration @EnableTransactionManagement
-    @Import({QlSessionSettings.class,QlSessionServiceImpl.class,QlRegistrationPolicy.class,QlSessionAdmissionPolicy.class,QlRegistrationServiceImpl.class,QlSessionPricing.class,QlMiniAppServiceImpl.class,QlMiniAppRegistrationQuoteService.class,QlStaffWorkspaceService.class,QlAttendanceAudit.class,QlHabitPlanService.class,QlPassService.class,QlAdminSelectionService.class,QlFriendAssessmentService.class,QlCampReflectionService.class,QlExperienceOriginalService.class,com.yicai.system.service.AccountPagePermissionService.class})
+    @Import({QlSessionSettings.class,QlSessionServiceImpl.class,QlRegistrationPolicy.class,QlSessionAdmissionPolicy.class,QlRegistrationServiceImpl.class,QlSessionPricing.class,QlMiniAppServiceImpl.class,QlMiniAppRegistrationQuoteService.class,QlStaffWorkspaceService.class,QlAttendanceAudit.class,QlHabitPlanService.class,QlPassService.class,QlAdminSelectionService.class,QlFriendAssessmentService.class,com.yicai.life.service.QlCustomerPhoneService.class,QlCampReflectionService.class,QlExperienceOriginalService.class,com.yicai.system.service.AccountPagePermissionService.class})
     static class Config {
         @Bean DataSource dataSource() {
             String url=System.getenv("QINGLIFE_TEST_MYSQL_URL");
@@ -97,7 +97,9 @@ class RegistrationReadinessIT {
     void syntheticInvitationForSqlOnly(String customer){doReturn(true).when(context.getBean(QlCommunityAccessPolicy.class)).canInvite(customer);}
     @AfterEach void clearSyntheticPermissions(){reset(context.getBean(QlCommunityAccessPolicy.class),context.getBean(QlReflectionPublicationReviewService.class));}
     @AfterAll static void close(){if(context!=null)context.close();com.yicai.common.config.RuoYiConfig c=new com.yicai.common.config.RuoYiConfig();c.setProfile(priorProfile);c.setImagePath(priorImagePath);}
-    String customer(){String id=UUID.randomUUID().toString();db.update("INSERT INTO ql_customer(id,customer_no,nickname) VALUES(?,?,?)",id,"T"+id.replace("-","").substring(0,20),"Synthetic");return id;}
+    String customer(){String id=UUID.randomUUID().toString();db.update("INSERT INTO ql_customer(id,customer_no,nickname) VALUES(?,?,?)",id,"T"+id.replace("-","").substring(0,20),"Synthetic");authorizedPhone(id);return id;}
+    /** Every synthetic friend has passed WeChat phone authorization, matching the assessment sample number. */
+    void authorizedPhone(String id){db.update("INSERT INTO ql_customer_identifier(id,customer_id,identifier_type,identifier_value,normalized_hash,display_hint,app_scope,is_primary,verification_status,valid_from) VALUES(?,?,'phone','13800001234',SHA2('13800001234',256),'138****1234','wechat-phone',0,'verified',NOW(3))",UUID.randomUUID().toString(),id);}
     String session(int capacity){String id=UUID.randomUUID().toString();db.update("INSERT INTO ql_session(id,session_number,name,start_date,end_date,capacity,status,standard_price,returning_price) VALUES(?,?,?,CURRENT_DATE(),DATE_ADD(CURRENT_DATE(),INTERVAL 2 DAY),?,'open',100,50)",id,++number,"Synthetic",capacity);return id;}
     // Existing receipt/withdrawal tests need pre-existing confirmed rows, not evidence of a new payment.
     String add(String customer,String session,String status){QlRegistrationBo b=new QlRegistrationBo();b.setCustomerId(customer);b.setSessionId(session);b.setRegistrationStatus("confirmed".equals(status)?"pending":status);registrations.insertByBo(b,9L);String id=db.queryForObject("SELECT id FROM ql_registration WHERE customer_id=? AND session_id=?",String.class,customer,session);if("confirmed".equals(status))legacyConfirm(id);return id;}
@@ -613,7 +615,7 @@ class RegistrationReadinessIT {
         try(Connection connection=context.getBean(DataSource.class).getConnection()) {
             JdbcTemplate scoped=new JdbcTemplate(new SingleConnectionDataSource(connection,true));
             String original=scoped.queryForObject("SELECT @@session.time_zone",String.class);
-            QlFriendAssessmentService reader=new QlFriendAssessmentService(cache,identity,scoped);
+            QlFriendAssessmentService reader=new QlFriendAssessmentService(cache,identity,scoped,context.getBean(com.yicai.life.service.QlCustomerPhoneService.class));
             try {
                 for(String zone:Arrays.asList("+00:00","+08:00")) {
                     scoped.update("SET SESSION time_zone=?",zone);
@@ -674,16 +676,45 @@ class RegistrationReadinessIT {
         db.update("UPDATE ql_friend_assessment SET submitted_at=? WHERE id=?",new Timestamp(System.currentTimeMillis()-TimeUnit.HOURS.toMillis(1)),firstId);
         QlFriendAssessmentBo second=assessment();second.setName("最新登记");second.setProvince("浙江省");second.setCity("杭州市");
         String secondId=String.valueOf(service.submit("amend-history",second).get("assessmentId"));
-        QlFriendAssessmentBo correction=assessment();correction.setName("早期更正");correction.setPhone("13800009999");correction.setRevision(1);
+        QlFriendAssessmentBo correction=assessment();correction.setName("早期更正");correction.setRevision(1);
+        QlFriendAssessmentBo otherPhone=assessment();otherPhone.setPhone("13800009999");otherPhone.setRevision(1);
+        assertEquals(400,assertThrows(CustomException.class,()->service.amend("amend-history",firstId,otherPhone)).getCode());
         service.amend("amend-history",firstId,correction);
         assertEquals("最新登记",service.myProfile("amend-history").get("name"));
         assertEquals("13800001234",service.myProfile("amend-history").get("phone"));
         List<Map<String,Object>> history=service.mine("amend-history");
         assertEquals(secondId,history.get(0).get("id"));assertEquals("最新登记",history.get(0).get("name"));
-        assertEquals("早期更正",history.get(1).get("name"));assertEquals("13800009999",history.get(1).get("phone"));
+        assertEquals("早期更正",history.get(1).get("name"));assertEquals("13800001234",history.get(1).get("phone"));
         Map<String,Object> masked=service.history(owner,false).get(1);
-        assertEquals("138****9999",masked.get("phone"));assertFalse(masked.containsKey("profileSnapshot"));
-        assertEquals(null,masked.get("medications"));assertFalse(masked.toString().contains("13800009999"));
+        assertEquals("138****1234",masked.get("phone"));assertFalse(masked.containsKey("profileSnapshot"));
+        assertEquals(null,masked.get("medications"));assertFalse(masked.toString().contains("13800001234"));
+    }
+    @Test void ownRegistrationLinksAssessmentToThatPeriodAndReportsOnlyItsStatus() {
+        String owner=customer();RedisCache cache=context.getBean(RedisCache.class);QlCustomerIdentityService identity=context.getBean(QlCustomerIdentityService.class);
+        when(cache.getCacheObject("appToken:session-link")).thenReturn(708L);when(identity.resolve(708L)).thenReturn(owner);
+        QlFriendAssessmentService service=context.getBean(QlFriendAssessmentService.class);
+        String period=session(5);
+        QlFriendAssessmentBo early=assessment();early.setSessionId(period);
+        assertEquals(403,assertThrows(CustomException.class,()->service.submit("session-link",early)).getCode());
+        assertEquals(404,assertThrows(CustomException.class,()->service.sessionStatus("session-link",period)).getCode());
+        add(owner,period,"pending");
+        assertEquals(false,service.sessionStatus("session-link",period).get("assessed"));
+        QlFriendAssessmentBo linked=assessment();linked.setSessionId(period);
+        String id=String.valueOf(service.submit("session-link",linked).get("assessmentId"));
+        Map<String,Object> status=service.sessionStatus("session-link",period);
+        assertEquals(true,status.get("assessed"));assertEquals(id,status.get("assessmentId"));assertFalse(status.containsKey("healthConditions"));
+        assertEquals(period,db.queryForObject("SELECT session_id FROM ql_friend_assessment WHERE id=?",String.class,id));
+        assertNull(db.queryForObject("SELECT invitation_code FROM ql_friend_assessment WHERE id=?",String.class,id));
+    }
+    @Test void registrationAndAssessmentRequireAWechatAuthorizedPhone() {
+        String owner=customer();db.update("DELETE FROM ql_customer_identifier WHERE customer_id=?",owner);
+        when(context.getBean(RedisCache.class).getCacheObject("appToken:no-phone")).thenReturn(709L);when(context.getBean(QlCustomerIdentityService.class).resolve(709L)).thenReturn(owner);
+        assertEquals(403,assertThrows(CustomException.class,()->context.getBean(QlFriendAssessmentService.class).submit("no-phone",assessment())).getCode());
+        String period=session(5);QlMiniAppRegistrationBo b=new QlMiniAppRegistrationBo();b.setSessionId(period);b.setClientRequestId(UUID.randomUUID().toString());b.setServiceConsent(true);b.setContactName("联系人");b.setContactPhone("13900000000");
+        QlMiniAppRegistrationBo.Participant self=new QlMiniAppRegistrationBo.Participant();self.setSelf(true);self.setName("本人");b.setParticipants(Collections.singletonList(self));
+        assertEquals(403,assertThrows(CustomException.class,()->mini.register("no-phone",b)).getCode());
+        assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM ql_registration WHERE customer_id=?",Integer.class,owner));
+        assertEquals(false,((Map<?,?>)mini.overview("no-phone").get("profile")).get("phoneAuthorized"));
     }
     @Test void legacyAssessmentSnapshotIsExplicitAndAnAuditFailureRollsBackEverything() {
         String owner=customer();RedisCache cache=context.getBean(RedisCache.class);QlCustomerIdentityService identity=context.getBean(QlCustomerIdentityService.class);
@@ -845,7 +876,7 @@ class RegistrationReadinessIT {
         String batch=String.valueOf(result.get("id"));
         assertEquals("家庭联系人",db.queryForObject("SELECT contact_name FROM ql_registration_batch WHERE id=?",String.class,batch));
         assertEquals("13900000000",db.queryForObject("SELECT contact_phone FROM ql_registration_batch WHERE id=?",String.class,batch));
-        assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM ql_customer_identifier i JOIN ql_registration r ON r.customer_id=i.customer_id WHERE r.batch_id=?",Integer.class,batch));
+        assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM ql_customer_identifier i JOIN ql_registration r ON r.customer_id=i.customer_id WHERE r.batch_id=? AND NOT (i.app_scope<=>'wechat-phone')",Integer.class,batch));
         for(Map<String,Object> row:rows)legacyConfirm(String.valueOf(row.get("registrationId")));
         String first=String.valueOf(rows.get(0).get("registrationId"));
         settle(first,"150");

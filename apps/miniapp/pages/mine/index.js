@@ -8,6 +8,7 @@ const { resolveContact } = require('../../utils/contact')
 const PRIVATE_ENTRIES = { registration: '轻友登记', experiences: '全部参与经历', records: '私人记录', collections: '内容收藏' }
 const NOTICES = {
   cancelled: '已取消登录，需要时可以再登录。',
+  phoneRequired: '需要授权手机号才能完成登录；不登录也可以继续浏览。',
   loginNetwork: '网络不太稳定，登录没有完成，请稍后重试。',
   loginFailed: '登录没有完成，请重试。',
   expired: '登录已过期，请重新登录后查看个人信息。',
@@ -134,18 +135,21 @@ Page({
     catch (error) { if (run === this._mineRun) this.setData({ staffAccess: false }) }
   },
 
-  async login() {
+  // The login button is a WeChat phone-number button: no authorized number, no login.
+  async login(event) {
     if (this.data.loginLoading || this.data.logoutLoading) return
     if (!business.enabled()) return navigation.navigateTo({ url: '/pages/mine-flow/index?view=auth' })
+    const code = event && event.detail && event.detail.code
+    if (!code) return this.setData({ notice: { kind: 'info', text: NOTICES.phoneRequired } })
     const pending = this.data.pendingEntry
     this.setData({ loginLoading: true, notice: null })
     const visit = this._mineVisit
     try {
-      await business.login()
+      await business.bindPhone(code)
       if (visit !== this._mineVisit) return
       await this.refresh()
       // A WeChat credential alone is not success: the personal overview must also be readable.
-      if (visit !== this._mineVisit || !this.data.state.loggedIn) return
+      if (visit !== this._mineVisit || !this.data.state.phoneLinked) return
       this.setData({ pendingEntry: null })
       await this.refreshStaffAccess()
       wx.showToast({ title: '登录成功', icon: 'success' })

@@ -145,3 +145,8 @@
 .registration-record .success-copy, .registration-record .success-deadline { font-size: 28rpx; color: var(--ql-ink-light); }
 .registration-record button.history-entry, .registration-record button.history-back { min-height: 44px; font-size: 28rpx; color: var(--ql-ink-light); }
 @media (max-width: 350px) { .registration-record .record-row, .registration-record .history-date, .registration-record .success-copy, .registration-record .success-deadline { font-size: 14px; } .registration-record .history-status { font-size: 13px; } }
+/* 手机号来自微信授权，只读展示 */
+.registration-page .phone-locked { color: var(--q-ink); border-bottom-style: dashed; border-bottom-color: var(--q-line); }
+.phone-locked-note { margin-top: 10rpx; color: var(--q-ink-2); font-size: 22rpx; line-height: 1.6; }
+.registration-page .phone-required { padding: 160rpx 8rpx; color: var(--q-ink-2); line-height: 1.8; }
+.registration-page .phone-required .primary { margin-top: 40rpx; min-height: var(--q-btn-h); border-radius: 0; background: var(--q-forest); color: var(--q-on-dark); }

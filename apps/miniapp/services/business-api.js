@@ -92,6 +92,16 @@ function ensureToken() {
   loginPromise = attempt
   return attempt.promise
 }
+// Login completes only after WeChat verifies the friend's own number; there is no hand-typed path.
+async function bindPhone(phoneCode) {
+  if (!phoneCode) throw new Error('需要授权手机号才能登录')
+  const scope = identityScope()
+  await ensureToken()
+  const result = await request('/auth/phone', 'POST', { phoneCode }, true, 10000)
+  if (!result || result.phoneAuthorized !== true) throw new Error('手机号授权未成功，请重试')
+  if (scope.token) assertIdentity(scope)
+  return result
+}
 function logout() {
   if (logoutPromise) return logoutPromise
   const scope = identityScope()
@@ -208,11 +218,11 @@ async function context(id, { allowGuest = false } = {}) {
   const registration = registrations[id] || Object.values(registrations)[0] || { activityId: id || '', status: 'none', participants: [self], serviceConsent: false, contactName: String(profile.nickname || '').trim(), contactPhone: profile.phone || '' }
   const backendHabit = normalizeHabit(overview.habit)
   const passAccounts=overview.passAccounts||[],passLedger=overview.passLedger||[];const currentPassBalance=passAccounts.filter(item=>Number(item.usable)).reduce((sum,item)=>sum+Number(item.balance||0),0)
-  const state = { ...local, backend: true, customerId: overview.customerId || '', returningEligible: !!overview.returningEligible, invitationEligible: !!overview.invitationEligible, phone: profile.phone || '', loggedIn: !!overview.customerId, phoneLinked: !!overview.customerId, profile: { name: profile.name || '轻友', nickname: String(profile.nickname || '').trim(), minor: !!profile.minor }, registrations, registration, passAccounts, passLedger, currentPassBalance, habit: backendHabit, checkedDays: [], dailyRecords: {}, experienceReviews: {}, arrivalConfirmations: {}, stage: overview.habit ? 'habit' : 'journey' }
+  const state = { ...local, backend: true, customerId: overview.customerId || '', returningEligible: !!overview.returningEligible, invitationEligible: !!overview.invitationEligible, phone: profile.phone || '', loggedIn: !!overview.customerId, phoneLinked: !!overview.customerId && profile.phoneAuthorized === true, profile: { name: profile.name || '轻友', nickname: String(profile.nickname || '').trim(), minor: !!profile.minor }, registrations, registration, passAccounts, passLedger, currentPassBalance, habit: backendHabit, checkedDays: [], dailyRecords: {}, experienceReviews: {}, arrivalConfirmations: {}, stage: overview.habit ? 'habit' : 'journey' }
   if (scoped) assertIdentity(scoped.scope)
   return { activities: list, activity: selected, overview, state }
 }
-module.exports = { isDemo, identityScope, assertIdentity, watchIdentity, privateOverview, normalizeHabit, applyHabit, refreshHabit, BASE_KEY, baseUrl, enabled, request, activity, sessions, context, login: ensureToken, logout,
+module.exports = { isDemo, identityScope, assertIdentity, watchIdentity, privateOverview, normalizeHabit, applyHabit, refreshHabit, BASE_KEY, baseUrl, enabled, request, activity, sessions, context, login: ensureToken, logout, bindPhone,
   featuredReadings: () => request('/readings/featured', 'GET', null, false),
   articlePlacement: key => request('/content-placements/' + encodeURIComponent(key), 'GET', null, false),
   readings: (filters = {}) => request('/readings', 'GET', filters, false),
@@ -239,5 +249,7 @@ module.exports = { isDemo, identityScope, assertIdentity, watchIdentity, private
   assessmentInvitation: code => request('/friend/assessment-invitations/' + encodeURIComponent(code)),
   friendProfile: () => request('/friend/profile'),
   friendAssessments: () => request('/friend/assessments'),
+  assessmentSession: id => request('/friend/assessment-sessions/' + encodeURIComponent(id)),
+  friendAssessmentStatus: sessionId => request('/friend/assessment-status', 'GET', { sessionId }),
   amendFriendAssessment: (id, data) => request('/friend/assessments/' + encodeURIComponent(id), 'PUT', data),
   submitFriendAssessment: data => request('/friend/assessments', 'POST', data) }

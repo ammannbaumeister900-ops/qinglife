@@ -105,6 +105,7 @@
 @import "./experience.wxss";
 
 @import "./journey.wxss";
+@import "./assessment.wxss";
 
 /* Feeling is a private field, separate from the frozen experience reading view. */
 
