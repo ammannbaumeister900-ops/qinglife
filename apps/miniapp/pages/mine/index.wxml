@@ -32,7 +32,7 @@
     <view wx:elif="{{state.backend && state.loggedIn && !state.phoneLinked}}" class="identity-actions"><button class="primary identity-action profile-login" open-type="getPhoneNumber|agreePrivacyAuthorization" bindgetphonenumber="login" loading="{{loginLoading}}" disabled="{{loginLoading || logoutLoading}}">{{loginLoading ? '正在登录…' : '授权手机号完成登录'}}</button></view>
     <view wx:elif="{{state.loggedIn && !state.profile.nickname}}" class="identity-actions"><button class="secondary identity-action profile-nickname-entry" bindtap="openFriendRegistration">登记小名</button></view>
     <view wx:elif="{{!state.loggedIn && !signedIn}}" class="identity-actions">
-      <button wx:if="{{state.backend}}" class="primary identity-action profile-login" open-type="getPhoneNumber|agreePrivacyAuthorization" bindgetphonenumber="login" loading="{{loginLoading}}" disabled="{{loginLoading || logoutLoading}}">{{loginLoading ? '正在登录…' : pendingEntry ? '手机号一键登录并继续' : notice && notice.kind === 'error' ? '重新登录' : '微信手机号一键登录'}}</button>
+      <button wx:if="{{state.backend}}" class="primary identity-action profile-login" open-type="getPhoneNumber|agreePrivacyAuthorization" bindgetphonenumber="login" loading="{{loginLoading}}" disabled="{{loginLoading || logoutLoading}}">{{loginLoading ? '正在登录…' : pendingEntry ? '一键登录并继续' : notice && notice.kind === 'error' ? '重新登录' : '一键登录'}}</button>
       <button wx:else class="primary identity-action profile-login" disabled="{{loginLoading || logoutLoading}}" bindtap="login">登录</button>
       <button wx:if="{{pendingEntry && !loginLoading}}" class="text-button identity-dismiss" bindtap="dismissPending">暂不登录</button>
     </view>

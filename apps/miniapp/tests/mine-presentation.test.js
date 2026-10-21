@@ -92,7 +92,7 @@ test('a private entry explains login in place and continues to the original dest
   const f=fixture({state:{loggedIn:false}});await f.page.onShow()
   f.page.openFlow(event('records'));assert.deepEqual(f.links,[])
   assert(pageText(f).includes('登录后打开「私人记录」'))
-  assert.equal(text(f.nodes().find(isLogin)),'手机号一键登录并继续')
+  assert.equal(text(f.nodes().find(isLogin)),'一键登录并继续')
   f.page.dismissPending();assert(!f.nodes().some(n=>has(n,'identity-notice')));assert.equal(tapCount(f,'dismissPending'),0)
   f.page.openFlow(event('records'));f.context.state.loggedIn=true;await f.page.login(phone)
   assert.deepEqual(f.links,['/pages/personal/index?view=records&id=']);assert.equal(f.toasts.at(-1),'登录成功')
@@ -105,7 +105,7 @@ test('a private entry explains login in place and continues to the original dest
 })
 
 test('login cancellation, network failure and server failure are distinct and never show raw messages',async()=>{
-  const cases=[[{errMsg:'login:fail cancel'},'info','已取消登录','微信手机号一键登录'],[{message:'request:fail timeout'},'error','网络不太稳定，登录没有完成','重新登录'],[{message:'Internal Server Error #42',code:500},'error','登录没有完成，请重试','重新登录']]
+  const cases=[[{errMsg:'login:fail cancel'},'info','已取消登录','一键登录'],[{message:'request:fail timeout'},'error','网络不太稳定，登录没有完成','重新登录'],[{message:'Internal Server Error #42',code:500},'error','登录没有完成，请重试','重新登录']]
   for(const [error,kind,copy,action] of cases){
     const f=fixture({state:{loggedIn:false}});await f.page.onShow();f.page.openFlow(event('records'))
     f.business.login=async()=>{throw rejected(error)};await f.page.login(phone)
