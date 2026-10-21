@@ -7,18 +7,13 @@ page { background:var(--q-linen); --ql-nav-bg:var(--q-forest); }
 .phone-auth-page button:active { opacity:.75; }
 
 /* 上移 1px 藏到固定导航栏下，避免两块深林色之间露出亚像素亮缝 */
-.auth-field { margin-top:-1px; padding:36px var(--q-gutter) 40px; background:var(--q-forest); color:var(--q-on-dark); }
-.auth-kicker { color:var(--q-juice); font-size:var(--q-fs-aux); font-weight:500; letter-spacing:2px; }
-.auth-title { margin-top:14px; font-family:var(--q-serif); font-size:34px; font-weight:600; line-height:1.35; letter-spacing:1px; }
+.auth-field { margin-top:-1px; padding:40px var(--q-gutter) 44px; background:var(--q-forest); color:var(--q-on-dark); }
+.auth-title { font-family:var(--q-serif); font-size:34px; font-weight:600; line-height:1.35; letter-spacing:1px; }
 .auth-copy { margin-top:14px; color:var(--q-on-dark-2); font-size:var(--q-fs-body); line-height:1.8; }
 
 .auth-body { padding:28px var(--q-gutter) 0; }
-.auth-facts { border-top:1px solid var(--q-line); }
-.auth-fact { display:grid; grid-template-columns:76px 1fr; gap:12px; padding:14px 0; border-bottom:1px solid var(--q-line); }
-.auth-fact-label { color:var(--q-ink-2); font-size:var(--q-fs-aux); }
-.auth-fact-value { font-size:15px; }
-.auth-notice { margin-top:20px; padding:12px 14px; border-left:3px solid var(--q-amber); background:var(--q-sand); font-size:var(--q-fs-body); }
-.phone-auth-page .auth-primary { display:flex; align-items:center; justify-content:center; width:100%; min-height:var(--q-btn-h); margin-top:32px; background:var(--q-forest); color:var(--q-on-dark); font-size:var(--q-fs-body); font-weight:500; }
+.auth-notice { margin:0 0 16px; padding:12px 14px; border-left:3px solid var(--q-amber); background:var(--q-sand); font-size:var(--q-fs-body); }
+.phone-auth-page .auth-primary { display:flex; align-items:center; justify-content:center; width:100%; min-height:var(--q-btn-h); margin-top:8px; background:var(--q-forest); color:var(--q-on-dark); font-size:var(--q-fs-body); font-weight:500; }
 .phone-auth-page .auth-primary[disabled] { background:var(--q-forest); color:var(--q-on-dark-2); }
 .auth-privacy { margin-top:14px; color:var(--q-ink-2); font-size:var(--q-fs-aux); text-align:center; }
 .auth-link { color:var(--q-moss); }

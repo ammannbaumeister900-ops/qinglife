@@ -24,7 +24,7 @@ Page({
     this.endPrompt()
     if (this.data.busy) return
     const code = event && event.detail && event.detail.code
-    if (!code) return this.setData({ notice: '需要授权手机号才能报名和登记；不授权也可以继续浏览。' })
+    if (!code) return this.setData({ notice: '未授权手机号，可先继续浏览。' })
     this.setData({ busy: true, notice: '' })
     try {
       await business.bindPhone(code)

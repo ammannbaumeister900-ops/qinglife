@@ -20,7 +20,7 @@ test('the only login path is the WeChat phone button; there is no hand-typed pho
   const markup = fs.readFileSync(path.join(root, 'pages/phone-auth/index.wxml'), 'utf8')
   assert.match(markup, /open-type="getPhoneNumber\|agreePrivacyAuthorization" bindtap="promptPhone" bindgetphonenumber="onPhoneNumber"/)
   assert.doesNotMatch(markup, /<input/)
-  assert.match(markup, /暂不登录，继续浏览/)
+  assert.match(markup, /暂不登录/)
   const app = JSON.parse(fs.readFileSync(path.join(root, 'app.json'), 'utf8'))
   assert.ok(app.pages.includes('pages/phone-auth/index'))
 })
@@ -28,7 +28,7 @@ test('the only login path is the WeChat phone button; there is no hand-typed pho
 test('a refused authorization stays on the page without a request; success returns to where the friend came from', async () => {
   const refused = page(async () => ({ phoneAuthorized: true }))
   await refused.p.onPhoneNumber({ detail: { errMsg: 'getPhoneNumber:fail user deny' } })
-  assert.deepEqual(refused.codes, []); assert.match(refused.p.data.notice, /需要授权手机号/); assert.deepEqual(refused.back, [])
+  assert.deepEqual(refused.codes, []); assert.match(refused.p.data.notice, /未授权手机号/); assert.deepEqual(refused.back, [])
   const ok = page(async () => ({ phoneAuthorized: true }))
   await ok.p.onPhoneNumber({ detail: { code: 'synthetic-phone-code' } })
   assert.deepEqual(ok.codes, ['synthetic-phone-code']); assert.equal(ok.toasts.at(-1), '登录成功'); assert.deepEqual(ok.back, [true])
