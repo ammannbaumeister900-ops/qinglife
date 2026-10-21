@@ -12,7 +12,7 @@
       <view class="auth-fact"><text class="auth-fact-label">方式</text><text class="auth-fact-value">微信一键授权，无需手动输入</text></view>
     </view>
     <view wx:if="{{notice}}" class="auth-notice" aria-live="polite">{{notice}}</view>
-    <button class="auth-primary" open-type="getPhoneNumber|agreePrivacyAuthorization" bindgetphonenumber="onPhoneNumber" loading="{{busy}}" disabled="{{busy}}">{{busy ? '正在登录…' : '一键登录'}}</button>
+    <button class="auth-primary" open-type="getPhoneNumber|agreePrivacyAuthorization" bindtap="promptPhone" bindgetphonenumber="onPhoneNumber" loading="{{busy}}" disabled="{{busy}}">{{busy ? '正在登录…' : prompting ? '正在唤起授权…' : '一键登录'}}</button>
     <view class="auth-privacy">登录即表示同意<text class="auth-link" bindtap="openPrivacy">《轻生活隐私保护指引》</text></view>
     <button class="auth-later" bindtap="leave">暂不登录，继续浏览</button>
   </view>

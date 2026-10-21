@@ -40,6 +40,7 @@ Page({
     passConsumptions: [],
     signedIn: false,
     loginLoading: false,
+    phonePrompting: false,
     logoutLoading: false,
     profileError: '',
     notice: null,
@@ -71,6 +72,7 @@ Page({
       ready: false, loading: false, refreshing: false, profileError: '' })
   },
   onHide() {
+    this.endPhonePrompt()
     this._mineVisit = (this._mineVisit || 0) + 1
     if (this._unwatchIdentity) this._unwatchIdentity()
     this._unwatchIdentity = null
@@ -135,8 +137,22 @@ Page({
     catch (error) { if (run === this._mineRun) this.setData({ staffAccess: false }) }
   },
 
+  // The platform can take seconds to show its phone dialog; acknowledge the tap at once.
+  // Its only callback comes when the dialog closes, so a timer also restores the label.
+  promptPhone() {
+    if (this.data.loginLoading || this.data.logoutLoading) return
+    clearTimeout(this._phonePromptTimer)
+    this.setData({ phonePrompting: true })
+    this._phonePromptTimer = setTimeout(() => this.endPhonePrompt(), 10000)
+  },
+  endPhonePrompt() {
+    clearTimeout(this._phonePromptTimer)
+    if (this.data.phonePrompting) this.setData({ phonePrompting: false })
+  },
+
   // The login button is a WeChat phone-number button: no authorized number, no login.
   async login(event) {
+    this.endPhonePrompt()
     if (this.data.loginLoading || this.data.logoutLoading) return
     if (!business.enabled()) return navigation.navigateTo({ url: '/pages/mine-flow/index?view=auth' })
     const code = event && event.detail && event.detail.code

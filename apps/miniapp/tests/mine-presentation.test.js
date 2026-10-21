@@ -42,7 +42,7 @@ function fixture(options={}){
   let page
   const guest=options.state?.loggedIn===false
   const state={...plain(require('../utils/store').defaultState()),backend:true,loggedIn:true,phoneLinked:true,profile:{nickname:'小禾'},passAccounts:[],passLedger:[],currentPassBalance:0,...options.state}
-  const phoneCodes=[],context={state},links=[],copies=[],toasts=[],tabs=[],staffCalls=[],modals=[],scrolls=[],identity={scope:{token:guest?'':'synthetic'},watchers:[]}
+  const timers=[],phoneCodes=[],context={state},links=[],copies=[],toasts=[],tabs=[],staffCalls=[],modals=[],scrolls=[],identity={scope:{token:guest?'':'synthetic'},watchers:[]}
   let contextCalls=0
   const signIn=()=>{identity.scope={token:'synthetic'}},signOut=()=>{identity.scope={token:''}}
   const business={enabled:()=>options.backend!==false,identityScope:()=>identity.scope,watchIdentity:fn=>{identity.watchers.push(fn);return()=>{}},
@@ -51,10 +51,10 @@ function fixture(options={}){
   business.bindPhone=async code=>{if(!code)throw Error('missing phone code');phoneCodes.push(code);return business.login()}
   const staff={request:async p=>{staffCalls.push(p);if(!options.staff)throw Error('forbidden');return {}}}
   const mocks={'../../services/business-api':business,'../../services/staff-api':staff,'../../utils/store':{getState:()=>plain(state)},'../../utils/navigation':{navigateTo:x=>links.push(x.url),switchTab:x=>links.push(x.url)}}
-  vm.runInNewContext(fs.readFileSync(path.join(root,'pages/mine/index.js'),'utf8'),{Page:p=>page=p,wx:{navigateTo:x=>links.push(x.url),pageScrollTo:x=>scrolls.push(x),showToast:x=>toasts.push(x.title),showModal:x=>modals.push(x),setClipboardData:x=>{copies.push(x.data);x.success()}},require:id=>mocks[id]||require(path.resolve(root,'pages/mine',id))})
+  vm.runInNewContext(fs.readFileSync(path.join(root,'pages/mine/index.js'),'utf8'),{Page:p=>page=p,setTimeout:fn=>timers.push(fn),clearTimeout:id=>{if(id)timers[id-1]=null},wx:{navigateTo:x=>links.push(x.url),pageScrollTo:x=>scrolls.push(x),showToast:x=>toasts.push(x.title),showModal:x=>modals.push(x),setClipboardData:x=>{copies.push(x.data);x.success()}},require:id=>mocks[id]||require(path.resolve(root,'pages/mine',id))})
   page.data=plain(page.data);page.setData=p=>Object.assign(page.data,p);page.getTabBar=()=>({setData:p=>tabs.push(p)})
   const nodes=()=>flatten(render(parse().children,page.data))
-  return {page,phoneCodes,context,business,staff,links,copies,toasts,tabs,staffCalls,modals,scrolls,nodes,signIn,signOut,identity,contextCalls:()=>contextCalls}
+  return {page,timers,phoneCodes,context,business,staff,links,copies,toasts,tabs,staffCalls,modals,scrolls,nodes,signIn,signOut,identity,contextCalls:()=>contextCalls}
 }
 const event=view=>({currentTarget:{dataset:{view}}})
 const names=(nodes,row,label)=>nodes.filter(n=>has(n,row)).map(n=>text(flatten([n]).find(c=>has(c,label))))
@@ -274,10 +274,20 @@ test('footer logout brings success and both failure outcomes back to the identit
 
 test('login needs a WeChat-verified phone: a refused authorization stays a guest, and a phoneless account is asked to finish',async()=>{
   const f=fixture({state:{loggedIn:false}});await f.page.onShow()
-  const control=f.nodes().find(isLogin);assert.equal(control.attrs['open-type'],'getPhoneNumber|agreePrivacyAuthorization');assert.equal(control.attrs.bindtap,undefined)
+  const control=f.nodes().find(isLogin);assert.equal(control.attrs['open-type'],'getPhoneNumber|agreePrivacyAuthorization');assert.equal(control.attrs.bindtap,'promptPhone','a tap only acknowledges; login waits for the phone callback')
   await f.page.login({detail:{errMsg:'getPhoneNumber:fail user deny'}})
   assert.deepEqual(f.phoneCodes,[]);assert.equal(f.page.data.signedIn,false);assert(pageText(f).includes('需要授权手机号才能完成登录'));assert(directoryVisible(f))
   await f.page.login(phone);assert.deepEqual(f.phoneCodes,['synthetic-phone-code']);assert.equal(f.toasts.at(-1),'登录成功')
   const g=fixture({state:{phoneLinked:false}});await g.page.onShow()
   assert(pageText(g).includes('还差一步：授权微信手机号后完成登录'));assert.equal(text(g.nodes().find(isLogin)),'授权手机号完成登录')
+})
+
+test('a tap on the phone button is acknowledged at once and the label returns when the dialog closes or times out',async()=>{
+  const f=fixture({state:{loggedIn:false}});await f.page.onShow()
+  const button=()=>f.nodes().find(isLogin)
+  assert.equal(button().attrs.bindtap,'promptPhone');assert.equal(text(button()),'一键登录')
+  f.page.promptPhone();assert.equal(text(button()),'正在唤起授权…');assert.equal(button().attrs.disabled,false,'the pending dialog must stay reachable')
+  await f.page.login({detail:{errMsg:'getPhoneNumber:fail user deny'}});assert.equal(text(button()),'一键登录')
+  f.page.promptPhone();f.timers.filter(Boolean).at(-1)();assert.equal(text(button()),'一键登录')
+  f.page.promptPhone();f.page.onHide();assert.equal(f.page.data.phonePrompting,false)
 })

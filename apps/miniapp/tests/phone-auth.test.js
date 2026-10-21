@@ -10,7 +10,7 @@ function page(bindPhone, stack = 2) {
   vm.runInNewContext(fs.readFileSync(path.join(root, 'pages/phone-auth/index.js'), 'utf8'), {
     Page: v => { p = v }, require: id => id.includes('business-api') ? business : navigation,
     wx: { showToast: x => toasts.push(x.title), navigateBack: () => back.push(true), openPrivacyContract: () => {} },
-    getCurrentPages: () => new Array(stack), setTimeout: fn => fn()
+    getCurrentPages: () => new Array(stack), setTimeout: fn => fn(), clearTimeout: () => {}
   })
   p.data = JSON.parse(JSON.stringify(p.data)); p.setData = patch => Object.assign(p.data, patch)
   return { p, toasts, back, tabs, codes }
@@ -18,7 +18,7 @@ function page(bindPhone, stack = 2) {
 
 test('the only login path is the WeChat phone button; there is no hand-typed phone field', () => {
   const markup = fs.readFileSync(path.join(root, 'pages/phone-auth/index.wxml'), 'utf8')
-  assert.match(markup, /open-type="getPhoneNumber\|agreePrivacyAuthorization" bindgetphonenumber="onPhoneNumber"/)
+  assert.match(markup, /open-type="getPhoneNumber\|agreePrivacyAuthorization" bindtap="promptPhone" bindgetphonenumber="onPhoneNumber"/)
   assert.doesNotMatch(markup, /<input/)
   assert.match(markup, /暂不登录，继续浏览/)
   const app = JSON.parse(fs.readFileSync(path.join(root, 'app.json'), 'utf8'))
@@ -42,4 +42,13 @@ test('a failed authorization never shows the raw server message and allows retry
   assert.equal(f.p.data.notice, '手机号授权没有完成，请重试。'); assert.equal(f.p.data.busy, false); assert.deepEqual(f.back, [])
   const slow = page(async () => { throw new Error('request:fail timeout') })
   await slow.p.onPhoneNumber({ detail: { code: 'c' } }); assert.match(slow.p.data.notice, /网络不太稳定/)
+})
+
+test('the auth page acknowledges a tap at once and restores the label when the dialog closes', async () => {
+  const f = page(async () => ({ phoneAuthorized: true }))
+  f.p.data.notice = '旧提示'; f.p.promptPhone()
+  assert.equal(f.p.data.prompting, false, 'the test timer runs immediately and restores the label'); assert.equal(f.p.data.notice, '')
+  const markup = fs.readFileSync(path.join(root, 'pages/phone-auth/index.wxml'), 'utf8')
+  assert.match(markup, /bindtap="promptPhone" bindgetphonenumber="onPhoneNumber"/); assert.match(markup, /prompting \? '正在唤起授权…'/)
+  f.p.setData({ prompting: true }); await f.p.onPhoneNumber({ detail: { errMsg: 'getPhoneNumber:fail user deny' } }); assert.equal(f.p.data.prompting, false)
 })

@@ -39,7 +39,7 @@ function fixture(name) {
   const mocks = { '../../services/business-api': business, '../../services/legacy-api': legacy, '../../services/article-favorites': favorites,
     '../../services/staff-api': { request: async () => ({}) }, '../../utils/store': store, '../../utils/navigation': { navigateTo: value => links.push(value.url) }, '../../config/runtime': { environment: 'production' } }
   vm.runInNewContext(fs.readFileSync(path.join(root, 'pages', name, 'index.js'), 'utf8'), {
-    wx, Page: value => { page=value }, require: id => mocks[id] || require(path.resolve(root,'pages',name,id))
+    wx, setTimeout, clearTimeout, Page: value => { page=value }, require: id => mocks[id] || require(path.resolve(root,'pages',name,id))
   })
   page.data = plain(page.data); page.setData = patch => Object.assign(page.data, patch)
   const wxml = fs.readFileSync(path.join(root, 'pages', name, 'index.wxml'), 'utf8')
