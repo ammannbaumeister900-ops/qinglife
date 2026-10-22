@@ -31,6 +31,9 @@ public class PermissionService
     @Autowired
     private TokenService tokenService;
 
+    @Autowired
+    private com.yicai.system.service.AccountPagePermissionService accountPages;
+
     /**
      * 验证用户是否具备某权限
      *
@@ -48,7 +51,7 @@ public class PermissionService
         {
             return false;
         }
-        return hasPermissions(loginUser.getPermissions(), permission);
+        return hasPermissions(loginUser.getPermissions(), permission) && accountPages.allowsPermission(loginUser.getUser().getUserId(),StrUtil.trim(permission));
     }
 
     /**
@@ -82,7 +85,7 @@ public class PermissionService
         Set<String> authorities = loginUser.getPermissions();
         for (String permission : permissions.split(PERMISSION_DELIMETER))
         {
-            if (permission != null && hasPermissions(authorities, permission))
+            if (permission != null && hasPermissions(authorities, permission) && accountPages.allowsPermission(loginUser.getUser().getUserId(),StrUtil.trim(permission)))
             {
                 return true;
             }

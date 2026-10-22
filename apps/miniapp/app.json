@@ -9,14 +9,18 @@
     "pages/article/index",
     "pages/friend-flow/index",
     "pages/mine-flow/index",
+    "pages/phone-auth/index",
     "pages/personal/index",
-    "pages/friend-registration/index"
+    "pages/friend-registration/index",
+    "pages/camp-reflection/index",
+    "pages/referrals/index",
+    "pages/about/index"
   ],
   "window": {
-    "navigationBarBackgroundColor": "#F6F1E8",
+    "navigationBarBackgroundColor": "#F3F2EC",
     "navigationBarTextStyle": "black",
     "navigationBarTitleText": "轻生活",
-    "backgroundColor": "#F6F1E8",
+    "backgroundColor": "#F3F2EC",
     "backgroundTextStyle": "dark"
   },
   "tabBar": {
@@ -31,8 +35,8 @@
         "text": "首页"
       },
       {
-        "pagePath": "pages/camp/index",
-        "text": "轻体营"
+        "pagePath": "pages/about/index",
+        "text": "了解轻生活"
       },
       {
         "pagePath": "pages/content/index",

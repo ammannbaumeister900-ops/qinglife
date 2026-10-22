@@ -26,12 +26,17 @@ public class QlSessionVo {
     private String province;
     private String city;
     private String status;
+    private String configuredStatus;
     private String registrationConfirmMode;
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private Date registrationOpenAt;
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private Date registrationCloseAt;
     private String leaderName;
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    private String guideUserIds;
+    /** Guides from the fixed roster named in leaderName; other historical names stay only in leaderName. */
+    private java.util.List<String> guideNames;
     private String cancelPolicy;
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private Date updatedAt;

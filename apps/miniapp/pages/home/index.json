@@ -1,6 +1,7 @@
 {
   "navigationBarTitleText": "轻生活",
   "navigationStyle": "custom",
+  "navigationBarTextStyle": "white",
   "usingComponents": {
     "launch-splash": "/components/launch-splash/index",
     "ql-nav-space": "/components/ql-nav-space/index"

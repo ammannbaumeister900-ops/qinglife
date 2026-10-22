@@ -1,5 +1,11 @@
 import request from '@/utils/request'
 
+export const listArticlePlacements = () => request({ url: '/life/essay/placements', method: 'get', financeErrors: true })
+export const saveArticlePlacement = (key, data) => request({ url: '/life/essay/placements/' + encodeURIComponent(key), method: 'put', data, financeErrors: true })
+export const articlePlacementAudit = key => request({ url: '/life/essay/placements/' + encodeURIComponent(key) + '/audit', method: 'get' })
+export const articleProvenance = id => request({ url: '/life/essay/' + encodeURIComponent(id) + '/provenance', method: 'get' })
+export const articleContentReview = id => request({ url: '/life/essay/' + encodeURIComponent(id) + '/content-review', method: 'get' })
+
 // 查询文章列表
 export function listEssay(query) {
   return request({

@@ -1,10 +1,10 @@
 <template>
   <div class="app-container">
     <el-form
-      :model="queryParams"
-      ref="queryForm"
-      :inline="true"
       v-show="showSearch"
+      ref="queryForm"
+      :model="queryParams"
+      :inline="true"
       label-width="68px"
     >
       <el-form-item label="标题" prop="title">
@@ -31,54 +31,53 @@
           icon="el-icon-search"
           size="mini"
           @click="handleQuery"
-          >搜索</el-button
-        >
-        <el-button icon="el-icon-refresh" size="mini" @click="resetQuery"
-          >重置</el-button
-        >
+        >搜索</el-button>
+        <el-button
+          icon="el-icon-refresh"
+          size="mini"
+          @click="resetQuery"
+        >重置</el-button>
       </el-form-item>
     </el-form>
 
     <el-row :gutter="10" class="mb8">
       <el-col :span="1.5">
         <el-button
+          v-hasPermi="['life:essay:add']"
           type="primary"
           plain
           icon="el-icon-plus"
           size="mini"
           @click="handleAdd"
-          v-hasPermi="['life:essay:add']"
-          >新增</el-button
-        >
+        >新增</el-button>
       </el-col>
       <el-col :span="1.5">
         <el-button
+          v-hasPermi="['life:essay:edit']"
           type="success"
           plain
           icon="el-icon-edit"
           size="mini"
           :disabled="single"
           @click="handleUpdate"
-          v-hasPermi="['life:essay:edit']"
-          >修改</el-button
-        >
+        >修改</el-button>
       </el-col>
       <el-col :span="1.5">
         <el-button
+          v-hasPermi="['life:essay:remove']"
           type="danger"
           plain
           icon="el-icon-delete"
           size="mini"
           :disabled="multiple"
           @click="handleDelete"
-          v-hasPermi="['life:essay:remove']"
-          >删除</el-button
-        >
+        >删除</el-button>
       </el-col>
       <right-toolbar
-        :showSearch.sync="showSearch"
+        :show-search.sync="showSearch"
         @queryTable="getList"
-      ></right-toolbar>
+      />
+      <el-button v-hasPermi="['life:essay:query']" size="small" @click="$refs.placements.show()">认知页文章关联</el-button>
     </el-row>
 
     <el-table
@@ -98,10 +97,12 @@
       <el-table-column label="封面" align="center" prop="titleUrl">
         <template slot-scope="scope">
           <el-image
+            v-if="scope.row.titleUrl"
             style="width: 120px; height: 60px"
             :src="scope.row.titleUrl"
             :preview-src-list="[scope.row.titleUrl]"
-          ></el-image>
+          />
+          <span v-else>无封面</span>
         </template>
       </el-table-column>
       <el-table-column label="排序" align="center" prop="orderNum" />
@@ -112,11 +113,10 @@
             active-value="1"
             inactive-value="0"
             @change="handleStatusChange(scope.row)"
-          >
-          </el-switch>
+          />
         </template>
       </el-table-column>
-      <el-table-column label="首页精选" align="center" width="90"><template slot-scope="scope"><el-tag size="mini" :type="Number(scope.row.homeFeatured) === 1 ? 'success' : 'info'">{{ Number(scope.row.homeFeatured) === 1 ? '精选' : '普通' }}</el-tag></template></el-table-column>
+      <el-table-column label="推荐" align="center" width="90"><template slot-scope="scope"><el-tag size="mini" :type="Number(scope.row.homeFeatured) === 1 ? 'success' : 'info'">{{ Number(scope.row.homeFeatured) === 1 ? '推荐' : '未推荐' }}</el-tag></template></el-table-column>
       <el-table-column label="作者" align="center" prop="authorNickName" />
       <el-table-column label="标签" align="center" prop="label" />
       <el-table-column
@@ -138,20 +138,20 @@
       >
         <template slot-scope="scope">
           <el-button
+            v-hasPermi="['life:essay:edit']"
             size="mini"
             type="text"
             icon="el-icon-edit"
             @click="handleUpdate(scope.row)"
-            v-hasPermi="['life:essay:edit']"
-            >修改</el-button
-          >
+          >修改</el-button>
+          <el-button v-hasPermi="['life:essay:query']" size="mini" type="text" @click="$refs.placements.show(scope.row)">内容位置</el-button>
           <el-button
+            v-hasPermi="['life:essay:remove']"
             size="mini"
             type="text"
             icon="el-icon-delete"
             @click="handleDelete(scope.row)"
-            v-hasPermi="['life:essay:remove']"
-            >删除</el-button>
+          >删除</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -173,6 +173,11 @@
         <el-form-item label="介绍" prop="Introduction">
           <el-input v-model="form.Introduction" placeholder="请输入介绍" />
         </el-form-item>
+        <el-form-item label="录入类型"><el-radio-group v-model="form.contentOrigin" @change="form.sourceUrl = ''"><el-radio label="manual">本站文章</el-radio><el-radio label="wechat">公众号录入</el-radio></el-radio-group></el-form-item>
+        <el-form-item v-if="form.contentOrigin === 'wechat'" label="公众号原文"><el-input v-model="form.sourceUrl" maxlength="2048" placeholder="https://mp.weixin.qq.com/s/…" /><div class="featured-hint">原文链接仅作来源留存；请录入获授权的正文与媒体，小程序内阅读，不自动抓取或外跳。</div></el-form-item>
+        <el-form-item label="原署名"><el-input v-model="form.authorName" maxlength="128" placeholder="保留原作者署名，不关联旧后台账号" /></el-form-item>
+        <el-form-item label="原文时间"><el-date-picker v-model="form.insertTime" type="datetime" value-format="yyyy-MM-dd HH:mm:ss" placeholder="有可靠来源时填写；旧创建时间不等于首次发布时间" /></el-form-item>
+        <el-form-item v-if="provenance.length" label="迁移来源"><div v-for="item in provenance" :key="item.sourceSystem + ':' + item.sourceId">{{ item.sourceSystem }} · 源ID {{ item.sourceId }} · 批次 {{ item.batchId }}</div></el-form-item>
         <el-row>
           <el-col :span="12">
             <el-form-item label="排序" prop="orderNum">
@@ -188,39 +193,49 @@
             </el-form-item>
           </el-col>
         </el-row>
-        <el-form-item label="重置未读" v-if="form.id != null">
+        <el-form-item v-if="form.id != null" label="重置未读">
           <el-checkbox v-model="form.updateNotRead">重置</el-checkbox>
         </el-form-item>
-        <el-form-item label="封面" prop="titleUrl">
-          <imageLocalUpload v-model="form.titleUrl" :limit=1 />
+        <el-form-item label="封面（选填）" prop="titleUrl" label-width="110px">
+          <imageLocalUpload v-model="form.titleUrl" :limit="1" />
         </el-form-item>
-        <el-form-item label="首页精选"><el-switch v-model="form.homeFeatured" :active-value="1" :inactive-value="0" /><div class="featured-hint">只有启用且标记为精选的文章会进入小程序首页轮播。</div></el-form-item>
         <el-form-item label="标签" prop="label">
           <el-checkbox-group v-model="form.labels">
-            <el-checkbox v-for="item in labelList" :label="item.id" :key="item.id">{{item.name}}</el-checkbox>
+            <el-checkbox v-for="item in labelList" :key="item.id" :label="String(item.id)">{{ item.name }}</el-checkbox>
           </el-checkbox-group>
         </el-form-item>
+        <el-form-item label="推荐">
+          <el-switch v-model="form.homeFeatured" :active-value="1" :inactive-value="0" :disabled="!recommendationReady" />
+          <div class="featured-hint">{{ recommendationHint }}</div>
+          <div v-if="String(form.status) !== '1'" class="featured-hint">文章停用时不会展示。</div>
+          <el-button v-if="recommendationState === 'error'" type="text" @click="loadRecommendationLabels">重新读取推荐配置</el-button>
+        </el-form-item>
         <el-form-item label="内容" prop="content">
-          <editorLocal v-model="form.content" type="url" :min-height="192" :fileSize="100" />
+          <editorLocal v-model="form.content" type="url" :min-height="192" :file-size="100" />
         </el-form-item>
       </el-form>
       <div slot="footer" class="dialog-footer">
-        <el-button :loading="buttonLoading" type="primary" @click="submitForm"
-          >确 定</el-button
-        >
+        <el-button
+          :loading="buttonLoading"
+          type="primary"
+          @click="submitForm"
+        >确 定</el-button>
         <el-button @click="cancel">取 消</el-button>
       </div>
     </el-dialog>
+    <article-placements ref="placements" />
   </div>
 </template>
 
 <script>
-import { listEssay, getEssay, delEssay, addEssay, updateEssay, changeStatus } from "@/api/life/essay";
-import { isInteger } from "@/api/tool/validate";
-import { getLabelList } from "@/api/life/label";
+import { listEssay, getEssay, delEssay, addEssay, updateEssay, changeStatus, articleProvenance } from '@/api/life/essay'
+import ArticlePlacements from './ArticlePlacements.vue'
+import { getLabelList } from '@/api/life/label'
+import { getConfigKey } from '@/api/system/config'
 
 export default {
-  name: "Essay",
+  name: 'Essay',
+  components: { ArticlePlacements },
   data() {
     return {
       // 按钮loading
@@ -243,8 +258,10 @@ export default {
       essayList: [],
       // labelList
       labelList: [],
+      storyLabelId: '',
+      recommendationState: 'loading',
       // 弹出层标题
-      title: "",
+      title: '',
       // 是否显示弹出层
       open: false,
       // 查询参数
@@ -261,61 +278,94 @@ export default {
         titleUrl: undefined,
         updateUser: undefined,
         isVideo: undefined,
-        homeFeatured: undefined,
+        homeFeatured: undefined
       },
       // 表单参数
-      form: {},
+      form: {}, provenance: [],
       // 表单校验
       rules: {
         title: [
-          { required: true, message: "文章标题不能为空", trigger: "blur" }
+          { required: true, message: '文章标题不能为空', trigger: 'blur' }
         ],
         Introduction: [
-          { required: true, message: "文章介绍不能为空", trigger: "blur" }
+          { required: true, message: '文章介绍不能为空', trigger: 'blur' }
         ],
         orderNum: [
-          { required: true, message: "文章排序不能为空", trigger: "blur" },
-          { validator: isInteger, trigger: 'blur'}
-        ],
-        titleUrl: [
-          { required: true, message: "文章封面不能为空", trigger: "blur" }
+          { required: true, transform: value => value == null ? value : String(value), message: '文章排序不能为空', trigger: 'blur' },
+          { validator: (rule, value, callback) => /^(0|[1-9]\d*)$/.test(String(value)) ? callback() : callback(new Error('请输入0或正整数')), trigger: 'blur' }
         ],
         content: [
-          { required: true, message: "文章内容不能为空", trigger: "blur" }
-        ],
-      },
-    };
+          { required: true, message: '文章内容不能为空', trigger: 'blur' }
+        ]
+      }
+    }
+  },
+  computed: {
+    recommendationReady() {
+      return this.recommendationState === 'ready'
+    },
+    recommendationHint() {
+      if (!this.recommendationReady) {
+        return this.recommendationState === 'error' ? '推荐配置读取失败，暂不能开启推荐。' : '正在读取推荐配置…'
+      }
+      const isStory = (this.form.labels || []).some(id => String(id) === this.storyLabelId)
+      return isStory ? '参与首页精选，同时进入了解轻生活的轻友故事列表；人物全文入口另行审核关联。' : '参与首页精选，不限制题材；按排序优先展示。'
+    }
   },
   created() {
-    this.getList();
+    this.getList()
   },
   methods: {
+    async loadRecommendationLabels() {
+      const version = this.recommendationRequest = (this.recommendationRequest || 0) + 1
+      this.recommendationState = 'loading'
+      this.storyLabelId = ''
+      try {
+        const [labels, config] = await Promise.all([getLabelList(), getConfigKey('qinglife.reading.story_label_id')])
+        if (version !== this.recommendationRequest) return
+        this.labelList = labels
+        // Match the backend's configured ID and enabled labels, never a display-name guess.
+        // SysConfigController uses AjaxResult.success(String): the value is in msg.
+        const id = String(config.data == null ? config.msg || '' : config.data)
+        if (!/^[0-9]{1,19}$/.test(id) || !labels.some(label => String(label.id) === id && Number(label.status) === 1)) {
+          throw new Error('轻友故事标签配置无效')
+        }
+        this.storyLabelId = id
+        this.recommendationState = 'ready'
+      } catch (error) {
+        if (version === this.recommendationRequest) this.recommendationState = 'error'
+      }
+    },
     /** 查询文章列表 */
     getList() {
-      this.loading = true;
+      this.loading = true
       listEssay(this.queryParams).then((response) => {
-        this.essayList = response.rows;
+        this.essayList = response.rows
         for (var i = 0; i < this.essayList.length; i++) {
-          this.essayList[i].status = this.essayList[i].status + "";
-          console.log(this.essayList[i].titleUrl)
+          this.essayList[i].status = this.essayList[i].status + ''
         }
-        this.total = response.total;
-        this.loading = false;
-      });
+        this.total = response.total
+        this.loading = false
+      })
     },
     // 取消按钮
     cancel() {
-      this.open = false;
-      this.reset();
+      this.open = false
+      this.reset()
     },
     // 表单重置
     reset() {
+      this.recommendationRequest = (this.recommendationRequest || 0) + 1
+      this.recommendationState = 'loading'
+      this.storyLabelId = ''
+      this.labelList = []
       this.form = {
         id: undefined,
         title: undefined,
         content: undefined,
         Introduction: undefined,
-        status: "1",
+        status: '0',
+        contentOrigin: 'manual', sourceUrl: '', authorName: '',
         orderNum: undefined,
         insertTime: undefined,
         author: undefined,
@@ -325,121 +375,124 @@ export default {
         isVideo: undefined,
         homeFeatured: 0,
         labels: [],
-        updateNotRead: false,
-      };
-      this.resetForm("form");
+        updateNotRead: false
+      }
+      this.resetForm('form')
+      this.provenance = []
     },
     /** 搜索按钮操作 */
     handleQuery() {
-      this.queryParams.pageNum = 1;
-      this.getList();
+      this.queryParams.pageNum = 1
+      this.getList()
     },
     /** 重置按钮操作 */
     resetQuery() {
-      this.resetForm("queryForm");
-      this.handleQuery();
+      this.resetForm('queryForm')
+      this.handleQuery()
     },
     // 多选框选中数据
     handleSelectionChange(selection) {
-      this.ids = selection.map((item) => item.id);
-      this.single = selection.length !== 1;
-      this.multiple = !selection.length;
+      this.ids = selection.map((item) => item.id)
+      this.single = selection.length !== 1
+      this.multiple = !selection.length
     },
     /** 新增按钮操作 */
     handleAdd() {
-      this.reset();
-      getLabelList().then((response) =>{
-        this.labelList = response
-      });
-      this.open = true;
-      this.title = "添加文章";
+      this.reset()
+      this.loadRecommendationLabels()
+      this.open = true
+      this.title = '添加文章'
     },
     /** 修改按钮操作 */
     handleUpdate(row) {
-      this.loading = true;
-      this.reset();
-      const id = row.id || this.ids;
+      this.loading = true
+      this.reset()
+      const id = row.id || this.ids
       getEssay(id).then((response) => {
-        this.loading = false;
-        this.form = response.data;
-        this.form.status = this.form.status + '';
-        for(var i=0; i<this.form.labels.length; i++){
-          this.form.labels[i] = this.form.labels[i] + '';
+        this.loading = false
+        this.form = response.data
+        this.form.status = this.form.status + ''
+        this.form.labels = this.form.labels || []
+        for (var i = 0; i < this.form.labels.length; i++) {
+          this.form.labels[i] = this.form.labels[i] + ''
         }
-        this.open = true;
-        this.title = "修改文章";
-      });
-      getLabelList().then((response) =>{
-        this.labelList = response;
-      });
+        this.open = true
+        this.title = '修改文章'
+        articleProvenance(id).then(result => { if (this.form.id === response.data.id) this.provenance = result.data || [] }).catch(() => { this.provenance = [] })
+      })
+      this.loadRecommendationLabels()
     },
     /** 提交按钮 */
     submitForm() {
-      this.$refs["form"].validate((valid) => {
+      if (Number(this.form.homeFeatured) === 1 && !this.recommendationReady) {
+        this.msgError('请先成功读取推荐配置，再保存推荐文章。')
+        return
+      }
+      this.$refs['form'].validate((valid) => {
         if (valid) {
-          this.buttonLoading = true;
+          this.buttonLoading = true
           if (this.form.id != null) {
             updateEssay(this.form)
               .then((response) => {
-                this.msgSuccess("修改成功");
-                this.open = false;
-                this.getList();
+                this.msgSuccess('修改成功')
+                this.open = false
+                this.getList()
               })
               .finally(() => {
-                this.buttonLoading = false;
-              });
+                this.buttonLoading = false
+              })
           } else {
             addEssay(this.form)
               .then((response) => {
-                this.msgSuccess("新增成功");
-                this.open = false;
-                this.getList();
+                this.msgSuccess('新增成功')
+                this.open = false
+                this.getList()
               })
               .finally(() => {
-                this.buttonLoading = false;
-              });
+                this.buttonLoading = false
+              })
           }
         }
-      });
+      })
     },
     /** 删除按钮操作 */
     handleDelete(row) {
-      const ids = row.id || this.ids;
-      this.$confirm('是否确认删除文章编号为"' + ids + '"的数据项?', "警告", {
-        confirmButtonText: "确定",
-        cancelButtonText: "取消",
-        type: "warning",
+      const ids = row.id || this.ids
+      this.$confirm('是否确认删除文章编号为"' + ids + '"的数据项?', '警告', {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
       })
         .then(() => {
-          this.loading = true;
-          return delEssay(ids);
+          this.loading = true
+          return delEssay(ids)
         })
         .then(() => {
-          this.loading = false;
-          this.getList();
-          this.msgSuccess("删除成功");
+          this.loading = false
+          this.getList()
+          this.msgSuccess('删除成功')
         })
-        .catch(() => {});
+        .catch(() => {})
     },
     // 文章状态修改
     handleStatusChange(row) {
-      let text = row.status === "0" ? "停用" : "启用";
-      this.$confirm('确认要"' + text + '""' + row.title + '"文章吗?', "警告", {
-        confirmButtonText: "确定",
-        cancelButtonText: "取消",
-        type: "warning",
+      const text = row.status === '0' ? '停用' : '启用'
+      this.$confirm('确认要"' + text + '""' + row.title + '"文章吗?', '警告', {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
       })
-        .then(function () {
-          return changeStatus(row.id, row.status);
+        .then(function() {
+          return changeStatus(row.id, row.status)
         })
         .then(() => {
-          this.msgSuccess(text + "成功");
+          this.msgSuccess(text + '成功')
         })
-        .catch(function () {
-          row.status = row.status === "0" ? "1" : "0";
-        });
-    },
-    
-  },
-};
+        .catch(function() {
+          row.status = row.status === '0' ? '1' : '0'
+        })
+    }
+
+  }
+}
 </script>

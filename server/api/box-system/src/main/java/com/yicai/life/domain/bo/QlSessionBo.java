@@ -47,5 +47,9 @@ public class QlSessionBo extends BaseEntity {
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private Date registrationCloseAt;
     private String leaderName;
+    /** Chosen from the fixed guide roster; null on update keeps the current guides. */
+    private java.util.List<String> guideNames;
+    private Boolean registrationOpenManual;
+    private Boolean registrationCloseManual;
     private String cancelPolicy;
 }

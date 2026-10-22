@@ -13,6 +13,12 @@ import java.util.Map;
 
 @Mapper
 public interface QlMiniAppMapper {
+    List<Map<String,Object>> selectPublicReadings(@Param("filter") com.yicai.life.domain.bo.QlReadingQueryBo filter,
+                                                @Param("limit") int limit,@Param("offset") long offset);
+    long countPublicReadings(@Param("filter") com.yicai.life.domain.bo.QlReadingQueryBo filter);
+    List<Map<String,Object>> selectPublicReadingTopics();
+    List<Map<String,Object>> selectFeaturedStories();
+    List<Map<String,Object>> selectFeaturedGeneralReadings();
 
     @Select("SELECT customer_id FROM ql_customer_identifier WHERE legacy_app_user_id = #{legacyUserId} " +
             "AND verification_status <> 'conflict' ORDER BY is_primary DESC, created_at ASC LIMIT 1")
@@ -42,7 +48,7 @@ public interface QlMiniAppMapper {
                          @Param("status") String status, @Param("legacyUserId") Long legacyUserId,
                          @Param("now") Date now);
 
-    @Select("SELECT COALESCE(c.real_name,c.nickname) AS name, (c.birth_date IS NOT NULL AND TIMESTAMPDIFF(YEAR,c.birth_date,CURRENT_DATE())<18) AS minor, " +
+    @Select("SELECT COALESCE(c.real_name,c.nickname) AS name, c.nickname AS nickname, (c.birth_date IS NOT NULL AND TIMESTAMPDIFF(YEAR,c.birth_date,CURRENT_DATE())<18) AS minor, " +
             "(SELECT i.identifier_value FROM ql_customer_identifier i WHERE i.customer_id=c.id AND i.identifier_type='phone' AND i.valid_to IS NULL ORDER BY i.is_primary DESC,i.created_at LIMIT 1) AS phone FROM ql_customer c WHERE c.id=#{id}")
     Map<String,Object> selectCustomerProfile(@Param("id") String id);
 
@@ -51,9 +57,9 @@ public interface QlMiniAppMapper {
 
     @Select("SELECT s.id, s.session_number AS sessionNumber, s.name, s.theme, s.cover_url AS coverUrl, s.intro, s.start_date AS startDate, " +
             "s.end_date AS endDate, s.capacity, s.standard_price AS standardPrice, s.returning_price AS returningPrice, s.public_venue AS venue, " +
-            "s.city, s.status, s.registration_confirm_mode AS confirmMode, s.registration_open_at AS registrationOpenAt, " +
+            "s.city, s.status AS configuredStatus, TIMESTAMPDIFF(MICROSECOND,'1970-01-01 00:00:00',UTC_TIMESTAMP(3)) DIV 1000 AS stateClockMillis, " + com.yicai.life.service.QlSessionAdmissionPolicy.STATUS_SQL + " AS status, s.registration_confirm_mode AS confirmMode, s.registration_open_at AS registrationOpenAt, " +
             "s.registration_close_at AS registrationCloseAt, s.leader_name AS leaderName, s.cancel_policy AS cancelPolicy, " +
-            "(SELECT COUNT(*) FROM ql_registration r WHERE r.session_id=s.id AND r.registration_status IN ('pending','confirmed')) AS registeredCount " +
+            "(SELECT COUNT(*) FROM ql_registration r LEFT JOIN ql_registration_batch b ON b.id=r.batch_id WHERE r.session_id=s.id AND " + com.yicai.life.service.QlRegistrationPolicy.PAID_SEAT_SQL + ") AS registeredCount " +
             "FROM ql_session s WHERE s.status IN ('open','in_progress') ORDER BY s.start_date ASC")
     List<Map<String, Object>> selectPublicSessions();
 
@@ -82,18 +88,18 @@ public interface QlMiniAppMapper {
     int cancelExtraSessionDays(@Param("sessionId") String sessionId, @Param("dayCount") int dayCount,
                                @Param("operatorId") Long operatorId, @Param("now") Date now);
 
-    @Select("SELECT id, start_date AS startDate, end_date AS endDate, session_number AS sessionNumber, name, theme, cover_url AS coverUrl, standard_price AS standardPrice, returning_price AS returningPrice, " +
-            "registration_confirm_mode AS confirmMode, registration_open_at AS registrationOpenAt, " +
-            "registration_close_at AS registrationCloseAt, status, capacity, " +
-            "(SELECT COUNT(*) FROM ql_registration r WHERE r.session_id=ql_session.id AND r.registration_status IN ('pending','confirmed')) AS registeredCount " +
-            "FROM ql_session WHERE id=#{id} FOR UPDATE")
+    @Select("SELECT s.id, s.start_date AS startDate, s.end_date AS endDate, s.session_number AS sessionNumber, s.name, s.theme, s.cover_url AS coverUrl, s.standard_price AS standardPrice, s.returning_price AS returningPrice, " +
+            "s.registration_confirm_mode AS confirmMode, s.registration_open_at AS registrationOpenAt, " +
+            "s.registration_close_at AS registrationCloseAt, s.status AS configuredStatus, " + com.yicai.life.service.QlSessionAdmissionPolicy.STATUS_SQL + " AS status, s.capacity, " +
+            "(SELECT COUNT(*) FROM ql_registration r LEFT JOIN ql_registration_batch b ON b.id=r.batch_id WHERE r.session_id=s.id AND " + com.yicai.life.service.QlRegistrationPolicy.PAID_SEAT_SQL + ") AS registeredCount " +
+            "FROM ql_session s WHERE s.id=#{id} FOR UPDATE")
     Map<String, Object> selectSessionForRegistration(@Param("id") String id);
 
     @Select("SELECT id, order_no AS orderNo, payment_status AS paymentStatus, participant_count AS participantCount, quoted_amount AS quotedAmount, final_amount AS finalAmount, settlement_status AS settlementStatus, settlement_type AS settlementType, pass_units AS passUnits, payable_amount AS payableAmount, request_fingerprint AS requestFingerprint " +
             "FROM ql_registration_batch WHERE source='mini_program' AND client_request_id=#{clientRequestId} LIMIT 1")
     Map<String, Object> selectBatchByClientRequestId(@Param("clientRequestId") String clientRequestId);
 
-    @Select("SELECT id FROM ql_registration WHERE session_id=#{sessionId} AND registration_status IN ('pending','confirmed') FOR UPDATE")
+    @Select("SELECT r.id FROM ql_registration r LEFT JOIN ql_registration_batch b ON b.id=r.batch_id WHERE r.session_id=#{sessionId} AND " + com.yicai.life.service.QlRegistrationPolicy.PAID_SEAT_SQL + " ORDER BY r.id FOR UPDATE")
     List<String> selectOccupiedRegistrations(@Param("sessionId") String sessionId);
 
     @Insert("INSERT INTO ql_registration_batch(id, order_no, session_id, submitted_by_customer_id, contact_name, contact_phone, source, " +
@@ -135,12 +141,12 @@ public interface QlMiniAppMapper {
     int insertServiceConsent(@Param("id") String id, @Param("customerId") String customerId,
                              @Param("policyVersion") String policyVersion, @Param("now") Date now);
 
-    @Select("SELECT r.id AS registrationId, r.registration_status AS registrationStatus, r.payment_status AS paymentStatus, " +
-            "r.registered_at AS registeredAt, b.id AS batchId, b.order_no AS orderNo, b.contact_name AS contactName, b.contact_phone AS contactPhone, b.payment_status AS orderPaymentStatus, b.quoted_amount AS quotedAmount, CASE WHEN b.id IS NOT NULL THEN b.final_amount ELSE r.final_amount END AS finalAmount, CASE WHEN b.id IS NOT NULL THEN b.settlement_status ELSE r.settlement_status END AS settlementStatus, CASE WHEN b.id IS NOT NULL THEN b.settlement_type ELSE r.settlement_type END AS settlementType, CASE WHEN b.id IS NOT NULL THEN b.pass_units ELSE r.pass_units END AS passUnits, CASE WHEN b.id IS NOT NULL THEN b.pass_account_id ELSE r.pass_account_id END AS passAccountId, b.payable_amount AS payableAmount, r.unit_price AS unitPrice, " +
-            "r.customer_id AS customerId, c.nickname AS participantName, (r.customer_id=#{customerId}) AS isSelf, r.is_minor_snapshot AS minor, r.relation_snapshot AS relation, s.status AS sessionStatus, s.id AS sessionId, s.session_number AS sessionNumber, s.name AS sessionName, s.start_date AS startDate, s.end_date AS endDate, " +
-            "EXISTS(SELECT 1 FROM ql_participation_day pd WHERE pd.registration_id=r.id AND pd.attendance_status IN ('checked_in','late','left_early')) OR EXISTS(SELECT 1 FROM ql_participation p WHERE p.customer_id=r.customer_id AND p.session_id=r.session_id AND p.attendance_status IN ('checked_in','late','left_early','completed') AND NOT EXISTS(SELECT 1 FROM ql_participation_day existing_day JOIN ql_session_day existing_session_day ON existing_session_day.id=existing_day.session_day_id WHERE existing_day.customer_id=r.customer_id AND existing_session_day.session_id=r.session_id)) AS participated " +
+    @Select("SELECT r.id AS registrationId, COALESCE((" + com.yicai.life.service.QlRegistrationPolicy.ACTIVE_REGISTRATION_SQL + "),0) AS activeRegistration, r.registration_status AS registrationStatus, r.payment_status AS paymentStatus, " +
+            "r.registered_at AS registeredAt, b.id AS batchId, b.order_no AS orderNo, b.contact_name AS contactName, b.contact_phone AS contactPhone, CASE WHEN b.settlement_mode='participant' THEN r.payment_status ELSE b.payment_status END AS orderPaymentStatus, COALESCE(b.settlement_mode,'legacy_batch') AS settlementMode, CASE WHEN b.settlement_mode='participant' THEN r.unit_price ELSE b.quoted_amount END AS quotedAmount, CASE WHEN b.id IS NOT NULL AND b.settlement_mode='legacy_batch' THEN b.final_amount ELSE r.final_amount END AS finalAmount, CASE WHEN b.id IS NOT NULL AND b.settlement_mode='legacy_batch' THEN b.settlement_status ELSE r.settlement_status END AS settlementStatus, CASE WHEN b.id IS NOT NULL AND b.settlement_mode='legacy_batch' THEN b.settlement_type ELSE r.settlement_type END AS settlementType, CASE WHEN b.id IS NOT NULL AND b.settlement_mode='legacy_batch' THEN b.pass_units ELSE r.pass_units END AS passUnits, CASE WHEN b.id IS NOT NULL AND b.settlement_mode='legacy_batch' THEN b.pass_account_id ELSE r.pass_account_id END AS passAccountId, CASE WHEN b.settlement_mode='participant' THEN COALESCE(r.final_amount,r.unit_price) ELSE b.payable_amount END AS payableAmount, r.unit_price AS unitPrice, " +
+            "r.customer_id AS customerId, COALESCE(r.participant_name_snapshot,c.nickname) AS participantName, r.participant_name_snapshot AS participantNameSnapshot, r.participant_phone_snapshot AS participantPhone, (r.customer_id=#{customerId}) AS isSelf, r.is_minor_snapshot AS minor, r.relation_snapshot AS relation, " + com.yicai.life.service.QlSessionAdmissionPolicy.STATUS_SQL + " AS sessionStatus, s.id AS sessionId, s.session_number AS sessionNumber, s.name AS sessionName, s.start_date AS startDate, s.end_date AS endDate, " +
+            "EXISTS(SELECT 1 FROM ql_participation_day pd WHERE pd.registration_id=r.id AND pd.attendance_status IN ('checked_in','late','left_early')) OR EXISTS(SELECT 1 FROM ql_participation p WHERE p.customer_id=r.customer_id AND p.session_id=r.session_id AND (p.registration_id=r.id OR (p.registration_id IS NULL AND NOT EXISTS(SELECT 1 FROM ql_registration other_registration WHERE other_registration.customer_id=r.customer_id AND other_registration.session_id=r.session_id AND other_registration.id<>r.id))) AND p.attendance_status IN ('checked_in','late','left_early','completed') AND NOT EXISTS(SELECT 1 FROM ql_participation_day existing_day JOIN ql_session_day existing_session_day ON existing_session_day.id=existing_day.session_day_id WHERE existing_day.registration_id=r.id)) AS participated " +
             "FROM ql_registration r JOIN ql_customer c ON c.id=r.customer_id JOIN ql_session s ON s.id=r.session_id LEFT JOIN ql_registration_batch b ON b.id=r.batch_id " +
-            "WHERE r.customer_id=#{customerId} OR b.submitted_by_customer_id=#{customerId} ORDER BY s.start_date DESC")
+            "WHERE r.customer_id=#{customerId} OR b.submitted_by_customer_id=#{customerId} ORDER BY s.start_date DESC,r.registered_at DESC,r.id DESC")
     List<Map<String, Object>> selectCustomerRegistrations(@Param("customerId") String customerId);
 
     @Select("SELECT a.id,a.pass_type AS passType,a.status,DATE_FORMAT(a.valid_until,'%Y-%m-%d') AS validUntil," +
@@ -162,7 +168,7 @@ public interface QlMiniAppMapper {
             "WHERE p.customer_id=#{customerId} ORDER BY d.activity_date DESC, d.day_no")
     List<Map<String, Object>> selectCustomerAttendance(@Param("customerId") String customerId);
 
-    @Select("SELECT COUNT(*) FROM ql_registration r JOIN ql_session s ON s.id=r.session_id WHERE r.customer_id=#{customerId} AND r.session_id=#{sessionId} AND r.registration_status='confirmed' AND (EXISTS(SELECT 1 FROM ql_participation_day pd WHERE pd.registration_id=r.id AND pd.attendance_status IN ('checked_in','late','left_early')) OR EXISTS(SELECT 1 FROM ql_participation p WHERE p.customer_id=r.customer_id AND p.session_id=r.session_id AND p.attendance_status IN ('checked_in','late','left_early','completed') AND NOT EXISTS(SELECT 1 FROM ql_participation_day existing_day JOIN ql_session_day existing_session_day ON existing_session_day.id=existing_day.session_day_id WHERE existing_day.customer_id=r.customer_id AND existing_session_day.session_id=r.session_id)))")
+    @Select("SELECT COUNT(*) FROM ql_registration r JOIN ql_session s ON s.id=r.session_id WHERE r.customer_id=#{customerId} AND r.session_id=#{sessionId} AND r.registration_status='confirmed' AND (EXISTS(SELECT 1 FROM ql_participation_day pd WHERE pd.registration_id=r.id AND pd.attendance_status IN ('checked_in','late','left_early')) OR EXISTS(SELECT 1 FROM ql_participation p WHERE p.customer_id=r.customer_id AND p.session_id=r.session_id AND (p.registration_id=r.id OR (p.registration_id IS NULL AND NOT EXISTS(SELECT 1 FROM ql_registration other_registration WHERE other_registration.customer_id=r.customer_id AND other_registration.session_id=r.session_id AND other_registration.id<>r.id))) AND p.attendance_status IN ('checked_in','late','left_early','completed') AND NOT EXISTS(SELECT 1 FROM ql_participation_day existing_day JOIN ql_session_day existing_session_day ON existing_session_day.id=existing_day.session_day_id WHERE existing_day.registration_id=r.id)))")
     int countAttendedSession(@Param("customerId") String customerId, @Param("sessionId") String sessionId);
 
     @Update("UPDATE ql_participation_day p JOIN ql_registration r ON r.id=p.registration_id " +
@@ -219,23 +225,29 @@ public interface QlMiniAppMapper {
                            @Param("grantedAt") Date grantedAt, @Param("revokedAt") Date revokedAt,
                            @Param("now") Date now);
 
-    @Select("SELECT s.id, s.session_number AS sessionNumber, s.name, s.theme, s.cover_url AS coverUrl, s.intro, s.start_date AS startDate, s.end_date AS endDate, s.capacity, s.standard_price AS standardPrice, s.returning_price AS returningPrice, s.public_venue AS venue, s.city, s.status, s.registration_confirm_mode AS confirmMode, s.registration_open_at AS registrationOpenAt, s.registration_close_at AS registrationCloseAt, s.leader_name AS leaderName, s.cancel_policy AS cancelPolicy, (SELECT COUNT(*) FROM ql_registration r WHERE r.session_id=s.id AND r.registration_status IN ('pending','confirmed')) AS registeredCount FROM ql_session s WHERE s.id=#{id} AND s.status<>'draft'")
+    @Select("SELECT s.id, s.session_number AS sessionNumber, s.name, s.theme, s.cover_url AS coverUrl, s.intro, s.start_date AS startDate, s.end_date AS endDate, s.capacity, s.standard_price AS standardPrice, s.returning_price AS returningPrice, s.public_venue AS venue, s.city, s.status AS configuredStatus, TIMESTAMPDIFF(MICROSECOND,'1970-01-01 00:00:00',UTC_TIMESTAMP(3)) DIV 1000 AS stateClockMillis, " + com.yicai.life.service.QlSessionAdmissionPolicy.STATUS_SQL + " AS status, s.registration_confirm_mode AS confirmMode, s.registration_open_at AS registrationOpenAt, s.registration_close_at AS registrationCloseAt, s.leader_name AS leaderName, s.cancel_policy AS cancelPolicy, (SELECT COUNT(*) FROM ql_registration r LEFT JOIN ql_registration_batch b ON b.id=r.batch_id WHERE r.session_id=s.id AND " + com.yicai.life.service.QlRegistrationPolicy.PAID_SEAT_SQL + ") AS registeredCount FROM ql_session s WHERE s.id=#{id} AND s.status<>'draft'")
     Map<String, Object> selectSessionDetail(@Param("id") String id);
 
     @Insert("INSERT INTO ql_invitation(code,session_id,owner_customer_id,source,created_at) VALUES(#{code},#{sessionId},#{ownerId},#{source},#{now})")
     int insertInvitation(@Param("code") String code, @Param("sessionId") String sessionId, @Param("ownerId") String ownerId, @Param("source") String source, @Param("now") Date now);
 
-    @Select("SELECT code,session_id AS sessionId,owner_customer_id AS ownerId FROM ql_invitation WHERE code=#{code}")
+    @Select("SELECT code,session_id AS sessionId,owner_customer_id AS ownerId,purpose FROM ql_invitation WHERE code=#{code}")
     Map<String,Object> selectInvitation(@Param("code") String code);
 
-    @Select("SELECT COUNT(DISTINCT r.session_id) FROM ql_registration r JOIN ql_session s ON s.id=r.session_id JOIN ql_customer c ON c.id=r.customer_id WHERE r.customer_id=#{customerId} AND r.registration_status='confirmed' AND r.is_minor_snapshot=0 AND (c.birth_date IS NULL OR TIMESTAMPDIFF(YEAR,c.birth_date,CURRENT_DATE())>=18) AND s.status='completed' AND (EXISTS(SELECT 1 FROM ql_participation_day pd WHERE pd.registration_id=r.id AND pd.attendance_status IN ('checked_in','late','left_early')) OR EXISTS(SELECT 1 FROM ql_participation p WHERE p.customer_id=r.customer_id AND p.session_id=r.session_id AND p.attendance_status IN ('checked_in','late','left_early','completed') AND NOT EXISTS(SELECT 1 FROM ql_participation_day existing_day JOIN ql_session_day existing_session_day ON existing_session_day.id=existing_day.session_day_id WHERE existing_day.customer_id=r.customer_id AND existing_session_day.session_id=r.session_id)))")
+    @Select("SELECT r.id AS registrationId,c.nickname,s.session_number AS sessionNumber,s.name AS sessionName,r.registration_status AS registrationStatus,DATE_FORMAT(r.registered_at,'%Y-%m-%d %H:%i') AS registeredAt FROM ql_registration r JOIN ql_customer c ON c.id=r.customer_id JOIN ql_session s ON s.id=r.session_id WHERE r.session_referrer_customer_id=#{customerId} AND r.customer_id<>#{customerId} AND c.deleted_at IS NULL ORDER BY r.registered_at DESC,r.id DESC LIMIT 100")
+    List<Map<String,Object>> selectMyReferrals(@Param("customerId") String customerId);
+
+    @Select("SELECT COUNT(DISTINCT r.session_id) FROM ql_registration r JOIN ql_session s ON s.id=r.session_id JOIN ql_customer c ON c.id=r.customer_id WHERE r.customer_id=#{customerId} AND r.registration_status='confirmed' AND r.is_minor_snapshot=0 AND (c.birth_date IS NULL OR TIMESTAMPDIFF(YEAR,c.birth_date,CURRENT_DATE())>=18) AND s.status='completed' AND (EXISTS(SELECT 1 FROM ql_participation_day pd WHERE pd.registration_id=r.id AND pd.attendance_status IN ('checked_in','late','left_early')) OR EXISTS(SELECT 1 FROM ql_participation p WHERE p.customer_id=r.customer_id AND p.session_id=r.session_id AND (p.registration_id=r.id OR (p.registration_id IS NULL AND NOT EXISTS(SELECT 1 FROM ql_registration other_registration WHERE other_registration.customer_id=r.customer_id AND other_registration.session_id=r.session_id AND other_registration.id<>r.id))) AND p.attendance_status IN ('checked_in','late','left_early','completed') AND NOT EXISTS(SELECT 1 FROM ql_participation_day existing_day JOIN ql_session_day existing_session_day ON existing_session_day.id=existing_day.session_day_id WHERE existing_day.registration_id=r.id)))")
     int countCompletedExperience(@Param("customerId") String customerId);
 
-    @Select("SELECT COUNT(DISTINCT r.session_id) FROM ql_registration r JOIN ql_session s ON s.id=r.session_id WHERE r.customer_id=#{customerId} AND r.registration_status='confirmed' AND s.status='completed' AND (EXISTS(SELECT 1 FROM ql_participation_day pd WHERE pd.registration_id=r.id AND pd.attendance_status IN ('checked_in','late','left_early')) OR EXISTS(SELECT 1 FROM ql_participation p WHERE p.customer_id=r.customer_id AND p.session_id=r.session_id AND p.attendance_status IN ('checked_in','late','left_early','completed') AND NOT EXISTS(SELECT 1 FROM ql_participation_day existing_day JOIN ql_session_day existing_session_day ON existing_session_day.id=existing_day.session_day_id WHERE existing_day.customer_id=r.customer_id AND existing_session_day.session_id=r.session_id)))")
+    @Select("SELECT COUNT(DISTINCT r.session_id) FROM ql_registration r JOIN ql_session s ON s.id=r.session_id WHERE r.customer_id=#{customerId} AND r.registration_status='confirmed' AND (" + com.yicai.life.service.QlSessionAdmissionPolicy.STATUS_SQL + ")='completed' AND (EXISTS(SELECT 1 FROM ql_participation_day pd WHERE pd.registration_id=r.id AND pd.attendance_status IN ('checked_in','late','left_early')) OR EXISTS(SELECT 1 FROM ql_participation p WHERE p.customer_id=r.customer_id AND p.session_id=r.session_id AND (p.registration_id=r.id OR (p.registration_id IS NULL AND NOT EXISTS(SELECT 1 FROM ql_registration other_registration WHERE other_registration.customer_id=r.customer_id AND other_registration.session_id=r.session_id AND other_registration.id<>r.id))) AND p.attendance_status IN ('checked_in','late','left_early','completed') AND NOT EXISTS(SELECT 1 FROM ql_participation_day existing_day JOIN ql_session_day existing_session_day ON existing_session_day.id=existing_day.session_day_id WHERE existing_day.registration_id=r.id)))")
     int countCompletedSessions(@Param("customerId") String customerId);
 
     @Update("UPDATE ql_registration SET unit_price=#{price} WHERE id=#{id}")
     int setRegistrationPrice(@Param("id") String id, @Param("price") BigDecimal price);
+
+    @Update("UPDATE ql_registration SET participant_name_snapshot=#{name},participant_phone_snapshot=#{phone} WHERE id=#{id}")
+    int setRegistrationParticipantSnapshot(@Param("id") String id,@Param("name") String name,@Param("phone") String phone);
 
     @Update("UPDATE ql_registration_batch SET quoted_amount=#{amount} WHERE id=#{id}")
     int setBatchQuote(@Param("id") String id, @Param("amount") BigDecimal amount);
@@ -246,7 +258,7 @@ public interface QlMiniAppMapper {
     @Select("SELECT r.id AS registrationId,r.customer_id AS customerId,c.nickname AS name,r.registration_status AS status FROM ql_registration r JOIN ql_customer c ON c.id=r.customer_id WHERE r.batch_id=#{id}")
     List<Map<String,Object>> selectBatchRegistrations(@Param("id") String id);
 
-    @Select("SELECT COUNT(*) FROM ql_registration WHERE customer_id=#{customerId} AND session_id=#{sessionId}")
+    @Select("SELECT COUNT(*) FROM ql_registration r WHERE r.customer_id=#{customerId} AND r.session_id=#{sessionId} AND " + com.yicai.life.service.QlRegistrationPolicy.ACTIVE_REGISTRATION_SQL)
     int countRegistration(@Param("customerId") String customerId, @Param("sessionId") String sessionId);
 
     @Select("SELECT DISTINCT r.customer_id FROM ql_registration r JOIN ql_registration_batch b ON b.id=r.batch_id WHERE r.customer_id=#{customerId} AND b.submitted_by_customer_id=#{buyerId}")
@@ -273,14 +285,11 @@ public interface QlMiniAppMapper {
     @Select("SELECT id,registration_id AS registrationId,session_id AS sessionId,phase,node_key AS nodeKey,energy,relaxation,note,visibility_scope AS visibility,updated_at AS updatedAt FROM ql_experience_record WHERE customer_id=#{customerId} ORDER BY updated_at DESC")
     List<Map<String,Object>> selectExperienceRecords(@Param("customerId") String customerId);
 
-    @Select("SELECT e.id,e.title,e.Introduction AS summary,e.title_url AS cover,e.insert_time AS publishedAt," +
+    @Select("SELECT CAST(e.id AS CHAR) AS id,e.title,e.Introduction AS summary,e.title_url AS cover,e.insert_time AS publishedAt," +
             "COALESCE(u.nick_name,'轻生活') AS author,COALESCE((SELECT GROUP_CONCAT(l.name ORDER BY el.id SEPARATOR ' · ') FROM essay_label el JOIN label l ON l.id=el.label WHERE el.essay=e.id),'轻生活') AS category " +
             "FROM essay e LEFT JOIN sys_user u ON u.user_id=e.author WHERE e.status=1 AND e.home_featured=1 ORDER BY e.order_num,e.id LIMIT 8")
     List<Map<String,Object>> selectFeaturedReadings();
 
-    @Select("SELECT e.id,e.title,e.Introduction AS summary,e.title_url AS cover,e.content,e.insert_time AS publishedAt," +
-            "COALESCE(u.nick_name,'轻生活') AS author,COALESCE((SELECT GROUP_CONCAT(l.name ORDER BY el.id SEPARATOR ' · ') FROM essay_label el JOIN label l ON l.id=el.label WHERE el.essay=e.id),'轻生活') AS category " +
-            "FROM essay e LEFT JOIN sys_user u ON u.user_id=e.author WHERE e.id=#{id} AND e.status=1")
     Map<String,Object> selectPublicReading(@Param("id") Long id);
 
     @Select("SELECT config_key AS configKey,config_value AS configValue FROM sys_config WHERE config_key IN ('qinglife.contact.name','qinglife.contact.wechat')")

@@ -1,0 +1,20 @@
+/* 手机号登录 ·「林下午后」。全页唯一深林色场；只引用 --q-* 令牌。 */
+page { background:var(--q-linen); --ql-nav-bg:var(--q-forest); }
+.phone-auth-page { min-height:100vh; padding:0 0 40px; padding-bottom:calc(40px + env(safe-area-inset-bottom)); box-sizing:border-box; background:var(--q-linen); color:var(--q-ink); font-family:var(--q-sans); font-size:var(--q-fs-body); line-height:1.8; }
+.phone-auth-page::before { display:none; }
+.phone-auth-page button { box-sizing:border-box; min-width:0; margin:0; padding:0; border:0; border-radius:0; background:transparent; color:inherit; font:inherit; line-height:1.6; }
+.phone-auth-page button::after { border:0; }
+.phone-auth-page button:active { opacity:.75; }
+
+/* 上移 1px 藏到固定导航栏下，避免两块深林色之间露出亚像素亮缝 */
+.auth-field { margin-top:-1px; padding:40px var(--q-gutter) 44px; background:var(--q-forest); color:var(--q-on-dark); }
+.auth-title { font-family:var(--q-serif); font-size:34px; font-weight:600; line-height:1.35; letter-spacing:1px; }
+.auth-copy { margin-top:14px; color:var(--q-on-dark-2); font-size:var(--q-fs-body); line-height:1.8; }
+
+.auth-body { padding:28px var(--q-gutter) 0; }
+.auth-notice { margin:0 0 16px; padding:12px 14px; border-left:3px solid var(--q-amber); background:var(--q-sand); font-size:var(--q-fs-body); }
+.phone-auth-page .auth-primary { display:flex; align-items:center; justify-content:center; width:100%; min-height:var(--q-btn-h); margin-top:8px; background:var(--q-forest); color:var(--q-on-dark); font-size:var(--q-fs-body); font-weight:500; }
+.phone-auth-page .auth-primary[disabled] { background:var(--q-forest); color:var(--q-on-dark-2); }
+.auth-privacy { margin-top:14px; color:var(--q-ink-2); font-size:var(--q-fs-aux); text-align:center; }
+.auth-link { color:var(--q-moss); }
+.phone-auth-page .auth-later { display:block; width:100%; min-height:var(--q-tap); margin-top:8px; color:var(--q-moss); font-size:15px; font-weight:500; text-align:center; }

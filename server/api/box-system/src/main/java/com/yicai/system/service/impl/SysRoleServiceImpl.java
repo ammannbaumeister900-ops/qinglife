@@ -2,6 +2,7 @@ package com.yicai.system.service.impl;
 
 import cn.hutool.core.lang.Validator;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.yicai.common.annotation.DataScope;
 import com.yicai.common.constant.UserConstants;
 import com.yicai.common.core.domain.entity.SysRole;
@@ -225,7 +226,8 @@ public class SysRoleServiceImpl extends ServicePlusImpl<SysRoleMapper, SysRole, 
      */
     @Override
     public int updateRoleStatus(SysRole role) {
-        return baseMapper.updateById(role);
+        return baseMapper.update(null, new LambdaUpdateWrapper<SysRole>().eq(SysRole::getRoleId, role.getRoleId())
+                .set(SysRole::getStatus, role.getStatus()).set(SysRole::getUpdateBy, role.getUpdateBy()).set(SysRole::getUpdateTime, new java.util.Date()));
     }
 
     /**
@@ -237,8 +239,10 @@ public class SysRoleServiceImpl extends ServicePlusImpl<SysRoleMapper, SysRole, 
     @Override
     @Transactional
     public int authDataScope(SysRole role) {
-        // 修改角色信息
-        baseMapper.updateById(role);
+        // Data-scope requests cannot rewrite role identity, status or deletion flags.
+        baseMapper.update(null, new LambdaUpdateWrapper<SysRole>().eq(SysRole::getRoleId, role.getRoleId())
+                .set(SysRole::getDataScope, role.getDataScope()).set(SysRole::isDeptCheckStrictly, role.isDeptCheckStrictly())
+                .set(SysRole::getUpdateBy, role.getUpdateBy()).set(SysRole::getUpdateTime, new java.util.Date()));
         // 删除角色与部门关联
         roleDeptMapper.delete(new LambdaQueryWrapper<SysRoleDept>().eq(SysRoleDept::getRoleId, role.getRoleId()));
         // 新增角色和部门信息（数据权限）

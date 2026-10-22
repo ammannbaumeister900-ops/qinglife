@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "了解轻生活",
+  "navigationStyle": "custom",
+  "usingComponents": {
+    "ql-nav-space": "/components/ql-nav-space/index"
+  }
+}

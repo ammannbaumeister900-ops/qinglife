@@ -14,10 +14,13 @@ import java.util.*;
 public class QlStaffWorkspaceController {
  private final QlStaffWorkspaceService staff;
  private final IQlRegistrationService registrations;
+ private final QlFriendAssessmentService assessments;
  @GetMapping("/me") public AjaxResult<?> me(@RequestHeader(value="token",required=false) String token){return AjaxResult.success(staff.access(token));}
  @GetMapping("/people") public AjaxResult<?> people(@RequestHeader(value="token",required=false) String token,@RequestParam(defaultValue="") String q,@RequestParam(defaultValue="30") int limit){staff.access(token);return AjaxResult.success(staff.people(q,limit));}
  @GetMapping("/people/{id}") public AjaxResult<?> person(@RequestHeader(value="token",required=false) String token,@PathVariable String id){staff.access(token);Map<String,Object> out=staff.customer(id);out.put("activities",staff.registrations(null,id));out.put("passes",staff.passes(id));out.put("interviews",staff.interviews(id));return AjaxResult.success(out);}
  @PostMapping("/people") public AjaxResult<?> addPerson(@RequestHeader(value="token",required=false) String token,@RequestBody Map<String,Object> body){Map<String,Object>a=staff.access(token);staff.permit(a,"can_operate");return AjaxResult.success(Collections.singletonMap("id",staff.addCustomer(body,staff.operator(a))));}
+ @GetMapping("/assessment-sessions") public AjaxResult<?> assessmentSessions(@RequestHeader(value="token",required=false) String token){Map<String,Object>a=staff.access(token);staff.permit(a,"can_operate");return AjaxResult.success(assessments.assessmentSessions());}
+ @PostMapping("/sessions/{id}/assessment-invitations") public AjaxResult<?> assessmentShare(@RequestHeader(value="token",required=false) String token,@PathVariable String id){Map<String,Object>a=staff.access(token);staff.permit(a,"can_operate");return AjaxResult.success(assessments.createAssessmentInvitation(id,staff.operator(a)));}
  @GetMapping("/sessions") public AjaxResult<?> sessions(@RequestHeader(value="token",required=false) String token,@RequestParam(defaultValue="false") boolean history){staff.access(token);return AjaxResult.success(staff.sessions(history));}
  @GetMapping("/sessions/{id}/registrations") public AjaxResult<?> roster(@RequestHeader(value="token",required=false) String token,@PathVariable String id){staff.access(token);return AjaxResult.success(staff.registrations(id,null));}
  @GetMapping("/registrations/{id}") public AjaxResult<?> registration(@RequestHeader(value="token",required=false) String token,@PathVariable String id){Map<String,Object>a=staff.access(token);return AjaxResult.success(registrations.queryById(id));}

@@ -1,0 +1,42 @@
+<ql-nav-space title="轻友心声" back />
+<view class="page reflection-page">
+  <view wx:if="{{loading}}" class="empty-state">正在读取心声…</view>
+  <view wx:elif="{{error}}" class="empty-state">{{error}}<button class="text-button" bindtap="load">重试</button></view>
+  <block wx:else>
+    <view class="reflection-period">第 {{context.sessionNumber}} 期</view><view class="reflection-session-name">{{context.name}}</view>
+    <view class="reflection-title">轻友心声 · {{phase === 'before' ? '活动前' : '活动后'}}</view>
+    <view wx:if="{{sources.length > 1}}" class="past-shares source-choices">
+      <view class="past-shares-title">两份原稿分别保留，请选择本次使用的来源</view>
+      <view wx:for="{{sources}}" wx:key="source" class="past-share"><view class="reflection-copy">{{item.label}}</view><view class="past-share-note">{{item.note}}</view><button class="text-button" data-source="{{item.source}}" disabled="{{saving}}" bindtap="chooseSource">{{source === item.source ? '已选择' : '使用这份原稿'}}</button></view>
+    </view>
+    <view wx:if="{{scoreText}}" class="reflection-copy">{{scoreText}}</view>
+    <view wx:if="{{length > 150}}" class="reflection-copy over-limit">历史原文完整保留；修改后保存或发表须在150字内。</view>
+    <view wx:if="{{context.canBefore || context.canAfter}}" class="reflection-paper {{recording ? 'is-recording' : ''}} {{cancelOnRelease ? 'is-cancelling' : ''}}">
+      <textarea class="reflection-input" value="{{note}}" maxlength="-1" disabled="{{saving || sourceConflict || !(phase === 'before' ? context.canBefore : context.canAfter)}}" placeholder="留下一点心情，或一个想记住的瞬间" adjust-position="true" cursor-spacing="24" bindinput="onInput" />
+      <view class="reflection-tools">
+        <text class="reflection-count {{length > 150 || voiceError || cancelOnRelease ? 'over-limit' : ''}}">{{recording ? (cancelOnRelease ? '松开取消' : '松开结束') : transcribing ? '转文字…' : voiceStarting ? '准备中…' : voiceError ? voiceError : length + ' / 150'}}</text>
+        <button wx:if="{{length > 0 && (phase === 'before' ? context.canBefore : context.canAfter)}}" class="reflection-reset" disabled="{{saving}}" bindtap="resetDraft" aria-label="重置心声">重置</button>
+        <button wx:if="{{microphoneDenied}}" class="voice-setting" open-type="openSetting" aria-label="打开麦克风授权设置">授权</button>
+        <button wx:if="{{voiceStarting || transcribing || showVoicePrivacy}}" class="voice-cancel" bindtap="cancelVoice" aria-label="取消语音输入">×</button>
+        <button class="voice-hold {{voicePressing || recording ? 'is-held' : ''}}" disabled="{{saving || sourceConflict || !context.voiceAvailable || !(phase === 'before' ? context.canBefore : context.canAfter)}}" bindtouchstart="voiceTouchStart" bindlongpress="beginVoice" catchtouchmove="voiceTouchMove" bindtouchend="endVoice" bindtouchcancel="cancelVoice" aria-label="长按录音，松开转文字">
+          <text class="voice-hold-label">{{recording ? '松开' : '按住说'}}</text>
+        </button>
+      </view>
+      <view wx:if="{{!context.voiceAvailable}}" class="reflection-copy">语音暂未开通，可直接输入文字</view>
+      <view wx:if="{{showVoicePrivacy}}" class="voice-privacy">
+        <button class="privacy-link" bindtap="viewVoicePrivacy">{{privacyContractName}}</button>
+        <view class="privacy-actions"><button class="privacy-cancel" bindtap="cancelVoice">先不录</button><button id="voice-privacy-agree" class="privacy-agree" open-type="agreePrivacyAuthorization" bindagreeprivacyauthorization="agreeVoicePrivacy">同意</button></view>
+      </view>
+    </view>
+    <view wx:else class="reflection-readonly"><view class="reflection-copy">当前阶段暂不可填写心声</view><view wx:if="{{note}}" class="past-share-note">{{note}}</view><button class="text-button" bindtap="back">返回</button></view>
+    <block wx:if="{{phase === 'before' ? context.canBefore : context.canAfter}}">
+      <view class="reflection-options"><text class="reflection-author">{{context.authorName || '请先完善轻生活小名'}}</text></view>
+      <view class="reflection-disclosure">提交后经运营审核及必要授权核对，通过后以你的小名在本期公开展示；私人原稿保留，可随时收回。</view>
+      <button class="primary reflection-submit" loading="{{saving}}" disabled="{{saving || sourceConflict || length < 1 || length > 150 || !context.authorName}}" bindtap="save">公开发表</button>
+    </block>
+    <button wx:else class="text-button" bindtap="load">重新读取填写资格</button>
+    <view wx:if="{{revision || context.experienceRecord}}" class="reflection-status">{{statusText}}</view>
+    <button wx:if="{{shared}}" class="text-button" disabled="{{saving}}" bindtap="withdraw">收回公开分享</button>
+    <view wx:if="{{pastShares.length}}" class="past-shares"><view class="past-shares-title">此前留下的心声</view><view wx:for="{{pastShares}}" wx:key="phase" class="past-share"><view class="past-share-note">{{item.note}}</view><view wx:if="{{!item.shared}}" class="reflection-copy">仅自己可见</view><button wx:if="{{item.shared}}" class="text-button" data-phase="{{item.phase}}" disabled="{{saving}}" bindtap="withdraw">收回这份分享</button></view></view>
+  </block>
+</view>

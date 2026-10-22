@@ -10,10 +10,12 @@ import java.util.Date;
 public class QlRegistrationVo {
     private String id;
     private String batchId;
+    private String settlementMode;
     private String orderNo;
     private String buyerCustomerId;
     private String buyerNickname;
     private Integer participantCount;
+    private Boolean batchReadyForPayment;
     private String contactName;
     private String contactPhone;
     private BigDecimal quotedAmount;
@@ -29,6 +31,7 @@ public class QlRegistrationVo {
     private String customerId;
     private String customerNo;
     private String nickname;
+    private String participantPhone;
     private String realName;
     private String sessionId;
     private Integer sessionNumber;

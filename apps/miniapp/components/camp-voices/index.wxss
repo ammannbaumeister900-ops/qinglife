@@ -1,0 +1,17 @@
+.voice-section { box-sizing: border-box; margin: -8rpx 0 36rpx; padding: 24rpx 0 18rpx; border-radius: 20rpx; background: linear-gradient(130deg,#F0F1E7,#F8F0E5); overflow: hidden; }
+.voice-head { display: flex; align-items: center; justify-content: space-between; padding: 0 24rpx; color: #616C57; font-family: var(--ql-serif); font-size: 25rpx; letter-spacing: 1rpx; }
+button.voice-pause { margin: 0; min-height: 80rpx; padding: 12rpx; background: transparent; color: #637157; font-size: 22rpx; font-family: sans-serif; }
+.voice-window { overflow: hidden; }
+.voice-lane { margin: 8rpx 0; overflow: hidden; }
+.voice-track { display: inline-flex; width: max-content; animation: voice-drift 28s linear infinite; }
+.voice-set { display: flex; flex-shrink: 0; }
+button.voice-slip { display: inline-block; flex-shrink: 0; width: auto; margin: 0 12rpx; padding: 16rpx 24rpx; border-radius: 36rpx; background: #FFFCF6; border: 1rpx solid #E2E3D6; color: #4D5845; white-space: nowrap; font-size: 24rpx; line-height: 1.7; }
+.second-lane .voice-track { animation-duration: 34s; }
+.second-lane .voice-slip { background: #FAF4E9; border-color: #E9DDCB; color: #715F4A; }
+.voice-author { color: #7A7A67; font-size: 20rpx; }
+.voice-track.paused { animation-play-state: paused; }
+@keyframes voice-drift { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+@media (prefers-reduced-motion: reduce) { .voice-track { animation: none; display: block; width: 100%; } .voice-set { display: flex; flex-wrap: wrap; } .voice-slip { white-space: normal; margin-bottom: 12rpx; } .duplicate { display: none; } }
+
+button { box-sizing: border-box; font-weight: 400; }
+button::after { border: none; }

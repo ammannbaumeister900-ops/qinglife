@@ -2,8 +2,8 @@
 // empty/non-HTTPS business origin. Legacy access is explicit and read-only by
 // default so an unrelated token can never be reused accidentally.
 module.exports = {
-  environment: 'demo',
-  businessBaseUrl: '',
+  environment: 'staging',
+  businessBaseUrl: 'https://qinglife.guijianju.cn/accept-20261001-api',
   allowedBusinessOrigins: [],
   legacyEnabled: false,
   legacyBaseUrl: '',

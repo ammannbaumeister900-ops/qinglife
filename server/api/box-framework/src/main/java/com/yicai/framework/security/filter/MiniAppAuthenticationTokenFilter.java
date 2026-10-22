@@ -40,8 +40,11 @@ public class MiniAppAuthenticationTokenFilter extends OncePerRequestFilter {
         if (!HttpMethod.GET.matches(request.getMethod())) return false;
         return "/app/qinglife/sessions".equals(path)
                 || PATHS.match("/app/qinglife/sessions/*", path)
+                || "/app/qinglife/readings".equals(path)
                 || PATHS.match("/app/qinglife/readings/*", path)
+                || PATHS.match("/app/qinglife/content-placements/*", path)
                 || "/app/qinglife/contact".equals(path)
+                || PATHS.match("/app/qinglife/camp-voices/*", path)
                 || PATHS.match("/app/qinglife/invitations/*", path);
     }
 

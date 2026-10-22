@@ -1,5 +1,5 @@
 {
-  "navigationBarTitleText": "轻体营服务",
+  "navigationBarTitleText": "清体营服务",
   "navigationStyle": "custom",
   "usingComponents": {
     "launch-splash": "/components/launch-splash/index",

@@ -1,0 +1,20 @@
+/* Only journey: registration and fees remain independent facts. */
+.flow-journey .service-heading { padding: 8rpx 0 32rpx; }
+.flow-journey .service-session { font-size: 26rpx; color: var(--ql-ink-light); }
+.flow-journey .service-title { margin: 14rpx 0 20rpx; font-size: 40rpx; font-weight: 600; }
+.flow-journey .service-facts { display: flex; flex-direction: column; gap: 6rpx; font-size: 28rpx; color: var(--ql-ink-light); }
+.flow-journey .service-status-row { padding: 28rpx 0; }
+.flow-journey .service-state-line { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 8rpx 24rpx; }
+.flow-journey .service-status-value { margin: 0; font-size: 32rpx; color: var(--ql-ink); }
+.flow-journey .service-status-note { margin-top: 12rpx; }
+.flow-journey .journey-reflection { margin: 40rpx 0 28rpx; }
+.flow-journey .journey-reflection-title { margin: 0; font-size: 30rpx; font-weight: 600; }
+.flow-journey .journey-reflection .secondary { margin-top: 12rpx; color: var(--ql-clay-deep); }
+@media (max-width: 350px) {
+  .flow-journey .service-session { font-size: 13px; }
+  .flow-journey .service-facts { font-size: 14px; }
+  .flow-journey .service-status-value { font-size: 16px; }
+}
+
+.camp-flow-page .journey-reflection .secondary, .camp-flow-page .result-reflection { display: inline-flex; align-items: center; justify-content: center; width: auto; min-height: 44px; margin: 16rpx 0 0; padding: 18rpx 28rpx; border: 1rpx solid var(--ql-border); border-radius: 8rpx; background: transparent; color: var(--ql-clay-deep); }
+.operational-risk { margin: 24rpx 0; color: #825623; font-size: 14px; line-height: 1.7; }

@@ -321,6 +321,12 @@ spring:
 
 ---
 qinglife:
+  asr:
+    enabled: ${QINGLIFE_ASR_ENABLED:false}
+    secret-id: ${QINGLIFE_ASR_SECRET_ID:}
+    secret-key: ${QINGLIFE_ASR_SECRET_KEY:}
+    # Counts this deployment's attempts; Tencent postpaid must stay off for a free-only account.
+    monthly-budget: ${QINGLIFE_ASR_MONTHLY_BUDGET:4500}
   app-token:
     # 微信登录可静默刷新，避免把工作人员身份令牌保留30天。
     expire-minutes: ${QINGLIFE_APP_TOKEN_EXPIRE_MINUTES:1440}

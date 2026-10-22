@@ -35,6 +35,9 @@ public class SysMenuServiceImpl extends ServicePlusImpl<SysMenuMapper, SysMenu, 
     public static final String PREMISSION_STRING = "perms[\"{0}\"]";
 
     @Autowired
+    private com.yicai.system.service.AccountPagePermissionService accountPages;
+
+    @Autowired
     private SysRoleMapper roleMapper;
 
     @Autowired
@@ -90,7 +93,7 @@ public class SysMenuServiceImpl extends ServicePlusImpl<SysMenuMapper, SysMenu, 
                 permsSet.addAll(Arrays.asList(perm.trim().split(",")));
             }
         }
-        return permsSet;
+        return accountPages.filterPermissions(userId,permsSet);
     }
 
     /**
@@ -107,7 +110,7 @@ public class SysMenuServiceImpl extends ServicePlusImpl<SysMenuMapper, SysMenu, 
         } else {
             menus = baseMapper.selectMenuTreeByUserId(userId);
         }
-        return getChildPerms(menus, 0);
+        return getChildPerms(accountPages.filterMenus(userId,menus), 0);
     }
 
     /**
@@ -303,7 +306,8 @@ public class SysMenuServiceImpl extends ServicePlusImpl<SysMenuMapper, SysMenu, 
      * @return 路由名称
      */
     public String getRouteName(SysMenu menu) {
-        String routerName = StrUtil.upperFirst(menu.getPath());
+        String routePath = menu.getPath();
+        String routerName = StrUtil.upperFirst(routePath.startsWith("/") ? routePath.substring(routePath.lastIndexOf('/') + 1) : routePath);
         // 非外链并且是一级目录（类型为目录）
         if (isMenuFrame(menu)) {
             routerName = StrUtil.EMPTY;

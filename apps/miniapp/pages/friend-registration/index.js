@@ -1,8 +1,9 @@
 const business = require('../../services/business-api')
+const formFeedback = require('../../utils/form-feedback')
 const DRAFT_KEY = 'qinglife_friend_assessment_draft_2026_v1'
 const emptyForm = () => ({
   clientRequestId: 'fa_' + Date.now() + '_' + Math.random().toString(36).slice(2, 10),
-  name: '', nickname: '', birthDate: '', phone: '', heightCm: '', weightKg: '', city: '',
+  name: '', nickname: '', birthDate: '', phone: '', heightCm: '', weightKg: '', province: '', city: '',
   cleanBodyGoals: [], dietPreference: '', waterIntakeMl: '', wakeTime: '', sleepTime: '',
   bowelStatus: '', energyStatus: '', exerciseStatus: '', emotionalStatus: [], healthConditions: [],
   otherHealthCondition: '', medications: '', pregnancyStatus: '', referralSource: '', retrainingReason: '',
@@ -11,7 +12,8 @@ const emptyForm = () => ({
 
 Page({
   data: {
-    step: 1, loading: true, submitting: false, submitted: false, assessmentCount: 0,
+    step: 1, formError: null, loading: true, loadError: '', submitting: false, submitted: false, assessmentCount: 0,
+    sessionContext: null, invitationCode: '', sessionId: '', fromCamp: false, phoneRequired: false, mode: 'form', history: [], historyLoading: false, historyError: '', record: {}, editingId: '', editDeadline: '', wasEditing: false,
     form: emptyForm(), today: '', cleanBodyGoalSelected: {}, emotionSelected: {}, healthSelected: {},
     goals: ['排毒','减重','减压','调理'],
     diets: ['全素','以素为主','以荤为主','荤素各半'],
@@ -29,32 +31,101 @@ Page({
     ]
   },
 
-  async onLoad() {
+  async onLoad(options = {}) {
+    formFeedback.cancel(this)
+    if (typeof options.invite === 'string' || typeof options.scene === 'string' || typeof options.sessionId === 'string' || options.history === '1') this.routeOptions = options
+    options = this.routeOptions || {}
+    let invitationCode = options.invite || ''
+    if (!invitationCode && options.scene) { try { invitationCode = decodeURIComponent(options.scene) } catch (_) { invitationCode = 'invalid' } }
+    // A period is joined either by a staff invitation or by the friend's own registration, never both.
+    const sessionId = invitationCode ? '' : String(options.sessionId || '')
+    this.initialized = false
+    this.setData({ loading: true, loadError: '', phoneRequired: false, formError: null, sessionContext: null, invitationCode, sessionId, fromCamp: options.from === 'camp', submitted: false, editingId: '', form: emptyForm(), mode: 'form' })
     const today = new Date()
     const date = [today.getFullYear(), String(today.getMonth()+1).padStart(2,'0'), String(today.getDate()).padStart(2,'0')].join('-')
-    const draft = wx.getStorageSync(DRAFT_KEY)
-    let form = draft && draft.clientRequestId ? { ...emptyForm(), ...draft } : emptyForm()
     try {
       const profile = await business.friendProfile()
-      if (!draft) form = { ...form, name: profile.name || '', nickname: profile.nickname || '', birthDate: formatDate(profile.birthDate), phone: profile.phone || '', heightCm: profile.heightCm || '', weightKg: profile.weightKg || '', city: profile.city || '' }
-      this.setData({ assessmentCount: Number(profile.assessmentCount || 0) })
+      this.customerId = profile.id
+      // The contact number is the WeChat-verified one; without it there is no form to fill.
+      this.authorizedPhone = profile.authorizedPhone || ''
+      if (!this.authorizedPhone) { this.initialized = true; return this.setData({ loading: false, phoneRequired: true }) }
+      const sessionContext = invitationCode ? await business.assessmentInvitation(invitationCode) : sessionId ? await business.assessmentSession(sessionId) : null
+      this.draftKey = profile.id ? DRAFT_KEY + ':' + profile.id + (invitationCode ? ':' + invitationCode : sessionId ? ':session:' + sessionId : '') : ''
+      // Unscoped legacy drafts have no provable owner, so never display them after a login change.
+      const draft = this.draftKey && wx.getStorageSync(this.draftKey)
+      const form = draft && draft.clientRequestId ? { ...emptyForm(), ...draft } : { ...emptyForm(), ...basicProfile(profile), weightKg: profile.weightKg || '' }
+      form.phone = this.authorizedPhone
+      this.setData({ form, sessionContext, assessmentCount: Number(profile.assessmentCount || 0), today: date, loading: false, ...selectionMaps(form) })
+      this.initialized = true
+      if (options.history === '1') await this.openHistory()
     } catch (error) {
-      wx.showToast({ title: error.message || '档案读取失败', icon: 'none' })
+      this.setData({ loading: false, loadError: error.message || '档案读取失败，请重试' })
     }
-    this.setData({ form, today: date, loading: false, ...selectionMaps(form) })
+  },
+  async onShow() {
+    if (!this.initialized || this.data.loading) return
+    try {
+      const profile = await business.friendProfile()
+      if (profile.id !== this.customerId || this.data.phoneRequired && profile.authorizedPhone) return this.onLoad(this.routeOptions || {})
+      if (this.data.mode !== 'form') return this.refreshHistory()
+    } catch (e) { this.initialized = false; this.setData({form:emptyForm(),history:[],record:{},loadError:e.message||'请重新登录',sessionContext:null}) }
+  },
+  async refreshHistory() {
+    try {
+      const history = (await business.friendAssessments()).map(normalizeRecord)
+      const record = history.find(item => item.id === this.data.record.id)
+      this.setData({ history, historyError: '', assessmentCount: history.length, record: record || { canEdit: false, sections: [] } })
+      return history
+    } catch (error) {
+      this.setData({ history: [], historyError: error.message || '过往登记暂时无法读取', record: { canEdit: false, sections: [] } })
+      return null
+    }
+  },
+  async openHistory() {
+    this.setData({ mode: 'history', historyLoading: true, historyError: '' })
+    await this.refreshHistory()
+    this.setData({ historyLoading: false })
+  },
+  viewAssessment(event) {
+    const record = this.data.history.find(item => String(item.id) === String(event.currentTarget.dataset.id))
+    if (record) this.setData({ mode: 'detail', record })
+  },
+  async editAssessment() {
+    const history = await this.refreshHistory()
+    const record = history && history.find(item => item.id === this.data.record.id)
+    if (!record || !record.canEdit || deadlinePassed(record.editableUntil)) return wx.showToast({ title: '这条登记已不能修改，请重新查看记录', icon: 'none' })
+    this.newFormBeforeEdit = JSON.parse(JSON.stringify(this.data.form))
+    const form = emptyForm()
+    Object.keys(form).forEach(key => { if (record[key] != null && key !== 'clientRequestId' && key !== 'sensitiveConsent') form[key] = record[key] })
+    form.birthDate = formatDate(record.birthDate)
+    form.phone = this.authorizedPhone
+    form.revision = record.revision
+    formFeedback.changeStep(this, wx, { mode: 'form', submitted: false, editingId: record.id, editDeadline: record.editableUntil, step: 1, form, ...selectionMaps(form) })
+  },
+  cancelEdit() {
+    const form = this.newFormBeforeEdit || emptyForm()
+    this.setData({ mode: 'detail', editingId: '', form, ...selectionMaps(form) })
+  },
+  returnToForm() { this.setData({ mode: 'form' }) },
+  pickRegion(event) {
+    formFeedback.clearError(this)
+    const value = event.detail.value
+    if (!Array.isArray(value) || !value[0] || !value[1]) return
+    this.setData({ 'form.province': value[0], 'form.city': value[1] })
+    this.saveDraft()
   },
 
-  field(event) {
+  field(event) { formFeedback.clearError(this);
     const key = event.currentTarget.dataset.field
     this.setData({ ['form.' + key]: event.detail.value })
     this.saveDraft()
   },
-  choose(event) {
+  choose(event) { formFeedback.clearError(this);
     const key = event.currentTarget.dataset.field, value = event.currentTarget.dataset.value
     this.setData({ ['form.' + key]: value })
     this.saveDraft()
   },
-  multi(event) {
+  multi(event) { formFeedback.clearError(this);
     const key = event.currentTarget.dataset.field, value = event.currentTarget.dataset.value
     let list = (this.data.form[key] || []).slice()
     if (key === 'healthConditions') {
@@ -66,41 +137,93 @@ Page({
     this.setData({ ['form.' + key]: list, [selectedKey]: selected })
     this.saveDraft()
   },
-  pickDate(event) { this.setData({ 'form.birthDate': event.detail.value }); this.saveDraft() },
-  pickTime(event) { const key=event.currentTarget.dataset.field;this.setData({ ['form.'+key]:event.detail.value });this.saveDraft() },
-  toggleConsent() { this.setData({ 'form.sensitiveConsent': !this.data.form.sensitiveConsent }); this.saveDraft() },
-  saveDraft() { wx.setStorageSync(DRAFT_KEY, this.data.form) },
+  pickDate(event) { formFeedback.clearError(this); this.setData({ 'form.birthDate': event.detail.value }); this.saveDraft() },
+  pickTime(event) { formFeedback.clearError(this); const key=event.currentTarget.dataset.field;this.setData({ ['form.'+key]:event.detail.value });this.saveDraft() },
+  toggleConsent() { formFeedback.clearError(this); this.setData({ 'form.sensitiveConsent': !this.data.form.sensitiveConsent }); this.saveDraft() },
+  saveDraft() { if (this.draftKey && !this.data.editingId) wx.setStorageSync(this.draftKey, this.data.form) },
   validate(step) {
-    const f=this.data.form
-    if (step===1 && (!f.name.trim() || !f.birthDate || !f.phone.trim() || !f.heightCm || !f.weightKg || !f.city.trim())) return '请完整填写基本信息'
-    if (step===1 && (Number(f.heightCm)<80 || Number(f.heightCm)>250 || Number(f.weightKg)<20 || Number(f.weightKg)>300)) return '请检查身高和体重范围'
-    if (step===2 && (!f.cleanBodyGoals.length || !f.dietPreference || f.waterIntakeMl==='' || !f.wakeTime || !f.sleepTime || !f.bowelStatus || !f.energyStatus || !f.exerciseStatus)) return '请完成生活习惯问题'
-    if (step===3 && (!f.emotionalStatus.length || !f.healthConditions.length)) return '请完成近期状态问题'
-    if (step===3 && f.healthConditions.includes('其他') && !f.otherHealthCondition.trim()) return '请补充说明其他身体情况'
-    if (step===4 && !f.referralSource.trim()) return '请填写了解轻生活的途径'
-    return ''
+    const f = this.data.form
+    const required = step === 1 ? [
+      ['name', '姓名', !f.name.trim()], ['birthDate', '出生年月日', !f.birthDate],
+      ['phone', '联系电话', !f.phone.trim()], ['heightCm', '身高', !f.heightCm],
+      ['weightKg', '体重', !f.weightKg], ['region', '省 / 市', !f.province.trim() || !f.city.trim()]
+    ] : step === 2 ? [
+      ['cleanBodyGoals', '清体目的', !f.cleanBodyGoals.length], ['dietPreference', '日常饮食偏好', !f.dietPreference],
+      ['waterIntakeMl', '每日饮水量', f.waterIntakeMl === ''], ['wakeTime', '起床时间', !f.wakeTime],
+      ['sleepTime', '睡觉时间', !f.sleepTime], ['bowelStatus', '排便情况', !f.bowelStatus],
+      ['energyStatus', '精力状态', !f.energyStatus], ['exerciseStatus', '运动情况', !f.exerciseStatus]
+    ] : step === 3 ? [
+      ['emotionalStatus', '近期情绪状态', !f.emotionalStatus.length], ['healthConditions', '近半年身体情况', !f.healthConditions.length]
+    ] : []
+    const missing = required.find(item => item[2])
+    if (missing) return { target: 'friend-' + missing[0], message: '请填写或选择' + missing[1] }
+    if (step === 1 && (Number(f.heightCm) < 80 || Number(f.heightCm) > 250)) return { target: 'friend-heightCm', message: '请检查身高范围（80–250 cm）' }
+    if (step === 1 && (Number(f.weightKg) < 20 || Number(f.weightKg) > 300)) return { target: 'friend-weightKg', message: '请检查体重范围（20–300 kg）' }
+    if (step === 3 && f.healthConditions.includes('其他') && !f.otherHealthCondition.trim()) return { target: 'friend-otherHealthCondition', message: '请补充说明其他身体情况' }
+    if (step === 4 && !f.referralSource.trim()) return { target: 'friend-referralSource', message: '请填写了解轻生活的途径' }
+    return null
   },
-  next() { const error=this.validate(this.data.step);if(error)return wx.showToast({title:error,icon:'none'});this.setData({step:this.data.step+1});this.saveDraft() },
-  previous() { if(this.data.step>1)this.setData({step:this.data.step-1}) },
+  next() {
+    const error = this.validate(this.data.step)
+    if (error) return formFeedback.showError(this, wx, error)
+    formFeedback.changeStep(this, wx, { step: this.data.step + 1 })
+    this.saveDraft()
+  },
+  previous() { if (this.data.step > 1) formFeedback.changeStep(this, wx, { step: this.data.step - 1 }) },
+  onUnload() { formFeedback.cancel(this) },
   async submit() {
     if(this.data.submitting)return
-    const error=this.validate(4);if(error)return wx.showToast({title:error,icon:'none'})
-    if(!this.data.form.sensitiveConsent)return wx.showToast({title:'请先阅读并同意敏感个人信息授权',icon:'none'})
+    const error=this.validate(4);if(error)return formFeedback.showError(this, wx, error)
+    if(!this.data.form.sensitiveConsent)return formFeedback.showError(this, wx, { target: 'friend-sensitiveConsent', message: '请先阅读并同意敏感个人信息授权' })
+    for (let step = 1; step < 4; step++) { const issue = this.validate(step); if (issue) return formFeedback.showError(this, wx, issue, { step }) }
+    formFeedback.clearError(this)
     this.setData({submitting:true})
     try {
+      const profile = await business.friendProfile()
+      if (profile.id !== this.customerId) {
+        await this.onLoad(this.routeOptions || {})
+        wx.showToast({title:'账号已切换，请重新确认登记内容',icon:'none'})
+        return
+      }
       const f=this.data.form
-      const result=await business.submitFriendAssessment({ ...f, heightCm:Number(f.heightCm), weightKg:Number(f.weightKg), waterIntakeMl:Number(f.waterIntakeMl) })
-      wx.removeStorageSync(DRAFT_KEY)
-      this.setData({submitted:true,assessmentCount:Number(result.assessmentCount||this.data.assessmentCount+1)})
-    } catch(error) { wx.showToast({title:error.message||'提交失败，请重试',icon:'none'}) }
+      const payload = { ...f, heightCm:Number(f.heightCm), weightKg:Number(f.weightKg), waterIntakeMl:Number(f.waterIntakeMl) }
+      const editing = !!this.data.editingId
+      if (!editing && this.data.invitationCode) payload.invitationCode = this.data.invitationCode
+      else if (!editing && this.data.sessionId) payload.sessionId = this.data.sessionId
+      const result = editing ? await business.amendFriendAssessment(this.data.editingId, payload) : await business.submitFriendAssessment(payload)
+      if (!editing && this.draftKey) wx.removeStorageSync(this.draftKey)
+      this.setData({ submitted:true, editingId:'', wasEditing:editing, savedDeadline:result.editableUntil || '', assessmentCount:Number(result.assessmentCount || this.data.assessmentCount + (editing ? 0 : 1)) })
+    } catch(error) { formFeedback.showError(this, wx, { target: 'friend-submit-error', message: error.message || '提交失败，请重试' }) }
     finally { this.setData({submitting:false}) }
   },
-  backMine() { wx.navigateBack({delta:1}) },
-  registerAgain() { const form={...emptyForm(),name:this.data.form.name,nickname:this.data.form.nickname,birthDate:this.data.form.birthDate,phone:this.data.form.phone,heightCm:this.data.form.heightCm,city:this.data.form.city};this.setData({submitted:false,step:1,form,...selectionMaps(form)}) }
+  backMine() { wx.switchTab({url:'/pages/mine/index'}) },
+  backCamp() { wx.navigateBack({ fail: () => this.backMine() }) },
+  authorizePhone() { wx.navigateTo({ url: '/pages/phone-auth/index' }) },
+  registerAgain() { const form = { ...emptyForm(), ...basicProfile(this.data.form), phone: this.authorizedPhone }; formFeedback.changeStep(this, wx, { mode:'form', submitted:false, editingId:'', wasEditing:false, step:1, form, ...selectionMaps(form) }); this.saveDraft() }
 })
 
 function formatDate(value) { return value ? String(value).slice(0,10) : '' }
 function selectionMaps(form) {
   const make=list=>{const value={};(list||[]).forEach(item=>{value[item]=true});return value}
   return { cleanBodyGoalSelected:make(form.cleanBodyGoals),emotionSelected:make(form.emotionalStatus),healthSelected:make(form.healthConditions) }
+}
+
+function basicProfile(profile) {
+  return { name: profile.name || '', nickname: profile.nickname || '', birthDate: formatDate(profile.birthDate), phone: profile.phone || '', heightCm: profile.heightCm || '', province: profile.province || '', city: profile.city || '' }
+}
+function deadlinePassed(value) { const time = Date.parse(String(value || '').replace(' ', 'T') + '+08:00'); return !Number.isFinite(time) || Date.now() >= time }
+function normalizeRecord(raw) {
+  const record = { ...raw, birthDate: formatDate(raw.birthDate), canEdit: raw.canEdit === true || raw.canEdit === 1 }
+  for (const key of ['cleanBodyGoals', 'emotionalStatus', 'healthConditions']) {
+    if (typeof record[key] === 'string') { try { record[key] = JSON.parse(record[key]) } catch (_) { record[key] = [] } }
+    if (!Array.isArray(record[key])) record[key] = []
+  }
+  const value = (label, content) => ({ label, value: content == null || content === '' ? '未填写' : String(content) })
+  record.sections = [
+    { title: '基本信息', rows: [value('姓名', record.name), value('轻生活小名', record.nickname), value('出生日期', record.birthDate), value('联系电话', record.phone), value('省 / 市', [record.province,record.city].filter(Boolean).join(' / ')), value('身高 / 体重', (record.heightCm || '—') + ' cm / ' + record.weightKg + ' kg')] },
+    { title: '生活习惯', rows: [value('清体目的', record.cleanBodyGoals.join('、')), value('饮食偏好', record.dietPreference), value('日饮水量', record.waterIntakeMl + ' ml'), value('起床 / 睡觉', record.wakeTime + ' / ' + record.sleepTime), value('排便', record.bowelStatus), value('精力', record.energyStatus), value('运动', record.exerciseStatus)] },
+    { title: '近期状态', rows: [value('近期情绪', record.emotionalStatus.join('、')), value('身体情况', record.healthConditions.join('、')), value('其他身体情况', record.otherHealthCondition), value('药物或保健品', record.medications), value('是否孕期', record.pregnancyStatus)] },
+    { title: '参加信息', rows: [value('登记期次', record.sessionNumber ? '第 '+record.sessionNumber+' 期 · '+record.sessionName : '日常登记'), value('了解途径', record.referralSource), value('再次参加的原因', record.retrainingReason)] }
+  ]
+  return record
 }

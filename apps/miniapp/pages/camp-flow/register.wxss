@@ -1,0 +1,56 @@
+/* Register only: task progress, participant identity, contact, then verification. */
+.camp-flow-page.registration-page { min-height: 0; padding-top: 20rpx; padding-bottom: calc(220rpx + env(safe-area-inset-bottom)); }
+.registration-page .registration-heading { padding-bottom: 24rpx; }
+.registration-page .registration-session, .registration-page .registration-facts, .registration-page .registration-hint, .registration-page .field-requirement { color: var(--ql-ink-light); font-size: 14px; line-height: 1.6; overflow-wrap: anywhere; }
+.registration-page .registration-name { margin: 8rpx 0; font-size: 17px; font-weight: 500; line-height: 1.5; overflow-wrap: anywhere; }
+.registration-page .registration-facts { margin-top: 8rpx; }
+.registration-page .registration-steps { display: flex; gap: 24rpx; margin-bottom: 32rpx; }
+.registration-page .registration-step { display: flex; flex: 1; flex-wrap: wrap; align-items: baseline; gap: 10rpx; min-width: 0; margin: 0; padding: 12rpx 0; border-bottom: 2px solid var(--ql-border); color: var(--ql-ink-light); font-size: 14px; line-height: 1.5; }
+.registration-page .registration-step.is-current { border-bottom-color: #53624A; color: var(--ql-ink); font-weight: 600; }
+.registration-page .registration-step.is-complete { color: #53624A; }
+.registration-page .step-number { font-size: 16px; }
+.registration-page .step-completed { font-size: 12px; }
+.registration-page .registration-section-heading { display: flex; justify-content: space-between; align-items: baseline; gap: 20rpx; }
+.registration-page .registration-section-title { margin: 0; color: var(--ql-ink); font-size: 16px; font-weight: 600; line-height: 1.5; }
+.registration-page .participant-group { margin: 0; }
+.registration-page .registration-person { padding-bottom: 20rpx; border-bottom: 1rpx solid var(--ql-border); }
+.registration-page .registration-person:last-child { border-bottom: none; }
+.registration-page .check-row { box-sizing: border-box; min-height: 44px; border-bottom: none; gap: 16rpx; padding: 16rpx 0; }
+.registration-page .participant-select { align-items: center; }
+.registration-page .list-title, .registration-page .list-note { font-size: 14px; line-height: 1.6; }
+.registration-page .participant-relation { color: var(--ql-ink-light); font-weight: 400; }
+.registration-page .participant-fields { margin-left: 56rpx; }
+.registration-page .field { margin-top: 20rpx; }
+.registration-page .participant-fields .field:first-child { margin-top: 4rpx; }
+.registration-page .label { margin: 0 0 4rpx; font-size: 14px; line-height: 1.6; }
+.registration-page .field-requirement { margin-left: 8rpx; font-size: 12px; font-weight: 400; }
+.registration-page .input { width: 100%; height: 44px; min-height: 44px; padding: 8rpx 0; border-bottom-color: rgba(74,61,49,.32); color: var(--ql-ink); font-size: 16px; }
+.registration-page .input-placeholder { color: var(--ql-ink-light); font-size: 14px; }
+.camp-flow-page.registration-page .text-button.registration-add { justify-content: flex-start; width: auto; margin: 0; padding: 12rpx 0; color: #53624A; font-size: 14px; }
+.registration-page .form-section { margin-top: 24rpx; padding-top: 24rpx; }
+.registration-page .registration-contact .registration-hint { margin-top: 8rpx; }
+.registration-page .privacy-note { margin-top: 16rpx; font-size: 14px; line-height: 1.6; }
+.registration-page .participant-note { margin-top: 8rpx; }
+.registration-page .add-person-section { padding-bottom: 8rpx; }
+.registration-page .registration-minor { margin-top: 12rpx; font-size: 14px; }
+.registration-page .summary-people { margin: 8rpx 0 0; }
+.registration-page .summary-person { padding: 16rpx 0; font-size: 16px; border-bottom: 1rpx solid var(--ql-border); }
+.registration-page .summary-person:last-child { border-bottom: none; }
+.registration-page .summary-person-line { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8rpx 20rpx; }
+.registration-page .summary-person-name { overflow-wrap: anywhere; }
+.registration-page .summary-contact, .registration-page .summary-price { padding: 24rpx 0; border-top: 1rpx solid var(--ql-border); font-size: 16px; line-height: 1.6; overflow-wrap: anywhere; }
+.registration-page .summary-contact-name { margin-top: 12rpx; }
+.registration-page .summary-price { padding-bottom: 8rpx; color: var(--ql-ink); }
+.registration-page .registration-price-row { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8rpx 20rpx; padding: 8rpx 0; font-size: 15px; }
+.registration-page .summary-price .registration-section-title { margin-bottom: 12rpx; }
+.registration-page .summary-price .registration-hint { margin-top: 8rpx; }
+.registration-page .registration-invitation { padding-top: 16rpx; border-top: 1rpx solid var(--ql-border); }
+.registration-page .summary-consent { margin-top: 24rpx; padding-top: 24rpx; border-top: 1rpx solid var(--ql-border); }
+.registration-page .form-error { margin: 8rpx 0; color: #9A4F30; font-size: 14px; line-height: 1.6; overflow-wrap: anywhere; }
+.registration-actionbar .registration-action-context { flex: none; color: var(--ql-ink-light); font-size: 14px; line-height: 1.5; }
+.registration-actionbar .primary { font-size: 15px; }
+.registration-actionbar .secondary { font-size: 14px; }
+
+.registration-page .relationship-select { display: flex; align-items: center; justify-content: space-between; gap: 12rpx; box-sizing: border-box; }
+.registration-page .registration-total { margin: 14rpx 0 20rpx; color: var(--ql-ink); font-size: 32px; font-weight: 600; line-height: 1.4; overflow-wrap: anywhere; }
+.registration-page .registration-total text { color: var(--ql-ink-light); font-size: 14px; font-weight: 400; }

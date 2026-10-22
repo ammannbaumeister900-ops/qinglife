@@ -1,0 +1,101 @@
+{
+  "version": "1.4.19-uat.1012",
+  "createdAt": "2026-10-11T23:32:22.107Z",
+  "branch": "dev/miniapp-current-20261007",
+  "head": "ba89af2a6b4b24b93de20695fdd669192e2a4000",
+  "uncommittedSource": true,
+  "appId": "wxe21e6518a440d613",
+  "api": "https://qinglife.guijianju.cn/uat-20261011-api",
+  "admin": "https://qinglife.guijianju.cn/uat-20261011-admin/",
+  "database": "qinglife_uat_20261011_01",
+  "backendSha256": "e448e1b61c7f6e9346fd9892eb2fcd81f7e5897b205b1acdb683546078b86e6d",
+  "adminIndexSha256": "d210bc5d903d11b456067aac368edd5f614210e795bc11a4f1510e626871790b",
+  "migrations": 36,
+  "artifactSha256": "682ae888cc710cc790b12fb84f297b6149d6de7a54df531ffb614728f81dfca9",
+  "legalDomainCheckingEnabled": true,
+  "uploadCompleted": true,
+  "trialAssigned": true,
+  "formalRelease": false,
+  "uploadCompletedAt": "2026-10-11T23:36:41.216Z",
+  "uploadInfo": {
+    "size": {
+      "total": 1747645,
+      "packages": [
+        {
+          "name": "TOTAL",
+          "size": 1747645
+        },
+        {
+          "name": "main",
+          "size": 1705008
+        },
+        {
+          "name": "/staff/",
+          "size": 42637
+        }
+      ]
+    }
+  },
+  "githubCommit": "1a9b8e59ab7387636a0f538226df87a52032104b",
+  "githubStatus": "source snapshot pushed with explicit user approval",
+  "trialAssignmentEvidence": "Administrator confirmed version, members and legal domains in this conversation on 2026-10-12",
+  "trialVersionPhysicalDeviceVerified": false,
+  "verification": {
+    "realWechatDevTools": {
+      "realWxLogin": true,
+      "realWechatExchange": true,
+      "appId": "wxe21e6518a440d613",
+      "envVersion": "develop",
+      "domainCheckingEnabledInArtifact": true,
+      "requestToUatSucceeded": true,
+      "profileRead": true,
+      "overviewRead": true,
+      "quoteRead": true,
+      "quoteAmount": 3800,
+      "quoteFriends": [
+        "new"
+      ],
+      "existingRegistrationCount": 4,
+      "existingRecordsWritten": false,
+      "multiplePhysicalWechatAccountsVerified": false,
+      "trialVersionVerified": false
+    },
+    "realMultiUserHTTP": {
+      "realHTTPS": true,
+      "realMySQL": true,
+      "realRedis": true,
+      "mockedBusinessResponses": false,
+      "syntheticNoOpenidAccounts": 2,
+      "multiplePhysicalWechatAccountsVerified": false,
+      "singleQuote": 3800,
+      "twoPersonQuote": 7600,
+      "ownRegistrationIsolation": true,
+      "ownSavedRecordIsolation": true,
+      "foreignCustomerIdCannotSelectIdentity": true,
+      "cancelThenReapplyNewOrder": true,
+      "oldCancellationRetained": true,
+      "reapplyInitiallyPendingUnpaid": true,
+      "aPendingDoesNotBlockB": true,
+      "multiPersonAtomicSingleReceipt": true,
+      "aFinalActual": 3700,
+      "bFinalActual": 7600,
+      "duplicateReceiptBlocked": true,
+      "preexistingRowsUnchanged": true,
+      "actualFundsCollected": false,
+      "productionTouched": false,
+      "onlyOwnTestSessionArchived": true,
+      "testFinancialHistoryRetained": true,
+      "syntheticAccountsDisabled": true
+    },
+    "domainDownload": {
+      "wxDownloadFileToUat": true,
+      "ok": true,
+      "status": 200,
+      "physicalTrialScanVerified": false
+    },
+    "domainConfigurationReloaded": true
+  },
+  "miniappArchiveSha256": "93d27d83143616004fd9bded0fefd848002bcf895ec6bba6cf4e427cd9b4aa44",
+  "githubBranch": "uat/20261012-longterm",
+  "githubSourceUrl": "https://github.com/ammannbaumeister900-ops/qinglife/tree/uat/20261012-longterm"
+}

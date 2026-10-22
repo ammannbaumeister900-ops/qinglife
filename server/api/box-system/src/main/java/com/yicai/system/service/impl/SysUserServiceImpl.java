@@ -278,7 +278,8 @@ public class SysUserServiceImpl extends ServicePlusImpl<SysUserMapper, SysUser, 
      */
     @Override
     public int updateUserStatus(SysUser user) {
-        return baseMapper.updateById(user);
+        return baseMapper.update(null, new LambdaUpdateWrapper<SysUser>().eq(SysUser::getUserId, user.getUserId())
+                .set(SysUser::getStatus, user.getStatus()).set(SysUser::getUpdateBy, user.getUpdateBy()).set(SysUser::getUpdateTime, new java.util.Date()));
     }
 
     /**
@@ -315,7 +316,8 @@ public class SysUserServiceImpl extends ServicePlusImpl<SysUserMapper, SysUser, 
      */
     @Override
     public int resetPwd(SysUser user) {
-        return baseMapper.updateById(user);
+        return baseMapper.update(null, new LambdaUpdateWrapper<SysUser>().eq(SysUser::getUserId, user.getUserId())
+                .set(SysUser::getPassword, user.getPassword()).set(SysUser::getUpdateBy, user.getUpdateBy()).set(SysUser::getUpdateTime, new java.util.Date()));
     }
 
     /**

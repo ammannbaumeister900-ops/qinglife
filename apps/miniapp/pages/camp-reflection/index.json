@@ -1,0 +1,7 @@
+{
+  "navigationStyle": "custom",
+  "navigationBarTitleText": "留一笺",
+  "usingComponents": {
+    "ql-nav-space": "/components/ql-nav-space/index"
+  }
+}

@@ -33,6 +33,7 @@ public class QlMiniAppRegistrationBo {
         private String customerId;
         private Boolean self;
         @NotBlank(message = "参与人姓名不能为空")
+        @Size(max = 100, message = "参与人姓名最多100字")
         private String name;
         private String relation;
         private Boolean minor;

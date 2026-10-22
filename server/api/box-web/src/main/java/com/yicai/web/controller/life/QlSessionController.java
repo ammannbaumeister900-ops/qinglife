@@ -24,12 +24,26 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/life/session")
 public class QlSessionController extends BaseController {
     private final IQlSessionService sessionService;
+    private final com.yicai.life.service.QlSessionSettings settings;
+
+    @PreAuthorize("@ss.hasPermi('life:session:add') or @ss.hasPermi('life:session:edit')")
+    @GetMapping("/guides")
+    public AjaxResult<?> guides() { return AjaxResult.success(settings.guides()); }
+
     private final com.yicai.life.service.IQlMiniAppService miniAppService;
 
     @PreAuthorize("@ss.hasPermi('life:session:edit')")
     @PostMapping("/{id}/invitation")
     public AjaxResult<java.util.Map<String,Object>> invite(@PathVariable String id) { return AjaxResult.success(miniAppService.createInvitation(null, id, true)); }
 
+    @PreAuthorize("@ss.hasPermi('life:session:add') or @ss.hasPermi('life:session:edit')")
+    @GetMapping("/cover-preview")
+    public org.springframework.http.ResponseEntity<byte[]> coverPreview(@RequestParam Integer sessionNumber) {
+        return org.springframework.http.ResponseEntity.ok()
+                .contentType(org.springframework.http.MediaType.IMAGE_PNG)
+                .header("Cache-Control","no-store")
+                .body(com.yicai.life.service.QlSessionCover.render(sessionNumber));
+    }
     @PreAuthorize("@ss.hasPermi('life:session:list')")
     @GetMapping("/list")
     public TableDataInfo<QlSessionVo> list(QlSessionBo bo) {

@@ -27,6 +27,8 @@ public class QlRegistration implements Serializable {
     private String currentSettlementId;
     private String batchId;
     private String customerId;
+    private String participantNameSnapshot;
+    private String participantPhoneSnapshot;
     private String sessionId;
     private String registrationStatus;
     private String paymentStatus;

@@ -1,3 +1,55 @@
-.personal-page .hero-title { font-size: 44rpx; margin-bottom: 16rpx; }
-.personal-page .card { margin-top: 28rpx; }
-.personal-page .card-copy { white-space: pre-wrap; overflow-wrap: anywhere; }
+.personal-page { padding: 28rpx 40rpx calc(64rpx + env(safe-area-inset-bottom)); background: var(--ql-bg); }
+.personal-page::before { display: none; }
+.personal-heading { margin-bottom: 28rpx; }
+.personal-title { font-size: 36rpx; font-weight: 500; line-height: 1.5; }
+.personal-intro, .entry-meta, .record-stage, .record-values, .record-time, .state-copy, .personal-loading { color: var(--ql-ink-light); font-size: 28rpx; line-height: 1.7; }
+.personal-intro { margin-top: 8rpx; }
+.entry-title { margin-bottom: 8rpx; font-size: 32rpx; font-weight: 500; line-height: 1.5; overflow-wrap: anywhere; }
+.entry-meta { white-space: pre-wrap; overflow-wrap: anywhere; }
+.experience-row, .record-row { padding: 28rpx 0; }
+.experience-row + .experience-row, .record-row + .record-row { border-top: 1rpx solid var(--ql-border); }
+.participation-states { margin-top: 16rpx; }
+.participation-state { display: flex; align-items: baseline; gap: 20rpx; font-size: 28rpx; line-height: 1.7; }
+.state-label { flex: none; color: var(--ql-ink-light); }
+.state-value { flex: 1; min-width: 0; color: var(--ql-ink); overflow-wrap: anywhere; }
+.record-body { margin-top: 16rpx; color: var(--ql-ink); font-size: 30rpx; line-height: 1.8; white-space: pre-wrap; overflow-wrap: anywhere; }
+.record-values { margin-top: 12rpx; }
+.record-time { margin-top: 12rpx; font-variant-numeric: tabular-nums; }
+.experience-list + .record-list { margin-top: 24rpx; padding-top: 24rpx; border-top: 1rpx solid var(--ql-border); }
+.personal-section-title { margin-bottom: 12rpx; font-size: 30rpx; font-weight: 600; line-height: 1.5; }
+.personal-state { padding: 28rpx 0; }
+.state-title { margin-bottom: 12rpx; font-size: 32rpx; font-weight: 500; line-height: 1.5; }
+.state-copy { white-space: pre-wrap; overflow-wrap: anywhere; }
+.personal-page .primary, .personal-page .secondary, .personal-page .text-button { min-height: 44px; padding: 16rpx 24rpx; border-radius: 10rpx; font-size: 28rpx; line-height: 1.5; }
+.personal-page .session-action { width: auto; margin: 8rpx 0 0; padding: 12rpx 0; border: none; border-radius: 0; background: transparent; color: var(--ql-ink); justify-content: flex-start; }
+.personal-page .primary { min-height: 48px; }
+.personal-page .secondary { background: transparent; }
+.personal-page .sample-note { margin: 0 0 20rpx; padding: 0; border-radius: 0; background: transparent; color: var(--ql-ink-light); font-size: 28rpx; }
+.personal-page button:active { opacity: .8; transform: none; }
+@media (max-width: 350px) {
+  .personal-intro, .entry-meta, .record-stage, .record-values, .record-time, .state-copy, .personal-loading,
+  .participation-state, .personal-page .sample-note, .personal-page .primary, .personal-page .secondary, .personal-page .text-button { font-size: 14px; }
+  .record-body { font-size: 16px; }
+}
+@media (prefers-reduced-motion: reduce) { .personal-page button { transition: none; } }
+
+/* Participation is a task index; existing order and settlement facts stay intact. */
+.personal-experiences .personal-heading { margin-bottom: 12rpx; padding-bottom: 24rpx; border-bottom: 1rpx solid var(--ql-border); }
+.personal-experiences .personal-title { font-size: 40rpx; font-weight: 600; }
+.personal-experiences .experience-row { padding: 28rpx 0; }
+.personal-experiences .entry-title { margin-bottom: 14rpx; font-size: 34rpx; font-weight: 600; }
+.personal-experiences .entry-meta { font-size: 26rpx; }
+.personal-experiences .participation-states { margin-top: 20rpx; }
+.personal-experiences .participation-state { gap: 28rpx; }
+.personal-experiences .session-action { margin-top: 12rpx; color: var(--ql-clay-deep); }
+@media (max-width: 350px) { .personal-experiences .entry-meta { font-size: 13px; } }
+
+/* Private record index: the original text carries expression. */
+.personal-records .personal-title { font-family: var(--ql-serif); font-size: 42rpx; }
+.personal-records .personal-intro { font-size: 26rpx; }
+.personal-records .record-row { padding: 32rpx 0; }
+.personal-records .record-body { margin-top: 18rpx; font-size: 32rpx; line-height: 1.9; }
+.personal-records .entry-title { font-size: 28rpx; color: var(--ql-ink-light); }
+.personal-records .record-stage, .personal-records .record-time { font-size: 26rpx; }
+.personal-page .record-values { display: flex; flex-wrap: wrap; gap: 8rpx 24rpx; }
+@media (max-width: 350px) { .personal-records .record-body { font-size: 16px; } .personal-records .record-stage, .personal-records .record-time { font-size: 13px; } }

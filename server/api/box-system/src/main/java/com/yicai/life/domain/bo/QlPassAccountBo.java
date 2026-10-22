@@ -21,7 +21,13 @@ public class QlPassAccountBo {
     @NotNull(message = "请填写初始卡次")
     @Min(value = 1, message = "初始卡次至少为1")
     private Integer initialUnits;
-    @NotBlank(message = "请填写开户或核验依据")
-    @Size(max = 500, message = "依据最多500字")
+    @Size(max = 500, message = "备注最多500字")
     private String reason;
+    private Image image;
+
+    @Data
+    public static class Image {
+        private String mime;
+        private String data;
+    }
 }

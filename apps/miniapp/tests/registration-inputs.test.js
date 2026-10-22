@@ -7,7 +7,8 @@ const path = require('node:path')
 function fixture() {
   let page
   const submissions = []
-  const business = { enabled: () => true, register: async payload => { submissions.push(payload) } }
+  const business = { enabled: () => true, register: async payload => { submissions.push(payload) },
+    registrationQuote: async payload => ({participants:payload.participants.map((p,index)=>({index,friendType:'new',unitPrice:'3800.00'})),quotedAmount:3800*payload.participants.length}) }
   const mocks = {
     '../../services/business-api': business,
     '../../data/demo': { activities: [] },
@@ -15,7 +16,7 @@ function fixture() {
     '../../utils/domain': {}, '../../utils/navigation': {}
   }
   vm.runInNewContext(fs.readFileSync(path.resolve(__dirname, '../pages/camp-flow/index.js'), 'utf8'), {
-    Page: value => { page = value }, require: name => mocks[name], wx: { showToast() {} }
+    Page: value => { page = value }, require: name => mocks[name] || require(path.resolve(__dirname, '../pages/camp-flow', name)), wx: { showToast() {} }
   })
   page.data = { ...page.data, activity: { id: 's1' }, state: { phone: '13800000000' }, draft: { serviceConsent: true,
     contactName: '测试轻友', contactPhone: '13800000000',
@@ -26,7 +27,7 @@ function fixture() {
 }
 test('API registration sends the selected motivation with the same participant draft', async () => {
   const { page, submissions } = fixture()
-  await page.submitRegistration()
+  await page.loadQuote(); await page.submitRegistration()
   assert.equal(submissions[0].motivation, '用户主动填写的原因')
   assert.equal(submissions[0].participants[0].name, '测试轻友')
 })
@@ -41,7 +42,7 @@ test('choosing a motivation edits the draft without resetting participants or co
 test('an unfilled motivation remains optional and does not use demo defaults', async () => {
   const { page, submissions } = fixture()
   delete page.data.draft.motivation
-  await page.submitRegistration()
+  await page.loadQuote(); await page.submitRegistration()
   assert.equal(submissions[0].motivation, null)
 })
 

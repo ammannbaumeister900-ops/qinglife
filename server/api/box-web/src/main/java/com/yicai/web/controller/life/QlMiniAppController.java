@@ -32,6 +32,12 @@ public class QlMiniAppController {
         return AjaxResult.success(miniAppService.listFeaturedReadings());
     }
 
+    @GetMapping("/readings")
+    public AjaxResult<Map<String,Object>> readings(@Valid QlReadingQueryBo query) { return AjaxResult.success(miniAppService.listReadings(query)); }
+    @GetMapping("/readings/topics")
+    public AjaxResult<List<Map<String,Object>>> readingTopics() { return AjaxResult.success(miniAppService.readingTopics()); }
+    @GetMapping("/readings/home")
+    public AjaxResult<Map<String,Object>> readingHome() { return AjaxResult.success(miniAppService.homeReadings()); }
     @GetMapping("/readings/{id}")
     public AjaxResult<Map<String, Object>> reading(@PathVariable Long id) {
         return AjaxResult.success(miniAppService.readingDetail(id));
@@ -59,6 +65,26 @@ public class QlMiniAppController {
         return AjaxResult.success(miniAppService.overview(token));
     }
 
+    @GetMapping("/me/referrals")
+    public AjaxResult<List<Map<String,Object>>> referrals(@RequestHeader(value="token",required=false) String token) {
+        return AjaxResult.success(miniAppService.myReferrals(token));
+    }
+
+    @GetMapping("/friend/assessment-invitations/{code}")
+    public AjaxResult<Map<String,Object>> assessmentInvitation(@RequestHeader(value="token",required=false) String token,@PathVariable String code) {
+        return AjaxResult.success(friendAssessments.assessmentInvitation(token,code));
+    }
+
+    @GetMapping("/friend/assessment-sessions/{sessionId}")
+    public AjaxResult<Map<String,Object>> registeredAssessmentSession(@RequestHeader(value="token",required=false) String token,@PathVariable String sessionId) {
+        return AjaxResult.success(friendAssessments.registeredSession(token,sessionId));
+    }
+
+    @GetMapping("/friend/assessment-status")
+    public AjaxResult<Map<String,Object>> assessmentStatus(@RequestHeader(value="token",required=false) String token,@RequestParam String sessionId) {
+        return AjaxResult.success(friendAssessments.sessionStatus(token,sessionId));
+    }
+
     @GetMapping("/friend/profile")
     public AjaxResult<Map<String,Object>> friendProfile(@RequestHeader(value="token",required=false) String token) {
         return AjaxResult.success(friendAssessments.myProfile(token));
@@ -74,6 +100,18 @@ public class QlMiniAppController {
     public AjaxResult<Map<String,Object>> submitFriendAssessment(@RequestHeader(value="token",required=false) String token,
                                                                  @Valid @RequestBody QlFriendAssessmentBo bo) {
         return AjaxResult.success(friendAssessments.submit(token,bo));
+    }
+
+    @PutMapping("/friend/assessments/{id}")
+    public AjaxResult<Map<String,Object>> amendFriendAssessment(@RequestHeader(value="token",required=false) String token,
+            @PathVariable String id,@Valid @RequestBody QlFriendAssessmentBo bo) {
+        return AjaxResult.success(friendAssessments.amend(token,id,bo));
+    }
+
+    @PostMapping("/registrations/quote")
+    public AjaxResult<Map<String,Object>> registrationQuote(@RequestHeader(value="token",required=false) String token,
+            @Valid @RequestBody QlMiniAppQuoteBo bo) {
+        return AjaxResult.success(miniAppService.registrationQuote(token,bo));
     }
 
     @PostMapping("/registrations")

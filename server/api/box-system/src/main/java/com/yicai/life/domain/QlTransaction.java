@@ -27,6 +27,11 @@ public class QlTransaction implements Serializable {
     private Date transactionAt;
     private String recordSource;
     private String externalTransactionNo;
+    private String receiptRequestId;
+    private BigDecimal expectedAmount;
+    private Boolean finalSettlementConfirmed;
+    private String differenceReason;
+    private Boolean partialPayment;
     private Long operatorId;
     private String remark;
     private Integer revision;

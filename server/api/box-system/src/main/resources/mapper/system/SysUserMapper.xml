@@ -43,6 +43,7 @@
         <result property="roleSort" column="role_sort"/>
         <result property="dataScope" column="data_scope"/>
         <result property="status" column="role_status"/>
+        <result property="delFlag" column="role_del_flag"/>
     </resultMap>
 
     <sql id="selectUserVo">
@@ -73,7 +74,8 @@
                r.role_key,
                r.role_sort,
                r.data_scope,
-               r.status as role_status
+               r.status as role_status,
+               r.del_flag as role_del_flag
         from sys_user u
 		    left join sys_dept d on u.dept_id = d.dept_id
 		    left join sys_user_role ur on u.user_id = ur.user_id

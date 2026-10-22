@@ -49,6 +49,9 @@ public class SysUserController extends BaseController
     @Autowired
     private TokenService tokenService;
 
+    @Autowired
+    private com.yicai.system.service.AccountManagementPolicy management;
+
     /**
      * 获取用户列表
      */
@@ -117,6 +120,11 @@ public class SysUserController extends BaseController
     @PostMapping
     public AjaxResult add(@Validated @RequestBody SysUser user)
     {
+        if (user.getUserId() != null) return AjaxResult.error("新增账号不能指定用户编号");
+        management.roles(user.getRoleIds(), SecurityUtils.getLoginUser().getUser().getUserId());
+        management.password(user.getPassword());
+        management.status(user.getStatus());
+        user.setDelFlag("0");
         if (UserConstants.NOT_UNIQUE.equals(userService.checkUserNameUnique(user.getUserName())))
         {
             return AjaxResult.error("新增用户'" + user.getUserName() + "'失败，登录账号已存在");
@@ -144,7 +152,19 @@ public class SysUserController extends BaseController
     @PutMapping
     public AjaxResult edit(@Validated @RequestBody SysUser user)
     {
-        userService.checkUserAllowed(user);
+        management.user(user.getUserId(), SecurityUtils.getLoginUser().getUser().getUserId());
+        management.roles(user.getRoleIds(), SecurityUtils.getLoginUser().getUser().getUserId());
+        management.status(user.getStatus());
+        if (user.getUserId().equals(SecurityUtils.getLoginUser().getUser().getUserId()) && !"0".equals(user.getStatus()))
+            return AjaxResult.error("不能停用当前登录账号");
+        user.setUserName(null); // Login names are only set by the account creation form.
+        user.setLoginIp(null);
+        user.setLoginDate(null);
+        user.setPassword(null);
+        user.setDelFlag(null);
+        user.setCreateBy(null);
+        user.setCreateTime(null);
+        user.setSalt(null);
         if (Validator.isNotEmpty(user.getPhonenumber())
                 && UserConstants.NOT_UNIQUE.equals(userService.checkPhoneUnique(user)))
         {
@@ -167,6 +187,11 @@ public class SysUserController extends BaseController
     @DeleteMapping("/{userIds}")
     public AjaxResult remove(@PathVariable Long[] userIds)
     {
+        if (userIds == null || userIds.length == 0) return AjaxResult.error("请选择后台账号");
+        for (Long id : userIds) {
+            management.user(id, SecurityUtils.getLoginUser().getUser().getUserId());
+            if (id.equals(SecurityUtils.getLoginUser().getUser().getUserId())) return AjaxResult.error("不能删除当前登录账号");
+        }
         return toAjax(userService.deleteUserByIds(userIds));
     }
 
@@ -178,7 +203,8 @@ public class SysUserController extends BaseController
     @PutMapping("/resetPwd")
     public AjaxResult resetPwd(@RequestBody SysUser user)
     {
-        userService.checkUserAllowed(user);
+        management.user(user.getUserId(), SecurityUtils.getLoginUser().getUser().getUserId());
+        management.password(user.getPassword());
         user.setPassword(SecurityUtils.encryptPassword(user.getPassword()));
         user.setUpdateBy(SecurityUtils.getUsername());
         return toAjax(userService.resetPwd(user));
@@ -192,7 +218,10 @@ public class SysUserController extends BaseController
     @PutMapping("/changeStatus")
     public AjaxResult changeStatus(@RequestBody SysUser user)
     {
-        userService.checkUserAllowed(user);
+        management.user(user.getUserId(), SecurityUtils.getLoginUser().getUser().getUserId());
+        management.status(user.getStatus());
+        if (user.getUserId().equals(SecurityUtils.getLoginUser().getUser().getUserId()) && !"0".equals(user.getStatus()))
+            return AjaxResult.error("不能停用当前登录账号");
         user.setUpdateBy(SecurityUtils.getUsername());
         return toAjax(userService.updateUserStatus(user));
     }
@@ -220,6 +249,8 @@ public class SysUserController extends BaseController
     @PutMapping("/authRole")
     public AjaxResult insertAuthRole(Long userId, Long[] roleIds)
     {
+        management.user(userId, SecurityUtils.getLoginUser().getUser().getUserId());
+        management.roles(roleIds, SecurityUtils.getLoginUser().getUser().getUserId());
         userService.insertUserAuth(userId, roleIds);
         return success();
     }

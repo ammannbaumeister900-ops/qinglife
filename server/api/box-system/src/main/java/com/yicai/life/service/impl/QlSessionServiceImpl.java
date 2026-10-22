@@ -2,10 +2,8 @@ package com.yicai.life.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.StrUtil;
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.yicai.common.core.mybatisplus.core.ServicePlusImpl;
-import com.yicai.common.core.page.PagePlus;
 import com.yicai.common.core.page.TableDataInfo;
 import com.yicai.common.exception.CustomException;
 import com.yicai.common.utils.PageUtils;
@@ -30,32 +28,41 @@ import java.util.concurrent.TimeUnit;
 public class QlSessionServiceImpl extends ServicePlusImpl<QlSessionMapper, QlSession, QlSessionVo>
         implements IQlSessionService {
     private final QlMiniAppMapper miniAppMapper;
+    private final com.yicai.life.service.QlSessionSettings settings;
 
     @Override
     public TableDataInfo<QlSessionVo> queryPageList(QlSessionBo bo) {
-        PagePlus<QlSession, QlSessionVo> page = pageVo(PageUtils.buildPagePlus(), buildQuery(bo));
-        return PageUtils.buildDataInfo(page);
+        Page<QlSessionVo> page = baseMapper.selectPageList(PageUtils.buildPage(), bo);
+        TableDataInfo<QlSessionVo> result=PageUtils.buildDataInfo(page);
+        for(QlSessionVo session:result.getRows()) present(session);
+        return result;
     }
 
     @Override
     public QlSessionVo queryById(String id) {
-        return getVoById(id);
+        QlSessionVo session=baseMapper.selectSessionVo(id);
+        if(session!=null) present(session);
+        return session;
     }
 
     @Override
     @Transactional
     public boolean insertByBo(QlSessionBo bo, Long operatorId) {
+        applyNewDefaults(bo);
+        settings.validateOptions(bo, null);
         normalizeBookingDays(bo);
         validateDates(bo);
         validateSettings(bo);
         QlSession entity = BeanUtil.toBean(bo, QlSession.class);
+        settings.applyGuides(bo, entity, null);
         Date now = new Date();
         entity.setId(UUID.randomUUID().toString());
-        entity.setCapacity(entity.getCapacity() == null ? 1 : entity.getCapacity());
+        entity.setCapacity(entity.getCapacity() == null ? 50 : entity.getCapacity());
         entity.setStandardPrice(entity.getStandardPrice() == null ? new BigDecimal("3800") : entity.getStandardPrice());
         entity.setReturningPrice(entity.getReturningPrice() == null ? new BigDecimal("2500") : entity.getReturningPrice());
-        entity.setStatus(StrUtil.blankToDefault(entity.getStatus(), "draft"));
-        entity.setRegistrationConfirmMode(StrUtil.blankToDefault(entity.getRegistrationConfirmMode(), "manual"));
+        // New sessions follow the date-derived lifecycle; the admin form no longer sets a status.
+        entity.setStatus("open");
+        entity.setRegistrationConfirmMode(StrUtil.blankToDefault(entity.getRegistrationConfirmMode(), "auto"));
         entity.setCreatedBy(operatorId);
         entity.setUpdatedBy(operatorId);
         entity.setCreatedAt(now);
@@ -70,10 +77,16 @@ public class QlSessionServiceImpl extends ServicePlusImpl<QlSessionMapper, QlSes
     @Override
     @Transactional
     public boolean updateByBo(QlSessionBo bo, Long operatorId) {
+        QlSession current = getById(bo.getId());
+        if (current == null) throw new CustomException("期次不存在", 404);
+        settings.validateOptions(bo, current);
         normalizeBookingDays(bo);
         validateDates(bo);
         validateSettings(bo);
         QlSession entity = BeanUtil.toBean(bo, QlSession.class);
+        settings.applyGuides(bo, entity, current);
+        // Editing hands the session back to the date-derived lifecycle; only a cancellation is kept.
+        entity.setStatus("cancelled".equals(current.getStatus()) ? "cancelled" : "open");
         entity.setCreatedAt(null);
         entity.setCreatedBy(null);
         entity.setUpdatedBy(operatorId);
@@ -86,13 +99,24 @@ public class QlSessionServiceImpl extends ServicePlusImpl<QlSessionMapper, QlSes
         return updated;
     }
 
-    private LambdaQueryWrapper<QlSession> buildQuery(QlSessionBo bo) {
-        LambdaQueryWrapper<QlSession> query = Wrappers.lambdaQuery();
-        query.eq(bo.getSessionNumber() != null, QlSession::getSessionNumber, bo.getSessionNumber());
-        query.like(StrUtil.isNotBlank(bo.getName()), QlSession::getName, bo.getName());
-        query.eq(StrUtil.isNotBlank(bo.getStatus()), QlSession::getStatus, bo.getStatus());
-        query.orderByDesc(QlSession::getSessionNumber);
-        return query;
+    private void present(QlSessionVo session) {
+        session.setCoverUrl(com.yicai.common.utils.file.PublicMediaUpload.url(session.getCoverUrl()));
+        java.util.List<String> named = java.util.Arrays.asList(StrUtil.blankToDefault(session.getLeaderName(), "").split("[、,，\\s]+"));
+        session.setGuideNames(com.yicai.life.service.QlSessionSettings.GUIDES.stream().filter(named::contains).collect(java.util.stream.Collectors.toList()));
+    }
+
+    private void applyNewDefaults(QlSessionBo bo) {
+        if (StrUtil.isBlank(bo.getName())) bo.setName("生机清体营");
+        if (StrUtil.isBlank(bo.getPublicVenue())) bo.setPublicVenue("上海市安亭驿岛酒店");
+        if (bo.getStartDate() != null) {
+            Calendar day = Calendar.getInstance(java.util.TimeZone.getTimeZone("Asia/Shanghai"));
+            if (bo.getRegistrationOpenAt() == null && !Boolean.TRUE.equals(bo.getRegistrationOpenManual())) {
+                day.setTime(bo.getStartDate()); day.add(Calendar.DAY_OF_MONTH, -14); bo.setRegistrationOpenAt(day.getTime());
+            }
+            if (bo.getRegistrationCloseAt() == null && !Boolean.TRUE.equals(bo.getRegistrationCloseManual())) {
+                day.setTime(bo.getStartDate()); day.add(Calendar.DAY_OF_MONTH, -1); bo.setRegistrationCloseAt(day.getTime());
+            }
+        }
     }
 
     private void normalizeBookingDays(QlSessionBo bo) {
@@ -108,21 +132,25 @@ public class QlSessionServiceImpl extends ServicePlusImpl<QlSessionMapper, QlSes
     }
 
     private void validateSettings(QlSessionBo bo) {
-        if (StrUtil.isBlank(bo.getTheme()) || bo.getTheme().length() > 200) throw new CustomException("请填写200字以内的本期主题");
-        if (StrUtil.isBlank(bo.getCoverUrl()) || bo.getCoverUrl().length() > 500) throw new CustomException("请配置有效的本期封面");
+        if (bo.getTheme() != null && bo.getTheme().length() > 200) throw new CustomException("本期主题最多200字");
+        if (bo.getCoverUrl()!=null && bo.getCoverUrl().length()>500) throw new CustomException("请配置有效的本期封面");
+        if (com.yicai.life.service.QlSessionCover.isAutomatic(bo.getCoverUrl())) {
+            QlSession existing = StrUtil.isBlank(bo.getId()) ? null : getById(bo.getId());
+            boolean sameCover = existing != null && StrUtil.isNotBlank(existing.getCoverUrl())
+                    && (java.util.Objects.equals(bo.getCoverUrl(), existing.getCoverUrl())
+                    || java.util.Objects.equals(bo.getCoverUrl(), com.yicai.common.utils.file.PublicMediaUpload.url(existing.getCoverUrl())));
+            if (sameCover && java.util.Objects.equals(bo.getSessionNumber(), existing.getSessionNumber())) {
+                bo.setCoverUrl(existing.getCoverUrl());
+            } else {
+                bo.setCoverUrl(com.yicai.life.service.QlSessionCover.ensure(bo.getSessionNumber()));
+            }
+        }
         if (bo.getStandardPrice() != null && (bo.getStandardPrice().signum() < 0 || bo.getStandardPrice().compareTo(new BigDecimal("99999999.99")) > 0)
                 || bo.getReturningPrice() != null && (bo.getReturningPrice().signum() < 0 || bo.getReturningPrice().compareTo(new BigDecimal("99999999.99")) > 0)) {
             throw new CustomException("价格必须在0至99999999.99元之间");
         }
         if (StrUtil.isNotBlank(bo.getRegistrationConfirmMode()) && !java.util.Arrays.asList("manual", "auto").contains(bo.getRegistrationConfirmMode())) throw new CustomException("报名确认方式无效");
-        if (StrUtil.isNotBlank(bo.getLeaderName())) {
-            QlSession current = StrUtil.isBlank(bo.getId()) ? null : getById(bo.getId());
-            if (current == null || !bo.getLeaderName().equals(current.getLeaderName())) {
-                for (String guide : bo.getLeaderName().split("[,，、]")) {
-                    if (!java.util.Arrays.asList("公主", "大海", "军军").contains(guide.trim())) throw new CustomException("请选择已有导游标签");
-                }
-            }
-        }
+
     }
 
     private void validateDates(QlSessionBo bo) {

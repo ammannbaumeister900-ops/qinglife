@@ -40,6 +40,12 @@ public class TokenService {
     @Autowired
     private TokenProperties tokenProperties;
 
+    @Autowired
+    private com.yicai.system.service.ISysUserService userService;
+
+    @Autowired
+    private SysPermissionService permissionService;
+
     /**
      * 获取用户身份信息
      *
@@ -54,6 +60,18 @@ public class TokenService {
             String uuid = (String) claims.get(Constants.LOGIN_USER_KEY);
             String userKey = getTokenKey(uuid);
             LoginUser user = redisCache.getCacheObject(userKey);
+            if (user == null || user.getUser() == null) return null;
+            // Identity is cached; mutable status and roles must reflect current database state.
+            com.yicai.common.core.domain.entity.SysUser current = userService.selectUserById(user.getUser().getUserId());
+            if (current == null || !"0".equals(current.getStatus()) || !"0".equals(current.getDelFlag())) {
+                redisCache.deleteObject(userKey);
+                return null;
+            }
+            if (current.getRoles() != null) current.setRoles(current.getRoles().stream()
+                .filter(role -> "0".equals(role.getStatus()) && "0".equals(role.getDelFlag()))
+                .collect(java.util.stream.Collectors.toList()));
+            user.setUser(current);
+            user.setPermissions(permissionService.getMenuPermission(current));
             return user;
         }
         return null;

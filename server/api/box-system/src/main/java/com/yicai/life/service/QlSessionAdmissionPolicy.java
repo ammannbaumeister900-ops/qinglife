@@ -12,32 +12,64 @@ import java.util.Map;
 @Service
 public class QlSessionAdmissionPolicy {
     static final ZoneId BUSINESS_ZONE = ZoneId.of("Asia/Shanghai");
+    // One database-clock expression shared by list filters, API projections and the locked admission gate.
+    public static final String CLOCK_SQL = "CONVERT_TZ(UTC_TIMESTAMP(3),'+00:00','+08:00')";
+    public static final String STATUS_SQL = "CASE WHEN s.status NOT IN ('open','in_progress') THEN s.status "
+            + "WHEN s.end_date < DATE(" + CLOCK_SQL + ") THEN 'completed' "
+            + "WHEN s.start_date <= DATE(" + CLOCK_SQL + ") THEN 'in_progress' "
+            + "WHEN s.registration_open_at > " + CLOCK_SQL + " OR s.registration_close_at < " + CLOCK_SQL + " THEN 'closed' "
+            + "ELSE 'open' END";
 
     public void requireNewRegistrationOpen(Map<String, Object> session) {
         requireNewRegistrationOpen(session, Instant.now());
     }
 
     void requireNewRegistrationOpen(Map<String, Object> session, Instant now) {
-        if (!"open".equals(String.valueOf(session.get("status")))) {
-            throw new CustomException("当前期次不接受报名", 400);
+        Window window = registrationWindow(session, now);
+        if (!window.allowed) throw new CustomException(window.reason, 400);
+    }
+
+    /** Read-only window result; the write gate consumes this exact decision. */
+    public Window registrationWindow(Map<String, Object> session, Instant now) {
+        // A manually extended booking window remains compatible with legacy 'open' sessions.
+        Object configured = session.containsKey("configuredStatus") ? session.get("configuredStatus") : session.get("status");
+        if (!"open".equals(String.valueOf(configured)) || "completed".equals(session.get("status"))) {
+            String state;
+            try { state = dateWindow(session, now).state; }
+            catch (CustomException error) { state = "unknown"; }
+            return new Window(state, false, "当前期次不接受报名");
         }
+        return dateWindow(session, now);
+    }
+
+    private Window dateWindow(Map<String, Object> session, Instant now) {
         Object opens = value(session, "registration_open_at", "registrationOpenAt");
         Object closes = value(session, "registration_close_at", "registrationCloseAt");
         if (opens != null && now.isBefore(toInstant(opens))) {
-            throw new CustomException("报名尚未开放", 400);
+            return new Window("not_open", false, "报名尚未开放");
         }
         // The configured close instant is inclusive. One millisecond later is closed.
         if (closes != null && now.isAfter(toInstant(closes))) {
-            throw new CustomException("报名已经截止", 400);
+            return new Window("closed", false, "报名已经截止");
         }
         if (closes == null) {
             Object end = value(session, "end_date", "endDate");
             if (end != null) {
                 Instant exclusiveEnd = toLocalDate(end).plusDays(1).atStartOfDay(BUSINESS_ZONE).toInstant();
                 if (!now.isBefore(exclusiveEnd)) {
-                    throw new CustomException("报名已经截止", 400);
+                    return new Window("closed", false, "报名已经截止");
                 }
             }
+        }
+        return new Window("open", true, "");
+    }
+
+    public static final class Window {
+        public final String state;
+        public final boolean allowed;
+        public final String reason;
+        private Window(String state, boolean allowed, String reason) {
+            this.state = state; this.allowed = allowed; this.reason = reason;
         }
     }
 
@@ -60,7 +92,7 @@ public class QlSessionAdmissionPolicy {
         }
     }
 
-    private LocalDate toLocalDate(Object value) {
+    LocalDate toLocalDate(Object value) {
         if (value instanceof LocalDate) return (LocalDate) value;
         if (value instanceof LocalDateTime) return ((LocalDateTime) value).toLocalDate();
         if (value instanceof java.sql.Date) return ((java.sql.Date) value).toLocalDate();

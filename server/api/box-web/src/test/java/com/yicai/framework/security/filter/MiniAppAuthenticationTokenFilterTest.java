@@ -22,7 +22,7 @@ class MiniAppAuthenticationTokenFilterTest {
     @AfterEach void clear() { SecurityContextHolder.clearContext(); }
 
     @Test void publicDiscoverySkipsAuthentication() throws Exception {
-        for (String path : new String[]{"/app/qinglife/sessions", "/app/qinglife/readings/featured", "/app/qinglife/readings/12", "/app/qinglife/contact"}) {
+        for (String path : new String[]{"/app/qinglife/sessions", "/app/qinglife/readings", "/app/qinglife/readings/topics", "/app/qinglife/readings/home", "/app/qinglife/readings/featured", "/app/qinglife/readings/12", "/app/qinglife/contact", "/app/qinglife/camp-voices/synthetic"}) {
             MockHttpServletRequest request = new MockHttpServletRequest("GET", path);
             request.setServletPath(path);
             FilterChain chain = mock(FilterChain.class);
@@ -33,14 +33,16 @@ class MiniAppAuthenticationTokenFilterTest {
     }
 
     @Test void protectedRouteRejectsMissingTokenBeforeController() throws Exception {
-        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/app/qinglife/me/overview");
-        request.setServletPath("/app/qinglife/me/overview");
-        MockHttpServletResponse response = new MockHttpServletResponse();
-        FilterChain chain = mock(FilterChain.class);
-        filter.doFilter(request, response, chain);
-        assertEquals(401, response.getStatus());
-        assertTrue(response.getContentAsString().contains("请先登录"));
-        verifyNoInteractions(chain);
+        for(String[] route:new String[][]{{"GET","/app/qinglife/me/overview"},{"GET","/app/qinglife/friend/assessments"},{"PUT","/app/qinglife/friend/assessments/record-1"},{"GET","/app/qinglife/reflections/synthetic"},{"PUT","/app/qinglife/reflections"},{"POST","/app/qinglife/reflections/voice"},{"DELETE","/app/qinglife/reflections/synthetic/before/share"},{"POST","/app/qinglife/camp-voices/synthetic"}}) {
+            MockHttpServletRequest request = new MockHttpServletRequest(route[0],route[1]);
+            request.setServletPath(route[1]);
+            MockHttpServletResponse response = new MockHttpServletResponse();
+            FilterChain chain = mock(FilterChain.class);
+            filter.doFilter(request, response, chain);
+            assertEquals(401, response.getStatus());
+            assertTrue(response.getContentAsString().contains("请先登录"));
+            verifyNoInteractions(chain);
+        }
     }
 
     @Test void validEnabledAccountCreatesMiniappAuthentication() throws Exception {

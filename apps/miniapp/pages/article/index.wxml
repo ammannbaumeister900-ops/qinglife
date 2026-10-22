@@ -1,24 +1,33 @@
 <launch-splash />
-<ql-nav-space back immersive />
-<view class="article-page">
+<ql-nav-space back />
+<view class="article-page {{presentation.isStory ? 'article-story' : 'article-method'}}">
   <soft-loading wx:if="{{loading}}" text="正在读取文章…" />
-  <view wx:elif="{{!article.id}}" class="article-empty empty-state"><view class="empty-title">这篇内容暂时看不到</view><view class="empty-copy">它可能正在更新，可以稍后再来。</view><button class="empty-action" bindtap="loadArticle">重试</button></view>
+  <view wx:elif="{{error}}" class="article-empty empty-state"><view class="empty-title">文章读取失败</view><view class="empty-copy">{{error}}</view><button class="empty-action" bindtap="loadArticle">重试</button></view>
+  <view wx:elif="{{!article.id}}" class="article-empty empty-state"><view class="empty-title">未找到可查看的文章</view><view class="empty-copy">当前没有可显示的文章内容。</view><button class="empty-action" bindtap="loadArticle">重试</button></view>
   <block wx:else>
-    <view class="article-cover">
-      <view class="article-light article-light-one"></view>
-      <view class="article-light article-light-two"></view>
-      <view class="article-cup"></view>
-    </view>
     <view class="article-sheet">
       <view class="article-heading">
-        <view class="eyebrow">{{article.category}}</view>
+        <view wx:if="{{presentation.isStory && article.category}}" class="article-category story-category">{{article.category}}</view>
         <view class="article-title">{{article.title}}</view>
-        <view class="article-meta"><text>{{article.author}}</text><text>{{article.date}}</text></view>
+        <view wx:if="{{(!presentation.isStory && article.category) || article.author || presentation.dateLabel}}" class="article-meta"><text wx:if="{{!presentation.isStory && article.category}}" class="article-category">{{article.category}}</text><text wx:if="{{article.author}}">{{article.author}}</text><text wx:if="{{presentation.dateLabel}}">{{presentation.dateLabel}}</text></view>
         <view wx:if="{{source === 'demo'}}" class="demo-note">演示内容 · 用于预览阅读效果，非真实轻友投稿。</view>
       </view>
-      <view class="article-body"><rich-text nodes="{{article.content || article.summary}}"></rich-text></view>
-      <view class="article-divider"><text></text><text></text><text></text></view>
-      <view class="health-note">健康相关内容仅用于日常生活方式参考；明显、持续或突然出现的不适，应停止练习并寻求专业评估。</view>
+      <image wx:if="{{presentation.cover}}" class="story-photograph" src="{{presentation.cover}}" mode="widthFix" binderror="onCoverError" aria-label="文章封面" />
+      <view class="article-body">
+        <rich-text wx:if="{{!presentation.hasVideo}}" nodes="{{presentation.nodes}}"></rich-text>
+        <block wx:if="{{presentation.hasVideo}}" wx:for="{{presentation.blocks}}" wx:key="id">
+          <rich-text wx:if="{{item.type === 'rich'}}" nodes="{{item.nodes}}"></rich-text>
+          <view wx:else class="article-video-block">
+            <video wx:if="{{!item.failed}}" id="{{item.id}}" class="article-video" src="{{item.src}}" poster="{{item.poster}}" controls="{{true}}" autoplay="{{false}}" show-center-play-btn="{{true}}" show-fullscreen-btn="{{true}}" enable-play-gesture="{{true}}" object-fit="contain" data-index="{{index}}" bindplay="onVideoPlay" binderror="onVideoError" aria-label="文章视频" />
+            <view wx:else class="article-video-error">
+              <view>{{item.src ? '视频暂时无法播放，请检查网络后重试。' : '视频地址不可用，暂时无法播放。'}}</view>
+              <button wx:if="{{item.src}}" class="article-video-retry" data-index="{{index}}" bindtap="retryVideo">重新加载视频</button>
+            </view>
+          </view>
+        </block>
+      </view>
+      <view wx:for="{{presentation.warnings}}" wx:key="*this" class="content-warning">{{item}}</view>
+      <view wx:if="{{presentation.showHealthNote}}" class="health-note">健康相关内容仅用于日常生活方式参考；明显、持续或突然出现的不适，应停止练习并寻求专业评估。</view>
     </view>
     <view class="article-actionbar">
       <button class="collect-button {{collected ? 'collected' : ''}}" bindtap="toggleCollect"><image class="bookmark-icon" src="/assets/icons/bookmark{{collected ? '-active' : ''}}.svg" mode="aspectFit" />{{collected ? '已收藏' : '收藏'}}</button>

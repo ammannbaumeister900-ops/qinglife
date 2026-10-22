@@ -14,6 +14,7 @@ import com.yicai.life.domain.vo.QlCustomerVo;
 import com.yicai.life.service.IQlCustomerService;
 import com.yicai.life.service.QlFriendAssessmentExportService;
 import com.yicai.life.service.QlFriendAssessmentService;
+import com.yicai.framework.web.service.PermissionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -32,12 +33,19 @@ public class QlCustomerController extends BaseController {
     private final com.yicai.life.service.QlCustomerDossierService dossierService;
     private final QlFriendAssessmentService friendAssessments;
     private final QlFriendAssessmentExportService assessmentExport;
+    private final PermissionService permissions;
 
     @PreAuthorize("@ss.hasPermi('life:assessment:statistics')")
     @GetMapping("/statistics")
     public AjaxResult<Map<String,Object>> statistics(@RequestParam(required=false) String startDate,
                                                      @RequestParam(required=false) String endDate) {
         return AjaxResult.success(friendAssessments.statistics(startDate,endDate));
+    }
+
+    @PreAuthorize("@ss.hasPermi('life:assessment:statistics')")
+    @GetMapping("/statistics/sessions")
+    public AjaxResult<List<Map<String,Object>>> statisticsSessions() {
+        return AjaxResult.success(friendAssessments.statisticsSessions());
     }
 
     @PreAuthorize("@ss.hasPermi('life:assessment:export') and @ss.hasPermi('life:assessment:sensitive')")
@@ -72,7 +80,7 @@ public class QlCustomerController extends BaseController {
     @PreAuthorize("@ss.hasPermi('life:customer:query')")
     @GetMapping("/{id}/assessments")
     public AjaxResult<List<Map<String,Object>>> assessments(@PathVariable String id) {
-        boolean sensitive=com.yicai.common.utils.SecurityUtils.getLoginUser().getPermissions().contains("life:assessment:sensitive");
+        boolean sensitive=permissions.hasPermi("life:assessment:sensitive");
         return AjaxResult.success(friendAssessments.history(id,sensitive));
     }
 

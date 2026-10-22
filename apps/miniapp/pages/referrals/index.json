@@ -1,0 +1,5 @@
+{
+  "navigationStyle": "custom",
+  "enablePullDownRefresh": false,
+  "usingComponents": { "ql-nav-space": "/components/ql-nav-space/index" }
+}

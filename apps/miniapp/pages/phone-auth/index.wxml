@@ -1,0 +1,14 @@
+<ql-nav-space back />
+<view class="page phone-auth-page">
+  <view class="auth-field">
+    <view class="auth-title">轻一点，先认识你</view>
+    <view class="auth-copy">手机号仅用于报名与登记联系，不会公开。</view>
+  </view>
+
+  <view class="auth-body">
+    <view wx:if="{{notice}}" class="auth-notice" aria-live="polite">{{notice}}</view>
+    <button class="auth-primary" open-type="getPhoneNumber|agreePrivacyAuthorization" bindtap="promptPhone" bindgetphonenumber="onPhoneNumber" loading="{{busy}}" disabled="{{busy}}">{{busy ? '正在登录…' : prompting ? '正在唤起授权…' : '一键登录'}}</button>
+    <view class="auth-privacy">登录即同意<text class="auth-link" bindtap="openPrivacy">《隐私保护指引》</text></view>
+    <button class="auth-later" bindtap="leave">暂不登录</button>
+  </view>
+</view>

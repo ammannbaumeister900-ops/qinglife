@@ -1,5 +1,9 @@
 import request from '@/utils/request'
 
+export function sessionGuides() {
+  return request({ url: '/life/session/guides', method: 'get' })
+}
+
 export function listSession(query) {
   return request({ url: '/life/session/list', method: 'get', params: query })
 }
@@ -18,4 +22,8 @@ export function updateSession(data) {
 
 export function createSessionInvitation(id) {
   return request({ url: '/life/session/' + id + '/invitation', method: 'post' })
+}
+
+export function previewSessionCover(sessionNumber) {
+  return request({ url: '/life/session/cover-preview', method: 'get', params: { sessionNumber }, responseType: 'blob' })
 }

@@ -1,0 +1,51 @@
+const discovery = require('./discovery')
+const text = value => value == null ? '' : String(value).trim()
+// Display-only split of the existing start/end dates for the numeric date layout; dateLabel remains the text fallback.
+function dateParts(activity) {
+  const start = String(activity.startDate || '').slice(0, 10), end = String(activity.endDate || activity.startDate || '').slice(0, 10)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(start) || !/^\d{4}-\d{2}-\d{2}$/.test(end)) return null
+  const [startYear, startMonth, startDay] = start.split('-'), [endYear, endMonth, endDay] = end.split('-')
+  const days = Math.round((Date.UTC(+endYear, endMonth - 1, +endDay) - Date.UTC(+startYear, startMonth - 1, +startDay)) / 86400000) + 1
+  return { start: startMonth + '.' + startDay, end: start === end ? '' : endMonth + '.' + endDay,
+    year: (startYear === endYear ? startYear : startYear + '—' + endYear) + (days > 0 ? ' · ' + days + ' 天' : '') }
+}
+// Public endpoint membership survives derived status changes; private context rows stay excluded.
+function camps(activities = [], selectedId = '') {
+  const rows = discovery.activities(activities.filter(a => a.publicListed === true || (a.publicListed == null && ['open', 'in_progress'].includes(a.sourceStatus))))
+    .slice(0, 3).map(a => {
+      return { ...a, title: a.name || '清体营', dateLabel: discovery.dateRange(a), dateParts: dateParts(a),
+        periodLabel: a.sessionNumber == null ? '期次待公布' : '第' + a.sessionNumber + '期',
+        placeLabel: a.place || a.city || '地点待公布' }
+    })
+  const featured = rows.find(a => a.id === selectedId) || rows[0] || null
+  return { camps: rows, selectedCampId: featured ? featured.id : '', featured }
+}
+function voiceGroups(records = []) {
+  const approved = records.filter(v => v.state === 'releaseReady' && v.authorization === 'confirmed' && v.review === 'approved' &&
+    text(v.id) && text(v.personKey) && text(v.author) && text(v.excerpt) && text(v.fullExcerpt) && v.source &&
+    text(v.fullExcerpt).replace(/[。；;，,！!？?]+$/, '').includes(text(v.excerpt).replace(/[。；;，,！!？?]+$/, '')))
+  const pending = approved.slice(), groups = [], seen = new Set()
+  while (pending.length) {
+    const group = [], people = new Set()
+    for (let i = 0; i < pending.length && group.length < 4;) {
+      const v = pending[i]
+      if (seen.has(v.id)) { pending.splice(i, 1); continue }
+      if (people.has(v.personKey)) { i++; continue }
+      group.push(v); people.add(v.personKey); seen.add(v.id); pending.splice(i, 1)
+    }
+    if (!group.length) break
+    groups.push(group)
+  }
+  return groups
+}
+function publicVoiceRecords(response, sessionId) {
+  if (!response || response.contractVersion !== 1 || response.sessionId !== sessionId || !Array.isArray(response.list) || response.list.length > 16 || typeof response.hasMore !== 'boolean' || response.hasMore && !response.nextCursor) throw new Error('心声服务版本或分页数据无效')
+  return response.list.map(v => {
+    const note = typeof v.note === 'string' ? v.note : ''
+    if (v.sessionId !== sessionId || !text(v.id) || !text(v.personKey) || !note.trim() || Array.from(note).length > 150) throw new Error('心声归属或正文无效')
+    const excerpt = text(v.excerpt)
+    const complete = /[。！？!?；;]$/.test(excerpt) && note.includes(excerpt)
+    return { id: v.id, sessionId, personKey: v.personKey, author: text(v.author) || '本期轻友', excerpt: complete ? excerpt : note, fullExcerpt: note, state: 'releaseReady', authorization: 'confirmed', review: 'approved', source: { kind: 'camp-reflection', sessionId, voiceId: v.id } }
+  })
+}
+module.exports = { camps, voiceGroups, publicVoiceRecords }

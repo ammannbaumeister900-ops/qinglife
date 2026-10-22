@@ -1,213 +1,84 @@
-.camp-page {
-  padding-top: 44rpx;
-}
+/* 清体营二级页 · 「林下午后」令牌（ART-DIRECTION §6.3）。--camp-* 只是令牌别名，供"我的安排"等既有规则沿用。 */
+page { background: var(--q-linen); --ql-nav-bg: var(--q-linen); }
+.camp-page { --camp-ink: var(--q-ink); --camp-muted: var(--q-ink-2); --camp-green: var(--q-moss); --camp-line: var(--q-line); min-height: 0; padding: 24px var(--q-gutter) calc(32px + env(safe-area-inset-bottom)); background: var(--q-linen); color: var(--camp-ink); font-family: var(--q-sans); }
+.camp-page::before { display: none; }
+.camp-page .refresh-note { position: static; margin: 0 0 16px; text-align: left; }
+.camp-page .empty-state .text-button, .camp-page .camp-reset { min-height: 44px; }
+.public-camp-heading { display: flex; justify-content: space-between; align-items: baseline; gap: 18px; margin-bottom: 18px; }
+.camp-header-image { display: block; width: calc(100% + 2 * var(--q-gutter)); height: 53.333vw; margin: -24px calc(-1 * var(--q-gutter)) 24px; }
+.public-camp-title { font-family: var(--q-serif); font-size: 28px; font-weight: 600; line-height: 1.45; }
+.public-camp-count { flex: none; color: var(--camp-muted); font-size: 14px; }
+.camp-filters { margin-bottom: 25px; border-bottom: 1px solid var(--camp-line); white-space: nowrap; }
+.camp-filters-inner { display: inline-flex; min-width: 100%; gap: 20px; }
+.camp-page button.camp-filter { flex: none; display: inline-flex; align-items: center; justify-content: center; width: auto; min-width: 44px; min-height: 44px; margin: 0; padding: 0 0 11px; border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: transparent; color: var(--camp-muted); font-size: 14px; line-height: 1.65; }
+.camp-page button.camp-filter.selected { color: var(--camp-ink); border-bottom-color: var(--camp-green); font-weight: 600; }
+.camp-filter-summary { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 21px; color: var(--camp-muted); font-size: 14px; }
+.camp-page button.camp-reset { width: auto; margin: 0; padding: 0; border-radius: 0; background: transparent; color: var(--camp-green); font-size: 14px; text-decoration: underline; line-height: 1.6; }
+.camp-page .activity-card { margin: 0 0 27px; padding: 0 0 27px; border-bottom: 1px solid var(--camp-line); }
+.camp-page .activity-card.last { margin-bottom: 0; padding-bottom: 0; border-bottom: 0; }
+.activity-meta { display: flex; justify-content: space-between; align-items: flex-start; gap: 18px; margin-bottom: 10px; color: var(--camp-muted); font-size: 14px; line-height: 1.6; }
+/* 期号即画面：数字字体 48px 墨色，替换原渐变模板封面 */
+.activity-number { display: flex; align-items: baseline; gap: 4px; min-width: 0; color: var(--q-ink); }
+.activity-number-value { font-family: var(--q-num); font-size: 48px; font-weight: 600; line-height: 1; letter-spacing: -1px; overflow-wrap: anywhere; }
+.activity-number.medium .activity-number-value { font-size: 36px; }
+.activity-number.long .activity-number-value { font-size: 28px; }
+.activity-number.very-long .activity-number-value { font-size: 20px; }
+.activity-number-unit { color: var(--camp-muted); font-size: 14px; }
+.activity-number-pending { color: var(--camp-muted); font-size: 15px; line-height: 1.6; }
+.activity-status { flex: none; max-width: 55%; padding: 0 8px; border: 1px solid var(--camp-muted); line-height: 24px; text-align: right; }
+.activity-status.open { color: var(--q-moss); font-weight: 500; }
+.activity-status.warning { color: var(--q-amber); }
+.activity-status.cancelled { color: var(--q-ink-2); }
+.activity-heading { margin-bottom: 14px; }
+.camp-page .activity-name { display: block; width: 100%; margin: 0; color: var(--camp-ink); font-family: var(--q-serif); font-size: 22px; font-weight: 600; line-height: 1.5; text-align: left; white-space: normal; overflow-wrap: anywhere; }
+.activity-theme { margin-top: 9px; color: var(--camp-muted); font-size: 14px; line-height: 1.7; overflow-wrap: anywhere; }
+.camp-page .featured .activity-name { font-size: 26px; }
+.activity-details { margin-top: 11px; }
+.activity-date { font-size: 16px; font-weight: 500; line-height: 1.7; font-variant-numeric: tabular-nums; }
+.featured .activity-date { font-size: 17px; }
+.activity-place { margin-top: 4px; font-size: 15px; line-height: 1.75; overflow-wrap: anywhere; }
+.activity-prices { display: flex; flex-wrap: wrap; align-items: baseline; gap: 5px 19px; margin-top: 17px; }
+.price-tier { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 4px; min-width: 0; font-size: 14px; line-height: 1.65; }
+.price-label { margin-right: 4px; }
+.price-value { font-family: var(--q-num); font-size: 22px; font-weight: 600; overflow-wrap: anywhere; }
+.price-currency, .price-unit, .price-pending { font-size: 14px; }
+.settlement-note { margin-top: 6px; color: var(--camp-muted); font-size: 14px; line-height: 1.7; }
+.activity-actions { display: flex; align-items: center; justify-content: space-between; gap: 15px; margin-top: 12px; }
+.camp-page button.camp-action { display: flex; align-items: center; gap: 35px; width: auto; min-height: 44px; margin: 0; padding: 0; border-radius: 0; background: transparent; color: var(--camp-green); font-size: 15px; font-weight: 500; line-height: 1.6; }
+.camp-action text { font-size: 23px; font-weight: 400; }
+.camp-voice { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--camp-line); }
+.camp-voice-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 7px; color: var(--camp-muted); font-size: 14px; line-height: 1.7; }
+.camp-voice-count { font-variant-numeric: tabular-nums; }
+.camp-voices-panel { height: 220px; }
+.camp-voice-note { color: var(--camp-ink); font-size: 15px; line-height: 1.85; white-space: pre-wrap; overflow-wrap: anywhere; }
+.camp-voice-author { margin-top: 8px; color: var(--camp-muted); font-size: 14px; line-height: 1.7; }
+.camp-voice-actions { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0 12px; }
+.camp-voice-switch { display: flex; gap: 18px; margin-left: auto; }
+.camp-page button.camp-voice-toggle, .camp-page button.camp-voice-prev, .camp-page button.camp-voice-next, .camp-page button.reflection-link { width: auto; min-height: 44px; margin: 0; padding: 9px 0; border-radius: 0; background: transparent; color: var(--camp-green); font-size: 14px; line-height: 1.7; text-align: left; }
+.camp-page button[disabled] { color: var(--camp-muted); opacity: .5; }
+.camp-reflection-entry { margin-top: 5px; }
+.camp-page button:active { opacity: .75; }
+@media (max-width: 350px) { .camp-page { --q-gutter: 20px; } .camp-filters-inner { gap: 18px; } .camp-page .featured .activity-name { font-size: 24px; } .camp-page .activity-name { font-size: 21px; } .activity-number-value { font-size: 42px; } .camp-page button.camp-action { gap: 22px; } }
 
-.past-camp-entry {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: 28rpx;
-  padding: 28rpx 4rpx;
-  border-top: 1rpx solid var(--ql-border);
-  border-bottom: 1rpx solid var(--ql-border);
-}
-.past-camp-label,
-.past-camp-name { display: block; }
-.past-camp-label { color: var(--ql-ink-ghost); font-size: 22rpx; letter-spacing: 2rpx; }
-.past-camp-name { margin-top: 8rpx; color: var(--ql-ink); font-size: 27rpx; }
-.past-camp-link { color: var(--ql-clay-deep); font-size: 23rpx; }
+/* My arrangements: compact service facts, scoped away from the public list. */
+.camp-section-title { color: var(--q-ink); font-size: 32rpx; font-weight: 600; line-height: 1.5; }
+.my-arrangements { margin-bottom: 28px; }
+.arrangements-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 8px; }
+.arrangements-count { color: var(--camp-muted); font-size: 14px; }
+.arrangement-group + .arrangement-group { margin-top: 18px; }
+.arrangement-group-title { padding: 8px 0 2px; color: var(--camp-muted); font-size: 14px; font-weight: 500; }
+.arrangement-item { padding-bottom: 4px; border-bottom: 1px solid var(--camp-line); }
+.arrangement-item.last { border-bottom: 0; }
+.camp-page button.arrangement-row { display: block; width: 100%; min-height: 48px; margin: 0; padding: 12px 0 0; border-radius: 0; background: transparent; color: var(--camp-ink); text-align: left; white-space: normal; line-height: 1.5; }
+.arrangement-top { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; color: var(--camp-muted); font-size: 14px; line-height: 1.6; }
+.arrangement-top > text { min-width: 0; overflow-wrap: anywhere; }
+.arrangement-status.confirmed { color: var(--camp-green); }
+.my-arrangements .attention { color: var(--q-amber); }
+.arrangement-name { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; margin-top: 6px; font-size: 17px; font-weight: 600; line-height: 1.6; overflow-wrap: anywhere; }
+.arrangement-date, .arrangement-context, .arrangement-note { margin-top: 5px; color: var(--camp-muted); font-size: 14px; line-height: 1.65; overflow-wrap: anywhere; }
+.arrangement-bottom { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0 14px; min-height: 44px; margin-top: 2px; font-size: 14px; line-height: 1.65; }
+.arrangement-payment { min-width: 0; color: var(--camp-muted); overflow-wrap: anywhere; }
+.arrangement-action { flex: none; margin-left: auto; color: var(--camp-green); white-space: nowrap; }
+.camp-page button.past-camp-entry { display: flex; align-items: center; justify-content: flex-start; width: auto; min-height: 44px; margin: 0; padding: 8px 0; border-radius: 0; background: transparent; color: var(--camp-green); font-size: 14px; line-height: 1.6; }
 
-.camp-hero {
-  box-sizing: border-box;
-  padding: 44rpx 80rpx 40rpx 40rpx;
-  border: 1rpx solid rgba(255, 255, 255, 0.66);
-  border-radius: var(--ql-radius-card);
-  background:
-    radial-gradient(circle at 86% 8%, rgba(255, 246, 220, 0.55), transparent 26%),
-    radial-gradient(ellipse at 96% 104%, rgba(166, 182, 162, 0.36), transparent 38%),
-    linear-gradient(150deg, rgba(255, 252, 247, 0.94), rgba(233, 238, 228, 0.9));
-  box-shadow: var(--ql-shadow-hero);
-}
-
-.camp-hero .hero-title {
-  max-width: 520rpx;
-  margin-top: 20rpx;
-  font-size: 52rpx;
-  line-height: 1.4;
-}
-
-.camp-hero .hero-copy {
-  max-width: 500rpx;
-  font-size: 26rpx;
-}
-
-.camp-hero .hero-side {
-  top: 40rpx;
-  right: 28rpx;
-  font-size: 24rpx;
-}
-
-.camp-hero-line {
-  width: 56rpx;
-  height: 2rpx;
-  margin-top: 32rpx;
-  background: rgba(104, 124, 95, 0.4);
-}
-
-.camp-hero-note {
-  margin-top: 14rpx;
-  color: var(--ql-sage-deep);
-  font-size: 22rpx;
-  letter-spacing: 3rpx;
-}
-
-.current-camp .primary {
-  margin-top: 26rpx;
-}
-
-.activity-card {
-  overflow: hidden;
-  transition: opacity 180ms ease, transform 180ms ease;
-}
-.activity-cover { width: calc(100% + 72rpx); height: 280rpx; margin: -32rpx -36rpx 28rpx; }
-.activity-theme { margin-top: 8rpx; color: var(--ql-sage-deep); font-size: 24rpx; }
-.settlement-note { margin-top: 8rpx; color: var(--ql-ink-ghost); font-family: sans-serif; font-size: 21rpx; }
-
-.activity-card:active {
-  opacity: 0.86;
-  transform: translateY(2rpx);
-}
-
-.activity-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.activity-top .pill.plain {
-  padding-right: 0;
-  padding-left: 0;
-  background: transparent;
-  color: var(--ql-ink-ghost);
-}
-
-.activity-arrow {
-  display: flex;
-  width: 52rpx;
-  height: 52rpx;
-  align-items: center;
-  justify-content: center;
-  border: 1rpx solid var(--ql-border);
-  border-radius: 50%;
-  color: var(--ql-ink-light);
-  font-size: 28rpx;
-}
-
-.activity-name {
-  margin-top: 22rpx;
-  font-family: var(--ql-serif);
-  font-size: 38rpx;
-  font-weight: 500;
-  line-height: 1.5;
-}
-
-.activity-details {
-  display: flex;
-  gap: 28rpx;
-  margin-top: 24rpx;
-  padding: 22rpx 0;
-  border-top: 1rpx solid rgba(74, 61, 49, 0.07);
-  border-bottom: 1rpx solid rgba(74, 61, 49, 0.07);
-}
-
-.activity-detail {
-  min-width: 0;
-  flex: 1;
-}
-
-.activity-detail + .activity-detail {
-  padding-left: 28rpx;
-  border-left: 1rpx solid rgba(74, 61, 49, 0.07);
-}
-
-.activity-detail-label {
-  margin-bottom: 8rpx;
-  color: var(--ql-ink-ghost);
-  font-size: 22rpx;
-  letter-spacing: 3rpx;
-}
-
-.activity-footer {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  margin-top: 22rpx;
-}
-
-.activity-fee {
-  color: var(--ql-ink);
-  font-family: var(--ql-serif);
-  font-size: 46rpx;
-  font-weight: 500;
-}
-
-.activity-fee text {
-  margin-left: 4rpx;
-  color: var(--ql-ink-ghost);
-  font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
-  font-size: 22rpx;
-}
-
-.activity-link {
-  color: var(--ql-clay-deep);
-  font-size: 23rpx;
-  text-align: right;
-}
-
-.leader-card {
-  padding: 32rpx 36rpx;
-}
-
-.leader-row {
-  display: flex;
-  align-items: center;
-  gap: 24rpx;
-  padding: 26rpx 0;
-  border-bottom: 1rpx solid rgba(74, 61, 49, 0.08);
-}
-
-.leader-row:last-child {
-  border-bottom: none;
-}
-
-.leader-avatar {
-  display: flex;
-  width: 96rpx;
-  height: 96rpx;
-  overflow: hidden;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: center;
-  border: 1rpx solid rgba(255, 255, 255, 0.72);
-  border-radius: 52% 48% 55% 45%;
-  color: #4A4039;
-  font-family: var(--ql-serif);
-  font-size: 32rpx;
-  box-shadow: 0 10rpx 24rpx rgba(70, 52, 36, 0.07);
-}
-
-.leader-avatar.clay { background: linear-gradient(145deg, #EFDCCF, #DCC4B2); }
-.leader-avatar.mist { background: linear-gradient(145deg, #E4EDEF, #C6D4D6); }
-.leader-avatar.sage { background: linear-gradient(145deg, #E7EDDE, #C6D1C0); }
-
-.leader-name {
-  font-size: 29rpx;
-  font-weight: 600;
-}
-
-.leader-intro {
-  margin-top: 8rpx;
-  color: var(--ql-ink-light);
-  font-size: 24rpx;
-  line-height: 1.6;
-}
+.camp-page button.reflection-link { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; margin-top: 8px; padding: 8px 16px; border: 1px solid var(--camp-line); border-radius: 4px; }

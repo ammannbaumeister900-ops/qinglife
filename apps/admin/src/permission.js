@@ -4,6 +4,7 @@ import { Message } from 'element-ui'
 import NProgress from 'nprogress'
 import 'nprogress/nprogress.css'
 import { getToken } from '@/utils/auth'
+import { checkPermi } from '@/utils/permission'
 
 NProgress.configure({ showSpinner: false })
 
@@ -27,12 +28,17 @@ router.beforeEach((to, from, next) => {
             next({ ...to, replace: true }) // hack方法 确保addRoutes已完成
           })
         }).catch(err => {
-            store.dispatch('LogOut').then(() => {
-              Message.error(err)
-              next({ path: '/' })
-            })
+          store.dispatch('LogOut').then(() => {
+            Message.error(err)
+            next({ path: '/' })
           })
+        })
       } else {
+        if (to.meta.permission && !checkPermi([to.meta.permission])) {
+          next({ path: '/401', replace: true })
+          NProgress.done()
+          return
+        }
         next()
       }
     }

@@ -1,0 +1,53 @@
+/* 邀请轻友 · 「林下午后」P9（docs/design/redesign-2026q4/p9-invitation-rhythm.md）。只引用 --q-* 令牌。
+ * 制作邀请 65/35：朋友会收到的卡片是全页唯一高点；推荐记录 15/85：紧凑核对。 */
+page { background: var(--q-linen); }
+.referrals-page { box-sizing: border-box; min-height: calc(100vh - 88px); padding: 8px var(--q-gutter) calc(48px + env(safe-area-inset-bottom)); background: var(--q-linen); color: var(--q-ink); font-size: 15px; line-height: 1.75; }
+.referrals-page button::after { border: 0; }
+.referrals-page button:active { opacity: .72; }
+
+.referrals-page button.records-jump { display: flex; align-items: center; width: auto; min-height: 44px; margin: 0 0 8px; padding: 0; border: 0; border-radius: 0; background: transparent; color: var(--q-moss); font-size: 14px; font-weight: 500; line-height: 1.6; text-align: left; }
+
+/* 卡片预览：满宽出血，5:4 */
+.invitation-card { display: block; width: auto; margin: 0 calc(0px - var(--q-gutter)); }
+.invitation-title { margin: 20px 0 16px; font-family: var(--ql-serif); font-size: 24px; font-weight: 500; line-height: 1.45; overflow-wrap: anywhere; }
+.preset-picker { display: flex; gap: 12px; }
+.referrals-page button.preset { flex: 1; min-width: 0; width: auto; margin: 0; padding: 0 0 4px; border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: transparent; line-height: 1.5; }
+.referrals-page button.preset-selected { border-bottom-color: var(--q-ink); }
+.preset-art { display: block; width: 100%; height: auto; }
+.preset-name { margin-top: 6px; color: var(--q-ink-2); font-size: 14px; }
+.preset-selected .preset-name { color: var(--q-ink); font-weight: 600; }
+
+/* 期次：与首页期次同一种数字语法 */
+.section-label { margin: 44px 0 4px; font-size: 16px; font-weight: 600; }
+.referrals-page button.session-choice { display: flex; align-items: center; gap: 14px; width: 100%; min-height: 64px; box-sizing: border-box; margin: 0; padding: 14px 0; border: 0; border-bottom: 1px solid var(--q-line); border-radius: 0; background: transparent; color: var(--q-ink); text-align: left; line-height: 1.6; }
+.session-number { flex: none; display: flex; align-items: baseline; gap: 2px; min-width: 64px; color: var(--q-ink-2); font-size: 14px; }
+.session-num { color: var(--q-ink); font-family: var(--q-num); font-size: 22px; font-weight: 600; line-height: 1.2; }
+.session-main { flex: 1; min-width: 0; }
+.session-title { font-size: 15px; font-weight: 500; overflow-wrap: anywhere; }
+.copy { color: var(--q-ink-2); font-size: 14px; line-height: 1.7; overflow-wrap: anywhere; }
+.choice-mark { flex: none; box-sizing: border-box; width: 20px; height: 20px; border: 1px solid var(--q-ink-2); border-radius: 50%; }
+.session-selected .choice-mark { border: 6px solid var(--q-forest); }
+
+/* 两步：先生成，再分享给朋友；每屏只有一个实心主按钮 */
+.referrals-page button.primary { display: flex; align-items: center; justify-content: center; width: 100%; min-height: var(--q-btn-h); margin: 24px 0 0; padding: 0 16px; border: 0; border-radius: 0; background: var(--q-forest); color: var(--q-on-dark); font-size: 16px; font-weight: 500; line-height: 1.5; }
+.referrals-page button.primary[disabled] { background: var(--q-field); color: var(--q-ink-2); }
+.share-ready { margin-top: 20px; }
+.ready-copy { color: var(--q-ink); font-size: 15px; font-weight: 500; }
+.share-ready button.primary { margin-top: 12px; }
+.privacy-copy { margin-top: 14px; color: var(--q-ink-2); font-size: 14px; line-height: 1.7; }
+
+/* 推荐记录：紧凑核对 */
+.record-heading { margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--q-ink); font-family: var(--ql-serif); font-size: 22px; font-weight: 500; line-height: 1.5; }
+.record { padding: 16px 0; border-bottom: 1px solid var(--q-line); }
+.record:last-child { border-bottom: 0; }
+.record-top { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 6px 16px; margin-bottom: 4px; }
+.record-name { font-size: 16px; font-weight: 500; overflow-wrap: anywhere; }
+.status { padding: 0 8px; border: 1px solid var(--q-ink-2); color: var(--q-ink-2); font-size: 14px; line-height: 24px; }
+.date { margin-top: 2px; color: var(--q-ink-2); font-size: 14px; }
+
+/* 状态 */
+.empty { padding: 28px 0; color: var(--q-ink-2); font-size: 15px; line-height: 1.8; text-align: left; }
+.record-empty { padding-top: 16px; }
+.referrals-page button.text-button { display: flex; align-items: center; width: auto; min-height: 44px; margin: 8px 0 0; padding: 0; border: 0; border-radius: 0; background: transparent; color: var(--q-moss); font-size: 15px; font-weight: 500; line-height: 1.5; }
+
+@media (max-width: 350px) { .referrals-page { --q-gutter: 20px; } }

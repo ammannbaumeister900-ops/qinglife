@@ -1,4 +1,4 @@
-<view class="tabbar">
+<view class="tabbar q-tokens">
   <view
     wx:for="{{list}}"
     wx:key="pagePath"
@@ -7,7 +7,6 @@
     data-index="{{index}}"
     bindtap="switchTab"
   >
-    <view wx:if="{{selected === index}}" class="selected-mark"></view>
     <image class="tab-icon" src="{{selected === index ? item.selectedIconPath : item.iconPath}}" mode="aspectFit" />
     <view class="tab-text">{{item.text}}</view>
   </view>

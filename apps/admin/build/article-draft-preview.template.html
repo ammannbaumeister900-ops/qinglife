@@ -1,0 +1,42 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><meta name="robots" content="noindex,nofollow"><title>文章草稿预览 · 轻生活</title><style>
+*{box-sizing:border-box}body{margin:0;background:#e8e9e2;color:#252b21;font-family:system-ui,"Microsoft YaHei",sans-serif}.toolbar{padding:16px 20px;background:#fff;border-bottom:1px solid #d2d7c9;font-size:14px;line-height:1.7;position:sticky;top:0;z-index:2}.toolbar a{color:#435e3c;margin-left:12px}.status{max-width:700px;margin:auto}.sheet{max-width:430px;margin:24px auto;background:#f7f6ef;min-height:80vh;padding-bottom:40px}.heading{padding:28px 28px 30px}.category{font-size:13px;letter-spacing:2px;color:#435e3c}h1{font-family:"Songti SC","STSong","SimSun",serif;font-weight:400;font-size:36px;line-height:1.45;margin:20px 0;text-wrap:balance}.meta{font-size:14px;line-height:1.8;color:#68715f}.cover{display:block;width:100%;height:auto;margin:0 0 34px}.body{padding:0 28px;font-size:17px;line-height:1.95;overflow-wrap:break-word}.body img{max-width:100%;height:auto}.notice{padding:16px 20px;margin:0 auto;max-width:700px;font-size:14px;line-height:1.8;color:#59634f}.error{padding:35px 28px;color:#7c392d;line-height:1.8}.body a{color:#435e3c}@media(max-width:480px){body{background:#f7f6ef}.sheet{margin:0 auto;max-width:100%}.toolbar{position:static}h1{font-size:34px}}button{font:inherit;min-height:44px;border:1px solid #b8c1ad;background:transparent;color:#435e3c;border-radius:4px;padding:8px 16px;cursor:pointer}
+</style></head><body><div class="toolbar"><div class="status"><strong>UAT · 未公开草稿</strong><a href="./index">返回后台</a> <span id="save-state">正在读取…</span></div></div><main class="sheet"><header class="heading"><div class="category">轻友故事</div><h1 id="title"></h1><div class="meta" id="meta"></div></header><img id="cover" class="cover" hidden alt="文章封面"><article class="body" id="body"></article><div class="error" id="error" hidden></div></main><div class="notice">本页读取 UAT 后台已保存的原文；图片通过文章权限校验后加载。草稿不进入小程序公开列表。PDF 未嵌入的图片不会在此补造。</div>
+<script>
+/*__RICH_TEXT_ADAPTER__*/
+const API=location.origin+'/uat-20261011-api';
+const id=new URLSearchParams(location.search).get('id')||'';
+const token=sessionStorage.getItem('Admin-Token')||'';
+const objectUrls=[];
+async function request(path){const r=await fetch(API+path,{headers:token?{Authorization:'Bearer '+token}:{},cache:'no-store'});const data=await r.json();if(data.code!==200)throw Error(data.code===401?'请先在当前标签页登录 UAT 后台，再打开此预览地址。':data.msg||'读取失败');return data.data;}
+async function imageUrl(value){
+ const u=new URL(value,location.origin);
+ const expected='/uat-20261011-api/life/essay/'+id+'/draft-media/';
+ if(u.origin===location.origin&&u.pathname.startsWith(expected)){
+  const r=await fetch(u.href,{headers:token?{Authorization:'Bearer '+token}:{},cache:'no-store'});
+  if(!r.ok||!/^image\/(png|jpeg)(;|$)/i.test(r.headers.get('content-type')||''))throw Error('草稿图片读取失败，请检查文章权限');
+  const url=URL.createObjectURL(await r.blob());objectUrls.push(url);return url;
+ }
+ if(u.protocol!=='https:')throw Error('图片地址无效');return u.href;
+}
+async function render(n){
+ if(n.type==='text')return document.createTextNode(n.text);
+ const e=document.createElement(n.name);
+ for(const [k,v]of Object.entries(n.attrs||{})){if(k==='src'&&n.name==='img')e.src=await imageUrl(v);else if(['style','alt','href','rel','start','colspan','rowspan'].includes(k))e.setAttribute(k,v);}
+ if(n.name==='a')e.rel='noopener noreferrer';
+ for(const child of n.children||[])e.appendChild(await render(child));return e;
+}
+(async()=>{
+ if(!/^[1-9][0-9]*$/.test(id))throw Error('文章编号无效');
+ const article=await request('/life/essay/'+id);if(!article||Number(article.status)!==0)throw Error('此预览仅用于未公开文章');
+ document.getElementById('title').textContent=article.title;
+ document.getElementById('meta').textContent=[article.authorName||article.authorNickName||'',String(article.insertTime||'').replace('T',' ').slice(0,16)].filter(Boolean).join(' · ');
+ if(article.titleUrl){const cover=document.getElementById('cover');cover.src=await imageUrl(article.titleUrl);cover.hidden=false;}
+ const content=richText(article.content||'',{story:true,baseUrl:API});
+ for(const n of content.nodes)document.getElementById('body').appendChild(await render(n));
+ if(content.warnings.length)throw Error(content.warnings.join(' '));
+ await Promise.all(Array.from(document.images).filter(i=>!i.hidden).map(i=>i.decode()));
+ document.getElementById('save-state').textContent='文章 '+id+' · 已从 UAT 读取';
+ document.body.dataset.ready='true';
+})().catch(error=>{const e=document.getElementById('error');e.hidden=false;e.textContent=error.message;document.getElementById('save-state').textContent='读取未完成';document.body.dataset.ready='error';});
+addEventListener('beforeunload',()=>objectUrls.forEach(u=>URL.revokeObjectURL(u)));
+</script></body></html>

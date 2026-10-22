@@ -36,6 +36,25 @@ import com.yicai.common.core.page.TableDataInfo;
 public class EssayController extends BaseController {
 
     private final IEssayService iEssayService;
+    private final com.yicai.life.service.EssayDraftMediaService draftMedia;
+
+    @PreAuthorize("@ss.hasPermi('life:essay:edit')")
+    @PostMapping("/{id}/draft-media")
+    public AjaxResult<java.util.Map<String,String>> uploadDraftMedia(@PathVariable Long id,
+            @RequestParam("file") org.springframework.web.multipart.MultipartFile file) throws java.io.IOException {
+        return AjaxResult.success(draftMedia.upload(id, file));
+    }
+
+    @PreAuthorize("@ss.hasPermi('life:essay:query')")
+    @GetMapping("/{id}/draft-media/{name}")
+    public org.springframework.http.ResponseEntity<byte[]> draftMedia(@PathVariable Long id,
+            @PathVariable String name) throws java.io.IOException {
+        java.util.Map<String,Object> image = draftMedia.read(id, name);
+        return org.springframework.http.ResponseEntity.ok().header("Cache-Control", "no-store")
+                .header("X-Content-Type-Options", "nosniff")
+                .contentType(org.springframework.http.MediaType.parseMediaType(String.valueOf(image.get("mime"))))
+                .body((byte[])image.get("data"));
+    }
 
     /**
      * 查询文章列表
@@ -72,7 +91,7 @@ public class EssayController extends BaseController {
      * 新增文章
      */
     @PreAuthorize("@ss.hasPermi('life:essay:add')")
-    @Log(title = "文章", businessType = BusinessType.INSERT)
+    @Log(title = "文章", businessType = BusinessType.INSERT, isSaveRequestData = false)
     @RepeatSubmit
     @PostMapping()
     public AjaxResult<Void> add(@Validated(AddGroup.class) @RequestBody EssayBo bo) {
@@ -83,7 +102,7 @@ public class EssayController extends BaseController {
      * 修改文章
      */
     @PreAuthorize("@ss.hasPermi('life:essay:edit')")
-    @Log(title = "文章", businessType = BusinessType.UPDATE)
+    @Log(title = "文章", businessType = BusinessType.UPDATE, isSaveRequestData = false)
     @RepeatSubmit
     @PutMapping()
     public AjaxResult<Void> edit(@Validated(EditGroup.class) @RequestBody EssayBo bo) {
@@ -105,7 +124,7 @@ public class EssayController extends BaseController {
      * 修改文章状态
      */
     @PreAuthorize("@ss.hasPermi('life:essay:edit')")
-    @Log(title = "文章", businessType = BusinessType.UPDATE)
+    @Log(title = "文章", businessType = BusinessType.UPDATE, isSaveRequestData = false)
     @RepeatSubmit
     @PutMapping("/changeStatus")
     public AjaxResult<Void> changeStatus(@Validated(EditGroup.class) @RequestBody EssayBo bo) {

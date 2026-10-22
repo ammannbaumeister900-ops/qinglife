@@ -16,6 +16,10 @@ export function getCustomerAssessments(id) {
   return request({ url: '/life/customer/' + id + '/assessments', method: 'get' })
 }
 
+export function getStatisticsSessions() {
+  return request({ url: '/life/customer/statistics/sessions', method: 'get' })
+}
+
 export function getCustomerStatistics(query) {
   return request({ url: '/life/customer/statistics', method: 'get', params: query })
 }

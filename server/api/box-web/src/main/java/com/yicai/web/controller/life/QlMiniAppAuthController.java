@@ -23,6 +23,8 @@ public class QlMiniAppAuthController {
     private final QlWechatLoginService loginService;
     private final RedisCache redisCache;
     private final com.yicai.web.service.QlWechatSessionClient wechat;
+    private final com.yicai.web.service.QlWechatPhoneClient phoneClient;
+    private final com.yicai.life.service.QlCustomerPhoneService phones;
     @Value("${qinglife.app-token.expire-minutes:1440}")
     private long tokenExpireMinutes;
 
@@ -35,6 +37,19 @@ public class QlMiniAppAuthController {
         String token = UUID.randomUUID().toString().replace("-", "");
         redisCache.setCacheObject("appToken:" + token, user.getId(), tokenExpireMinutes, TimeUnit.MINUTES);
         return AjaxResult.success(Collections.singletonMap("token", token));
+    }
+
+    /** Login is only complete once WeChat has verified the friend's own phone number. */
+    @PostMapping("/phone")
+    public AjaxResult<Map<String,Object>> phone(@RequestHeader(value="token", required=false) String token, @RequestBody Map<String,String> body) {
+        String phoneCode = body.get("phoneCode");
+        if (phoneCode == null || phoneCode.trim().isEmpty() || phoneCode.length() > 256) throw new CustomException("微信手机号授权失败，请重试", 400);
+        String customerId = phones.customerId(token);
+        String hint = phones.bindWechatPhone(customerId, phoneClient.phoneNumber(phoneCode.trim()));
+        Map<String,Object> result = new LinkedHashMap<>();
+        result.put("phoneAuthorized", true);
+        result.put("phoneHint", hint);
+        return AjaxResult.success(result);
     }
 
     @PostMapping("/logout")

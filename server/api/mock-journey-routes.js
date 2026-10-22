@@ -24,6 +24,10 @@ module.exports = function journeyRoutes({ customers, sessions, registrations, at
     if ((s.registrationCloseAt && stamp().replace('T', ' ').slice(0, 19) > s.registrationCloseAt) || today() > s.endDate) fail('报名已经截止')
     return s
   }
+  const requireInvitationOwner = item => {
+    if (item.ownerCustomerId && !customers.some(c => c.id === item.ownerCustomerId && c.syntheticAdultVerified === true && !c.minor))
+      fail('此轻友邀请暂不可用', 403)
+  }
   const invite = (sessionId, ownerCustomerId) => {
     const s = openSession(sessionId)
     const item = { code: randomUUID().replace(/-/g, ''), sessionId, ownerCustomerId, createdAt: stamp() }
@@ -45,7 +49,7 @@ module.exports = function journeyRoutes({ customers, sessions, registrations, at
         if (pathname === '/__test/clock') { if (!/^\d{4}-\d{2}-\d{2}T/.test(body.now)) fail('需要明确测试时间'); testNow = body.now; return reply({ now: stamp() }) }
         if (pathname === '/__test/actors') {
           const id = randomUUID(), token = 'test-' + randomUUID()
-          const person = { id, customerNo: 'TEST-' + id.slice(0, 8), nickname: body.name, realName: body.name, phoneHint: '测试身份', firstReferrerCustomerId: null, minor: !!body.minor }
+          const person = { id, customerNo: 'TEST-' + id.slice(0, 8), nickname: body.name, realName: body.name, phoneHint: '测试身份', firstReferrerCustomerId: null, minor: !!body.minor, syntheticAdultVerified: body.syntheticAdultVerified === true && !body.minor }
           customers.push(person); actors.set(token, person)
           return reply({ token, customerId: id })
         }
@@ -74,17 +78,18 @@ module.exports = function journeyRoutes({ customers, sessions, registrations, at
       const resolveInvite = pathname.match(/^\/app\/qinglife\/invitations\/([^/]+)$/)
       if (resolveInvite && req.method === 'GET') {
         const item = invitations.find(item => item.code === resolveInvite[1]) || fail('邀请无效', 404)
+        requireInvitationOwner(item)
         openSession(item.sessionId)
         return reply({ sessionId: item.sessionId })
       }
       const me = actor(req)
       if (pathname === '/app/qinglife/me/overview') {
         const mine = registrations.filter(r => r.customerId === me.id || r.buyerCustomerId === me.id)
-        return reply({ customerId: me.id, profile: { name: me.nickname, minor: me.minor }, registrations: mine.map(r => registrationView(r, me)), attendance: attendance.filter(a => a.customerId === me.id), experienceRecords: records.filter(r => r.customerId === me.id), dailyRecords: [], habit: null })
+        return reply({ invitationEligible: me.syntheticAdultVerified === true && !me.minor, customerId: me.id, profile: { name: me.nickname, nickname: me.nickname, minor: me.minor, phoneAuthorized: me.phoneAuthorized !== false }, registrations: mine.map(r => registrationView(r, me)), attendance: attendance.filter(a => a.customerId === me.id), experienceRecords: records.filter(r => r.customerId === me.id), dailyRecords: [], habit: null })
       }
       const appInvite = pathname.match(/^\/app\/qinglife\/sessions\/([^/]+)\/invitations$/)
       if (appInvite && req.method === 'POST') {
-        if (me.minor || !registrations.some(r => r.customerId === me.id && r.registrationStatus === 'confirmed' && sessions.some(s => s.id === r.sessionId && s.status === 'completed'))) fail('完成本人体验后可生成邀请', 403)
+        if (!me.syntheticAdultVerified || me.minor) fail('未满18岁或年龄未可靠核实，暂不能发起邀请', 403)
         return reply(invite(appInvite[1], me.id))
       }
       if (pathname === '/app/qinglife/registrations' && req.method === 'POST') {
@@ -97,6 +102,7 @@ module.exports = function journeyRoutes({ customers, sessions, registrations, at
         const s = openSession(body.sessionId)
         const inv = body.invitationCode ? invitations.find(i => i.code === body.invitationCode && i.sessionId === s.id) : null
         if (body.invitationCode && !inv) fail('邀请与当前活动不匹配')
+        if (inv) requireInvitationOwner(inv)
         if (sessionView(s).registeredCount + body.participants.length > s.capacity) fail('剩余名额不足')
         let selfCount = 0
         const participantIds = new Set(), participantPhones = new Set()

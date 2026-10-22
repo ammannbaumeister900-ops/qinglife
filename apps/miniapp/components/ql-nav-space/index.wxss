@@ -5,18 +5,20 @@
 }
 
 .ql-nav-layer {
-  position: absolute;
+  position: fixed;
+  z-index: 80;
+  pointer-events: none;
   top: 0;
   right: 0;
   left: 0;
-  background: rgba(246, 241, 232, 0.94);
+  background: var(--ql-nav-bg, #F6F1E8);
 }
 
 .ql-nav-layer.overlay { background: transparent; }
 
 .ql-nav-title {
   position: absolute;
-  right: 112px;
+  right: 56px;
   left: 56px;
   overflow: hidden;
   color: #26231F;
@@ -28,6 +30,7 @@
 }
 
 .ql-back {
+  pointer-events: auto;
   position: absolute;
   left: 12px;
   display: flex;
@@ -41,7 +44,7 @@
   padding: 0;
   border: 1rpx solid rgba(38, 35, 31, 0.06);
   border-radius: 50%;
-  background: rgba(255, 252, 247, 0.72);
+  background: #FFFCF7;
   box-sizing: border-box;
   overflow: hidden;
 }
@@ -55,3 +58,6 @@
   border-left: 1.6px solid #26231F;
   transform: translateX(2px) rotate(45deg);
 }
+
+.ql-nav-layer.ql-nav-brand { background: #f7f6ef; }
+.ql-brand-logo { position: absolute; left: 40rpx; bottom: 0; width: 152rpx; height: 96rpx; }
