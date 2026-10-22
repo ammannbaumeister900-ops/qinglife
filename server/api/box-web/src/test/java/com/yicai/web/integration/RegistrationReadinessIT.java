@@ -528,7 +528,7 @@ class RegistrationReadinessIT {
     }
     @Test void automaticCoverSurvivesCreateNumberChangeAndManualUploadSwitch() {
         IQlSessionService sessions=context.getBean(IQlSessionService.class);
-        QlSessionBo bo=new QlSessionBo();bo.setSessionNumber(88000);bo.setName("生机清体营");bo.setPublicVenue("上海市安亭驿岛酒店");bo.setGuideIds(Collections.emptyList());bo.setTheme("Synthetic");bo.setStartDate(new java.util.Date());bo.setEndDate(new java.util.Date(System.currentTimeMillis()+2L*86400000));
+        QlSessionBo bo=new QlSessionBo();bo.setSessionNumber(88000);bo.setName("生机清体营");bo.setPublicVenue("上海市安亭驿岛酒店");bo.setGuideNames(Collections.emptyList());bo.setTheme("Synthetic");bo.setStartDate(new java.util.Date());bo.setEndDate(new java.util.Date(System.currentTimeMillis()+2L*86400000));
         bo.setCoverUrl("");bo.setCapacity(10);bo.setCity("Synthetic");bo.setStatus("draft");
         assertTrue(sessions.insertByBo(bo,9L));
         String id=db.queryForObject("SELECT id FROM ql_session WHERE session_number=88000",String.class);

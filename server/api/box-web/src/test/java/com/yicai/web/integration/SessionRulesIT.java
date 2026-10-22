@@ -33,7 +33,6 @@ class SessionRulesIT {
     static int number = 910000;
     @org.junit.jupiter.api.io.TempDir static Path media;
     static String previousProfile, previousImage;
-    static final List<Long> GUIDES = Arrays.asList(9007199254740993L,9007199254740994L,9007199254740995L);
     @Configuration @Import(RegistrationReadinessIT.Config.class)
     static class Config {
         @Bean @Primary DataSource taskDataSource() {
@@ -54,8 +53,6 @@ class SessionRulesIT {
         context=new AnnotationConfigApplicationContext(Config.class); db=context.getBean(JdbcTemplate.class);
         try(Connection c=context.getBean("taskDataSource",DataSource.class).getConnection()) { DatabaseMigration.run(c,Paths.get(System.getProperty("qinglife.migrations")).getParent()); }
         db.update("INSERT INTO sys_user(user_id,dept_id,user_name,nick_name,user_type,status,del_flag) VALUES(9,0,'synthetic-operator','Synthetic operator','00','0','0')");
-        String[] names={"公主","大海","军军"};
-        for(int i=0;i<3;i++) db.update("INSERT INTO sys_user(user_id,dept_id,user_name,nick_name,user_type,status,del_flag) VALUES(?,0,?,?,'00','0','0')",GUIDES.get(i),"synthetic-guide-"+i,names[i]);
         sessions=context.getBean(IQlSessionService.class);registrations=context.getBean(IQlRegistrationService.class);mini=context.getBean(IQlMiniAppService.class);
         System.out.println("SESSION_RULES_ISOLATED_DATABASE="+database);
     }
@@ -118,11 +115,11 @@ class SessionRulesIT {
         assertNull(row.getIntro());assertNull(row.getCancelPolicy());assertNull(row.getTheme());
         assertEquals("2099-01-01 00:00:00",db.queryForObject("SELECT DATE_FORMAT(registration_open_at,'%Y-%m-%d %H:%i:%s') FROM ql_session WHERE id=?",String.class,id));
         assertEquals("2099-01-14 23:59:59",db.queryForObject("SELECT DATE_FORMAT(registration_close_at,'%Y-%m-%d %H:%i:%s') FROM ql_session WHERE id=?",String.class,id));
-        assertEquals(Arrays.asList("9007199254740993","9007199254740994","9007199254740995"),row.getGuideIds());
+        assertEquals(Arrays.asList("公主","大海","军军"),row.getGuideNames());assertEquals("公主、大海、军军",row.getLeaderName());
     }
     @Test void explicitNewOverridesAndDeliberateNullDatesAreKept() {
         QlSessionBo bo=newSession();bo.setCapacity(7);bo.setStandardPrice(BigDecimal.ZERO);bo.setReturningPrice(new BigDecimal("88"));bo.setRegistrationConfirmMode("manual");
-        bo.setGuideIds(Collections.singletonList(GUIDES.get(1)));bo.setRegistrationOpenManual(true);bo.setRegistrationCloseManual(true);
+        bo.setGuideNames(Collections.singletonList("大海"));bo.setRegistrationOpenManual(true);bo.setRegistrationCloseManual(true);
         String id=save(bo);QlSessionVo row=sessions.queryById(id);
         assertNull(row.getRegistrationOpenAt());assertNull(row.getRegistrationCloseAt());assertEquals(7,row.getCapacity());assertEquals("manual",row.getRegistrationConfirmMode());assertEquals(BigDecimal.ZERO.setScale(2),row.getStandardPrice());
         assertEquals("大海",row.getLeaderName());
@@ -131,7 +128,7 @@ class SessionRulesIT {
         String id=save(newSession());db.update("UPDATE ql_session SET name='历史名称',public_venue=NULL,theme='历史主题',leader_name='历史人员甲',guide_user_ids=NULL,capacity=19,standard_price=12,returning_price=9,registration_confirm_mode='manual',registration_open_at=NULL,registration_close_at=NULL,cover_url='public/session-covers/v1-12.png' WHERE id=?",id);
         QlSessionBo edit=editing(id);edit.setStartDate(java.sql.Date.valueOf("2099-02-01"));edit.setEndDate(java.sql.Date.valueOf("2099-02-03"));edit.setCoverUrl(sessions.queryById(id).getCoverUrl());
         assertTrue(sessions.updateByBo(edit,9L));QlSessionVo row=sessions.queryById(id);
-        assertEquals("历史名称",row.getName());assertNull(row.getPublicVenue());assertEquals("历史主题",row.getTheme());assertEquals("历史人员甲",row.getLeaderName());assertNull(row.getGuideIds());
+        assertEquals("历史名称",row.getName());assertNull(row.getPublicVenue());assertEquals("历史主题",row.getTheme());assertEquals("历史人员甲",row.getLeaderName());assertEquals(Collections.emptyList(),row.getGuideNames());
         assertNull(row.getRegistrationOpenAt());assertNull(row.getRegistrationCloseAt());assertEquals(19,row.getCapacity());assertEquals("manual",row.getRegistrationConfirmMode());assertTrue(row.getCoverUrl().endsWith("/v1-12.png"));
     }
     @Test void dictionaryAddEditDisableAndDeleteDoNotRewriteHistoricalValues() {
@@ -147,13 +144,23 @@ class SessionRulesIT {
             assertTrue(sessions.updateByBo(edit,9L));db.update("DELETE FROM sys_dict_data WHERE dict_type='ql_session_name' AND dict_value='改后的键值'");assertTrue(sessions.updateByBo(edit,9L));
         } finally {db.update("DELETE FROM sys_dict_data WHERE dict_type='ql_session_name' AND dict_value IN ('新选项','改后的键值')");}
     }
-    @Test void staffIdsAreAuthoritativeAndMissingAmbiguousOrInactiveDefaultsFailClosed() {
-        QlSessionBo bo=newSession();bo.setGuideIds(Collections.singletonList(GUIDES.get(0)));bo.setLeaderName("伪造姓名");assertEquals("公主",sessions.queryById(save(bo)).getLeaderName());
-        bo=newSession();bo.setGuideIds(Collections.singletonList(123456789L));QlSessionBo invalid=bo;assertThrows(CustomException.class,()->save(invalid));
-        db.update("UPDATE sys_user SET status='1' WHERE user_id=?",GUIDES.get(2));
-        try {assertThrows(CustomException.class,()->save(newSession()));}finally{db.update("UPDATE sys_user SET status='0' WHERE user_id=?",GUIDES.get(2));}
-        db.update("INSERT INTO sys_user(user_id,dept_id,user_name,nick_name,user_type,status,del_flag) VALUES(123456789,0,'synthetic-duplicate','公主','00','0','0')");
-        try {assertThrows(CustomException.class,()->save(newSession()));}finally{db.update("DELETE FROM sys_user WHERE user_id=123456789");}
+    @Test void fixedGuideRosterIsAuthoritativeAndIndependentOfAccounts() {
+        // No back-office account is named after a guide in this database; defaults still resolve.
+        assertEquals("公主、大海、军军",sessions.queryById(save(newSession())).getLeaderName());
+        QlSessionBo bo=newSession();bo.setGuideNames(Collections.singletonList("公主"));bo.setLeaderName("伪造姓名");assertEquals("公主",sessions.queryById(save(bo)).getLeaderName());
+        bo=newSession();bo.setGuideNames(Arrays.asList("军军","公主"));assertEquals("公主、军军",sessions.queryById(save(bo)).getLeaderName());
+        bo=newSession();bo.setGuideNames(Collections.singletonList("张三"));QlSessionBo unknown=bo;assertThrows(CustomException.class,()->save(unknown));
+        bo=newSession();bo.setGuideNames(Arrays.asList("大海","大海"));QlSessionBo repeated=bo;assertThrows(CustomException.class,()->save(repeated));
+    }
+    @Test void statusIsDateDerivedOnSaveAndOnlyACancellationSurvivesEditing() {
+        QlSessionBo bo=newSession();bo.setStatus("draft");String id=save(bo);
+        assertEquals("open",db.queryForObject("SELECT status FROM ql_session WHERE id=?",String.class,id));
+        db.update("UPDATE ql_session SET status='draft' WHERE id=?",id);
+        QlSessionBo edit=editing(id);edit.setStatus("closed");assertTrue(sessions.updateByBo(edit,9L));
+        assertEquals("open",db.queryForObject("SELECT status FROM ql_session WHERE id=?",String.class,id));
+        db.update("UPDATE ql_session SET status='cancelled' WHERE id=?",id);
+        edit=editing(id);edit.setStatus("open");assertTrue(sessions.updateByBo(edit,9L));
+        assertEquals("cancelled",db.queryForObject("SELECT status FROM ql_session WHERE id=?",String.class,id));
     }
     @Test void clockBoundariesAndManualOverridesUseOneSqlRule() {
         String id=openSession(3);db.update("UPDATE ql_session SET start_date='2026-11-15',end_date='2026-11-17',registration_open_at='2026-11-01 00:00:00',registration_close_at='2026-11-14 23:59:59' WHERE id=?",id);

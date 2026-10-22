@@ -35,7 +35,8 @@ public class QlSessionVo {
     private String leaderName;
     @com.fasterxml.jackson.annotation.JsonIgnore
     private String guideUserIds;
-    private java.util.List<String> guideIds;
+    /** Guides from the fixed roster named in leaderName; other historical names stay only in leaderName. */
+    private java.util.List<String> guideNames;
     private String cancelPolicy;
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private Date updatedAt;

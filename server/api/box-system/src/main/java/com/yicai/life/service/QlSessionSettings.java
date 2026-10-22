@@ -1,6 +1,5 @@
 package com.yicai.life.service;
 
-import cn.hutool.json.JSONUtil;
 import com.yicai.common.exception.CustomException;
 import com.yicai.life.domain.QlSession;
 import com.yicai.life.domain.bo.QlSessionBo;
@@ -9,26 +8,17 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import java.util.*;
 
-/** Existing dictionaries and active staff IDs; historical free text is never inferred as an identity. */
+/** Existing dictionaries and the fixed guide roster; historical free text is preserved, never reinterpreted. */
 @Service @RequiredArgsConstructor
 public class QlSessionSettings {
     private final JdbcTemplate db;
-    private static final List<String> DEFAULT_GUIDES = Arrays.asList("公主", "大海", "军军");
+    /** The guides are a fixed team, not back-office accounts; the order here is the display order. */
+    public static final List<String> GUIDES = Collections.unmodifiableList(Arrays.asList("公主", "大海", "军军"));
 
     public List<Map<String,Object>> guides() {
-        return db.queryForList("SELECT CAST(user_id AS CHAR) AS id,nick_name AS name FROM sys_user WHERE status='0' AND del_flag='0' AND nick_name IN ('公主','大海','军军') ORDER BY user_id");
-    }
-
-    public List<Long> defaultGuides() {
-        List<Map<String,Object>> options = guides();
-        List<Long> ids = new ArrayList<>();
-        for (String name : DEFAULT_GUIDES) {
-            List<Long> matches = new ArrayList<>();
-            for (Map<String,Object> option : options) if (name.equals(option.get("name"))) matches.add(Long.valueOf(String.valueOf(option.get("id"))));
-            if (matches.size() != 1) throw new CustomException("默认导游“" + name + "”未唯一匹配现有人员，请核对人员ID", 400);
-            ids.add(matches.get(0));
-        }
-        return ids;
+        List<Map<String,Object>> options = new ArrayList<>();
+        for (String name : GUIDES) { Map<String,Object> option = new LinkedHashMap<>(); option.put("id", name); option.put("name", name); options.add(option); }
+        return options;
     }
 
     public void validateOptions(QlSessionBo bo, QlSession current) {
@@ -42,29 +32,19 @@ public class QlSessionSettings {
     }
 
     public void applyGuides(QlSessionBo bo, QlSession entity, QlSession current) {
-        List<Long> ids = bo.getGuideIds();
-        if (ids == null && current != null) {
-            // No ID selection means preserve the old free-text attribution, including unknown names.
+        List<String> selected = bo.getGuideNames();
+        if (selected == null && current != null) {
+            // No selection means preserve the old attribution, including unknown historical names.
             entity.setLeaderName(current.getLeaderName());
             entity.setGuideUserIds(current.getGuideUserIds());
             return;
         }
-        if (ids == null) ids = defaultGuides();
-        if (ids.size() > 3 || new HashSet<>(ids).size() != ids.size()) throw new CustomException("导游选择无效", 400);
-        if (current != null && ids.equals(parseIds(current.getGuideUserIds()))) {
-            entity.setLeaderName(current.getLeaderName()); entity.setGuideUserIds(current.getGuideUserIds()); return;
-        }
-        List<Map<String,Object>> options = guides();
-        List<String> names = new ArrayList<>();
-        for (Long id : ids) {
-            Map<String,Object> person = options.stream().filter(row -> Objects.equals(Long.valueOf(String.valueOf(row.get("id"))), id)).findFirst().orElseThrow(() -> new CustomException("导游人员不存在或已停用，请重新选择", 400));
-            names.add(String.valueOf(person.get("name")));
-        }
-        entity.setGuideUserIds(JSONUtil.toJsonStr(ids));
-        entity.setLeaderName(String.join("、", names));
-    }
-
-    public static List<Long> parseIds(String json) {
-        return json == null ? null : JSONUtil.toList(json, Long.class);
+        if (selected == null) selected = GUIDES;
+        if (new HashSet<>(selected).size() != selected.size() || !GUIDES.containsAll(selected)) throw new CustomException("请从公主、大海、军军中选择导游", 400);
+        List<String> ordered = new ArrayList<>();
+        for (String name : GUIDES) if (selected.contains(name)) ordered.add(name);
+        entity.setLeaderName(String.join("、", ordered));
+        // Account IDs no longer identify guides; clear any stale link.
+        entity.setGuideUserIds("[]");
     }
 }

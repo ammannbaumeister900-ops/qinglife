@@ -60,7 +60,8 @@ public class QlSessionServiceImpl extends ServicePlusImpl<QlSessionMapper, QlSes
         entity.setCapacity(entity.getCapacity() == null ? 50 : entity.getCapacity());
         entity.setStandardPrice(entity.getStandardPrice() == null ? new BigDecimal("3800") : entity.getStandardPrice());
         entity.setReturningPrice(entity.getReturningPrice() == null ? new BigDecimal("2500") : entity.getReturningPrice());
-        entity.setStatus(StrUtil.blankToDefault(entity.getStatus(), "draft"));
+        // New sessions follow the date-derived lifecycle; the admin form no longer sets a status.
+        entity.setStatus("open");
         entity.setRegistrationConfirmMode(StrUtil.blankToDefault(entity.getRegistrationConfirmMode(), "auto"));
         entity.setCreatedBy(operatorId);
         entity.setUpdatedBy(operatorId);
@@ -84,6 +85,8 @@ public class QlSessionServiceImpl extends ServicePlusImpl<QlSessionMapper, QlSes
         validateSettings(bo);
         QlSession entity = BeanUtil.toBean(bo, QlSession.class);
         settings.applyGuides(bo, entity, current);
+        // Editing hands the session back to the date-derived lifecycle; only a cancellation is kept.
+        entity.setStatus("cancelled".equals(current.getStatus()) ? "cancelled" : "open");
         entity.setCreatedAt(null);
         entity.setCreatedBy(null);
         entity.setUpdatedBy(operatorId);
@@ -98,8 +101,8 @@ public class QlSessionServiceImpl extends ServicePlusImpl<QlSessionMapper, QlSes
 
     private void present(QlSessionVo session) {
         session.setCoverUrl(com.yicai.common.utils.file.PublicMediaUpload.url(session.getCoverUrl()));
-        java.util.List<Long> ids = com.yicai.life.service.QlSessionSettings.parseIds(session.getGuideUserIds());
-        session.setGuideIds(ids == null ? null : ids.stream().map(String::valueOf).collect(java.util.stream.Collectors.toList()));
+        java.util.List<String> named = java.util.Arrays.asList(StrUtil.blankToDefault(session.getLeaderName(), "").split("[、,，\\s]+"));
+        session.setGuideNames(com.yicai.life.service.QlSessionSettings.GUIDES.stream().filter(named::contains).collect(java.util.stream.Collectors.toList()));
     }
 
     private void applyNewDefaults(QlSessionBo bo) {
