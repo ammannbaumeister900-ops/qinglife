@@ -1,12 +1,12 @@
 <template>
   <div class="app-container">
-    <el-form ref="queryForm" :model="queryParams" :inline="true" v-show="showSearch" label-width="68px">
+    <el-form v-show="showSearch" ref="queryForm" :model="queryParams" :inline="true" label-width="68px">
       <el-form-item label="期次" prop="sessionNumber"><el-input-number v-model="queryParams.sessionNumber" :min="1" :controls="false" placeholder="期次编号" size="small" /></el-form-item>
       <el-form-item label="名称" prop="name"><el-input v-model="queryParams.name" placeholder="期次名称" clearable size="small" @keyup.enter.native="handleQuery" /></el-form-item>
       <el-form-item label="状态" prop="status"><el-select v-model="queryParams.status" placeholder="全部" clearable size="small"><el-option v-for="item in statusOptions" :key="item.value" :label="item.label" :value="item.value" /></el-select></el-form-item>
       <el-form-item><el-button type="primary" icon="el-icon-search" size="mini" @click="handleQuery">搜索</el-button><el-button icon="el-icon-refresh" size="mini" @click="resetQuery">重置</el-button></el-form-item>
     </el-form>
-    <el-row :gutter="10" class="mb8"><el-col :span="1.5"><el-button type="primary" plain icon="el-icon-plus" size="mini" @click="handleAdd" v-hasPermi="['life:session:add']">新增期次</el-button></el-col><right-toolbar :showSearch.sync="showSearch" @queryTable="getList" /></el-row>
+    <el-row :gutter="10" class="mb8"><el-col :span="1.5"><el-button v-hasPermi="['life:session:add']" type="primary" plain icon="el-icon-plus" size="mini" @click="handleAdd">新增期次</el-button></el-col><right-toolbar :show-search.sync="showSearch" @queryTable="getList" /></el-row>
     <el-table v-loading="loading" :data="sessionList">
       <el-table-column label="期次" prop="sessionNumber" width="120"><template slot-scope="scope">第 {{ scope.row.sessionNumber }} 期</template></el-table-column>
       <el-table-column label="名称" prop="name" min-width="160" />
@@ -20,7 +20,7 @@
       <el-table-column label="老轻友价格" width="110"><template slot-scope="scope">¥{{ Number(scope.row.returningPrice || 0).toFixed(2) }}</template></el-table-column>
       <el-table-column label="确认方式" width="90"><template slot-scope="scope">{{ scope.row.registrationConfirmMode === 'auto' ? '自动确认' : '人工确认' }}</template></el-table-column>
       <el-table-column label="状态" width="90"><template slot-scope="scope"><el-tag size="mini" :type="statusType(scope.row.status)">{{ statusText(scope.row.status) }}</el-tag></template></el-table-column>
-      <el-table-column label="操作" width="235" fixed="right"><template slot-scope="scope"><el-button size="mini" type="text" icon="el-icon-edit" @click="handleUpdate(scope.row)" v-hasPermi="['life:session:edit']">编辑</el-button><el-button v-if="scope.row.status === 'open'" size="mini" type="text" @click="handleInvite(scope.row)" v-hasPermi="['life:session:edit']">生成邀请</el-button><el-button size="mini" type="text" @click="$router.push({ path: '/activityOperations/campReflection', query: { sessionId: scope.row.id } })" v-hasPermi="['life:reflection:list']">轻友心声</el-button></template></el-table-column>
+      <el-table-column label="操作" width="235" fixed="right"><template slot-scope="scope"><el-button v-hasPermi="['life:session:edit']" size="mini" type="text" icon="el-icon-edit" @click="handleUpdate(scope.row)">编辑</el-button><el-button v-if="scope.row.status === 'open'" v-hasPermi="['life:session:edit']" size="mini" type="text" @click="handleInvite(scope.row)">生成邀请</el-button><el-button v-hasPermi="['life:reflection:list']" size="mini" type="text" @click="$router.push({ path: '/activityOperations/campReflection', query: { sessionId: scope.row.id } })">轻友心声</el-button></template></el-table-column>
     </el-table>
     <pagination v-show="total > 0" :total="total" :page.sync="queryParams.pageNum" :limit.sync="queryParams.pageSize" @pagination="getList" />
     <el-dialog title="活动邀请海报" :visible.sync="posterOpen" width="520px" append-to-body>
@@ -52,8 +52,6 @@ export default {
       queryParams: { pageNum: 1, pageSize: 10, sessionNumber: undefined, name: undefined, status: undefined }
     }
   },
-  created() { this.getList() },
-  activated() { this.getList() },
   computed: {
     posterDate() {
       if (!this.posterSession) return ''
@@ -62,6 +60,8 @@ export default {
         : this.posterSession.startDate + ' 至 ' + this.posterSession.endDate
     }
   },
+  created() { this.getList() },
+  activated() { this.getList() },
   methods: {
     getList() { this.loading = true; listSession(this.queryParams).then(res => { this.sessionList = res.rows; this.total = res.total; this.loading = false }).catch(() => { this.loading = false }) },
     handleQuery() { this.queryParams.pageNum = 1; this.getList() }, resetQuery() { this.resetForm('queryForm'); this.handleQuery() },

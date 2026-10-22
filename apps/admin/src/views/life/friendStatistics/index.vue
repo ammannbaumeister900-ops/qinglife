@@ -4,7 +4,7 @@
       <el-radio-group v-model="preset" size="small" @change="applyPreset"><el-radio-button label="7">近7天</el-radio-button><el-radio-button label="30">近30天</el-radio-button><el-radio-button label="month">本月</el-radio-button><el-radio-button label="session">按期次</el-radio-button><el-radio-button label="custom">自定义</el-radio-button></el-radio-group>
       <el-date-picker v-if="preset==='custom'" v-model="range" type="daterange" value-format="yyyy-MM-dd" range-separator="至" start-placeholder="开始日期" end-placeholder="结束日期" size="small" @change="load" />
       <el-select v-if="preset==='session'" v-model="sessionId" filterable clearable size="small" placeholder="选择期次" style="width:300px" @change="applySession"><el-option v-for="item in sessions" :key="item.id" :value="item.id" :label="sessionLabel(item)" :disabled="!validSessionRange(item)" /></el-select>
-      <span v-if="preset==='session' && range.length===2" class="scope-note">{{range[0]}} 至 {{range[1]}} · 报名开始至课程结束</span>
+      <span v-if="preset==='session' && range.length===2" class="scope-note">{{ range[0] }} 至 {{ range[1] }} · 报名开始至课程结束</span>
       <span v-if="preset==='session' && !sessionId" class="scope-note">请选择期次；未设置报名开始日期的期次需先补齐设置</span>
       <span class="scope-note">登记相关指标按提交时间；新增轻友按建档时间。</span>
     </div>
